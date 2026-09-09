@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+credentials*.json
+
+# JavaScript
+node_modules/
+apps/web/dist/
+*.tsbuildinfo
+.pnpm-store/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+apps/api/dist/
+
+# Local data and caches
+.cache/
+data/cache/
+fixtures/public-data/private/
+*.log
+
+# Editors and OS
+.DS_Store
+.idea/
+*.swp
+
+# Google Cloud local state
+.gcloud/

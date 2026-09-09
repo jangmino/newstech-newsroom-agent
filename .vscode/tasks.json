@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "API: dev",
+      "type": "shell",
+      "command": "make dev-api",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Web: dev",
+      "type": "shell",
+      "command": "make dev-web",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: web + api",
+      "dependsOn": ["API: dev", "Web: dev"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "Check: all",
+      "type": "shell",
+      "command": "make check",
+      "problemMatcher": []
+    }
+  ]
+}
