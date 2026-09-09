@@ -7,7 +7,7 @@
 - [x] mock 질문 라우팅과 검토용 결과 계약
 - [x] 단일 Cloud Run 이미지 구조
 - [x] 의존성 설치와 전체 검증
-- [ ] GitHub 원격 저장소
+- [x] GitHub 원격 저장소
 
 ## M1 — Workshop flow
 
