@@ -1,14 +1,146 @@
+import re
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from newsroom_agent.models import AnalysisResponse, Brief, Evidence, QueryPlan
+from newsroom_agent.conditions import FIELD_OPTIONS, calculation_metadata, validate_conditions
+from newsroom_agent.models import (
+    AnalysisResponse,
+    Brief,
+    Evidence,
+    PlanResponse,
+    QueryConditions,
+    QueryPlan,
+    SourceName,
+)
 
 KOSIS_HINTS = ("고용", "실업", "인구", "물가", "지역", "청년", "통계")
 OPENDART_HINTS = ("기업", "회사", "매출", "영업이익", "당기순이익", "공시", "실적", "삼성전자")
 
 
+class InvalidConditions(ValueError):
+    def __init__(self, field_errors: dict[str, str]) -> None:
+        super().__init__("조회 전에 확인이 필요한 조건이 있습니다.")
+        self.field_errors = field_errors
+
+
 class MockOrchestrator:
     """Mock-first orchestrator used until provider contracts are verified."""
+
+    def plan(self, question: str) -> PlanResponse:
+        source = self._route(question)
+        reasons = {
+            "kosis": "지역·고용 통계는 KOSIS에서 확인합니다. 모의 실습은 청년 고용을 다룹니다.",
+            "opendart": "기업 실적은 OpenDART에서 확인합니다. 모의 실습은 삼성전자를 다룹니다.",
+            "undetermined": "기업공시와 국가통계 중 적합한 자료원을 정하기 어렵습니다.",
+        }
+        options = FIELD_OPTIONS.get(source, {})
+        values: dict[str, str] = {}
+        filters: dict[str, str] = {}
+        for field, choices in options.items():
+            matches = []
+            remaining = question
+            # Remove a longer name before checking nested names, while retaining
+            # separately mentioned targets as unresolved alternatives.
+            for choice in sorted(choices, key=len, reverse=True):
+                if choice in remaining:
+                    matches.append(choice)
+                    remaining = remaining.replace(choice, " ")
+            value = matches[0] if len(matches) == 1 else ""
+            if field in {"filters.frequency", "filters.report_type"}:
+                # Do not silently convert explicitly requested monthly/quarterly data.
+                value = "" if any(word in question for word in ("분기", "월간", "월별")) else "연간"
+            if field.startswith("filters."):
+                filters[field.removeprefix("filters.")] = value
+            else:
+                values[field] = value
+
+        periods = re.findall(r"(?<!\d)(\d{4})\s*년?\s*(?:-|~|–|부터)\s*(\d{4})(?!\d)", question)
+        values["period"] = "-".join(periods[0]) if len(periods) == 1 else ""
+        conditions = QueryConditions(
+            selected_source=source,
+            entity=values.get("entity", ""),
+            metric=values.get("metric", ""),
+            period=values["period"],
+            comparison=values.get("comparison", ""),
+            filters=filters,
+        )
+        errors = validate_conditions(conditions)
+        query_plan = QueryPlan(
+            **conditions.model_dump(),
+            selection_reason=reasons[source],
+            clarification_required=bool(errors),
+            clarification_questions=list(errors.values()),
+        )
+        return PlanResponse(
+            request_id=str(uuid4()),
+            question=question,
+            query_plan=query_plan,
+            required_fields=list(errors),
+            field_options=options,
+        )
+
+    def execute(self, question: str, conditions: QueryConditions) -> AnalysisResponse:
+        plan = self.plan(question)
+        errors = validate_conditions(conditions)
+        if conditions.selected_source != plan.query_plan.selected_source:
+            errors["selected_source"] = "자료원과 질문이 달라졌습니다. 질문을 다시 해석해 주세요."
+        if errors:
+            raise InvalidConditions(errors)
+
+        unit, formula = calculation_metadata(conditions)
+        query_plan = QueryPlan(
+            **conditions.model_dump(),
+            selection_reason=plan.query_plan.selection_reason,
+        )
+        parameters = {
+            "selected_source": conditions.selected_source,
+            "entity": conditions.entity,
+            "metric": conditions.metric,
+            "period": conditions.period,
+            "comparison": conditions.comparison,
+            **{f"filters.{key}": value for key, value in conditions.filters.items()},
+        }
+        return AnalysisResponse(
+            request_id=str(uuid4()),
+            question=question,
+            query_plan=query_plan,
+            evidence=Evidence(
+                source_name="KOSIS" if conditions.selected_source == "kosis" else "OpenDART",
+                table_or_report="승인 조건에 따른 모의 자료 — 실제 연결 전",
+                query_parameters=parameters,
+                retrieved_at=self._now(),
+                unit=unit,
+                raw_values=[],
+                formula=formula,
+                caveats=[
+                    "실제 공공데이터를 조회하지 않았으며 원자료 숫자와 계산 결과가 없습니다.",
+                    "표시된 단위와 계산식은 승인 조건에 따른 모의 조회 설계입니다.",
+                    "시각은 실제 조회 시점이 아닌 모의 자료 생성 시각입니다.",
+                    "증감률은 시작 연도 값이 0이면 계산할 수 없습니다.",
+                ],
+                data_mode="mock",
+            ),
+            brief=Brief(
+                summary=(f"{conditions.entity}의 {conditions.metric} 비교 조건을 확인했습니다."),
+                verified_facts=[
+                    f"참가자가 승인한 조건: {label} — {value}"
+                    for label, value in [
+                        ("대상", conditions.entity),
+                        ("지표", conditions.metric),
+                        ("기간", conditions.period),
+                        ("비교 기준", conditions.comparison),
+                    ]
+                ],
+                interpretation_limits=[
+                    "조건 승인은 결과의 검증 완료를 뜻하지 않습니다.",
+                    "원자료를 조회하지 않았으므로 지역 순위나 실적 변화는 단정할 수 없습니다.",
+                ],
+                follow_up_questions=[
+                    "선택한 대상과 지표가 취재 질문에 적합한가?",
+                    "원자료의 정의·단위와 비교 기간의 일관성을 확인했는가?",
+                ],
+            ),
+        )
 
     def analyze(self, question: str) -> AnalysisResponse:
         source = self._route(question)
@@ -19,7 +151,7 @@ class MockOrchestrator:
         return self._undetermined_response(question)
 
     @staticmethod
-    def _route(question: str) -> str:
+    def _route(question: str) -> SourceName:
         kosis_score = sum(hint in question for hint in KOSIS_HINTS)
         opendart_score = sum(hint in question for hint in OPENDART_HINTS)
         if kosis_score > opendart_score:

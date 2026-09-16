@@ -9,7 +9,7 @@
 * { box-sizing: border-box; }
 
 body { margin: 0; min-width: 320px; min-height: 100vh; }
-button, textarea { font: inherit; }
+button, textarea, input, select { font: inherit; }
 
 .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
@@ -50,11 +50,29 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .brief-card h3 { margin: 22px 0 6px; font-size: 1rem; }
 .review-status { margin-top: 10px; padding: 7px 11px; color: #8a3232; background: #fde4e4; }
 
+.conditions-card, .evidence-card { grid-column: 1 / -1; }
+.condition-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.condition-field { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.condition-field input, .condition-field select { width: 100%; min-height: 46px; border: 1px solid #b9c6d8; border-radius: 12px; padding: 10px 12px; color: inherit; background: #fbfcfe; }
+.condition-field input:focus, .condition-field select:focus { outline: 3px solid rgba(39, 98, 217, 0.16); border-color: #2762d9; }
+.condition-field small { color: #5d6b7f; overflow-wrap: anywhere; }
+.modified { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 6px; color: #174eaf; background: #eaf1ff; font-size: 0.75rem; }
+.card .condition-status { color: #174eaf; }
+.card .field-help { margin: 2px 0 10px; font-size: 0.9rem; }
+.request-error { padding: 14px 18px; border-radius: 12px; background: #fde4e4; line-height: 1.6; }
+.evidence-card ul { padding-left: 20px; line-height: 1.7; }
+.evidence-card dl div { grid-template-columns: 140px 1fr; }
+.evidence-card dt { word-break: keep-all; }
+.approved-conditions { margin-bottom: 24px; }
+.primary:disabled { cursor: not-allowed; }
+
 @media (max-width: 760px) {
   .shell { width: min(100% - 20px, 680px); padding-top: 20px; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .question-panel, .card { padding: 20px; }
   .result-grid { grid-template-columns: 1fr; }
+  .condition-fields { grid-template-columns: 1fr; }
+  .evidence-card dl div { grid-template-columns: 100px minmax(0, 1fr); }
   .brief-card { grid-column: auto; }
   .primary { justify-self: stretch; }
 }

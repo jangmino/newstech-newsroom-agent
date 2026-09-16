@@ -1,9 +1,126 @@
 # API
 
-FastAPI backend for the workshop application. Run from this directory with:
+FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-api`로 실행합니다.
+일반 로컬 실행은 기존 설정에 따라 `.env`를 읽습니다. 자동 테스트는 앱을 import하기 전에
+키가 없는 테스트 설정을 주입하며 `.env`와 실제 자격증명을 읽지 않습니다.
+외부 네트워크 연결도 테스트에서 차단합니다.
 
-```bash
-uv run uvicorn newsroom_agent.main:app --reload --port 8000
+## 참가자 흐름
+
+```text
+질문 → POST /api/v1/plan → 조건 편집·확인
+     → ‘이 조건으로 조회’ → POST /api/v1/execute → 모의 근거·검토용 브리핑
 ```
 
-Live providers remain disabled until `LIVE_API_ENABLED=true` and the required backend-only credentials are present.
+새 API는 `mock`만 받습니다. `LIVE_API_ENABLED` 설정과 관계없이 `live`, `snapshot`은 422입니다.
+Gemini·OpenDART·KOSIS 공급자를 호출하지 않으며, 데이터나 승인 이력을 저장하지 않습니다.
+
+### POST /api/v1/plan
+
+요청:
+
+```json
+{"question":"최근 5년 동안 청년 고용이 가장 좋아진 지역은 어디인가?","mode":"mock"}
+```
+
+응답은 `request_id`, `question`, `query_plan`, `required_fields`, `field_options`입니다.
+`evidence`와 `brief`는 포함하지 않고, 모의 결과도 생성하지 않습니다.
+
+- `query_plan`: 기존 계획 구조. 질문에서 명확하게 찾은 조건만 채웁니다.
+- `required_fields`: 해결할 조건의 경로. 예: `metric`, `period`, `filters.age_range`.
+- `field_options`: 자료원별 지원 선택값. 프런트엔드는 이 목록으로 입력란을 구성합니다.
+- `clarification_required`와 `clarification_questions`: 계획 당시의 미해결 조건과 한국어 안내.
+- 자료원이 `undetermined`이면 질문을 구체화해야 합니다.
+- 키워드와 명시적인 조건 문자열만 해석하는 mock입니다. 자연어 전체를 이해하지 않습니다.
+- ‘최근 5년’, ‘실적 악화’, 복수 지표·기간 등은 임의로 하나를 정하지 않습니다.
+- 이번 모의 실습의 주기는 연간으로 제시합니다. 질문에서 분기·월간을 명시했다면
+  해당 조건을 비워 두고 지원하는 연간 기준을 참가자가 직접 확인하게 합니다.
+
+### POST /api/v1/execute
+
+요청:
+
+```json
+{
+  "question": "최근 5년 동안 청년 고용이 가장 좋아진 지역은 어디인가?",
+  "mode": "mock",
+  "approved": true,
+  "conditions": {
+    "selected_source": "kosis",
+    "entity": "수도권 시·도",
+    "metric": "고용률",
+    "period": "2020-2024",
+    "comparison": "증감 폭",
+    "filters": {"age_range": "15-29세", "frequency": "연간"}
+  }
+}
+```
+
+`approved`는 JSON boolean `true`만 허용합니다. 생략, `false`, 문자열, 숫자는 거부합니다.
+서버는 질문과 자료원의 일치, 필수값, 지원 선택값, 기간, 추가 조건을 다시 검증합니다.
+`clarification_required`, `selection_reason` 등 서버 계산 필드를 요청에 넣을 수 없습니다.
+
+| 조건 | KOSIS | OpenDART |
+|---|---|---|
+| 대상 | 전국 시·도 / 수도권 시·도 / 비수도권 시·도 | 삼성전자 |
+| 지표 | 고용률 / 취업자 수 | 매출액 / 영업이익 |
+| 비교 기준 | 증감 폭 / 증감률 | 증감 폭 / 증감률 |
+| 추가 조건 | `age_range`: 15-29세 / 15-34세, `frequency`: 연간 | `statement_basis`: 연결 / 별도, `report_type`: 연간 |
+| 기간 | `YYYY-YYYY`, 1900 ≤ 시작 < 종료 ≤ 2100 | 동일 |
+
+이 선택 범위는 **UI 실습을 위한 모의 조건**입니다. 실제 통계표·공시의 지원 범위나 자료
+존재를 보증하지 않습니다. 비교는 시작·종료 연도의 연간 값을 대상으로 설계합니다.
+
+성공 응답은 기존 `AnalysisResponse` 구조입니다.
+
+- `query_plan`: 검증된 승인 조건. `clarification_required=false`이며 미해결 질문은 없습니다.
+- `evidence.query_parameters`: 같은 조건을 문자열 사전으로 표시합니다.
+  필터 키는 `filters.age_range`처럼 경로를 유지합니다.
+- 단위와 계산식은 승인된 지표·비교 기준에 맞춥니다. 고용률의 증감 폭은 `%p`,
+  상대 증감률은 `%`입니다.
+- `raw_values=[]`: 실제 원자료나 계산 결과를 추가하지 않습니다.
+- `retrieved_at`: 모의 결과 생성 시각이며 화면에도 그렇게 표시합니다.
+- `data_mode=mock`, `verification_status=review_required`를 유지합니다.
+- 브리핑의 확인 내용은 승인된 조건입니다. 실제 수치가 검증된 사실인 것처럼 표현하지 않습니다.
+
+요청 ID는 요청 식별자입니다. 서버에 계획 세션을 저장하지 않으며, 승인 조건 전체를 매번
+전달합니다. 승인 플래그는 참가자 흐름을 위한 계약이며 인증·감사 증명 기능은 아닙니다.
+
+### 오류
+
+새 API의 입력 오류는 422와 다음 구조를 반환합니다. 형식 오류는 `invalid_request`,
+조건 검증 오류는 `invalid_conditions`입니다. 원래 입력값이나 내부 예외는 반환하지 않습니다.
+
+```json
+{
+  "detail": {
+    "code": "invalid_conditions",
+    "message": "조회 전에 확인이 필요한 조건이 있습니다.",
+    "field_errors": {"period": "기간을 시작 연도-종료 연도로 입력해 주세요. 예: 2020-2024."}
+  }
+}
+```
+
+질문은 공백 제거 후 3~1,000자입니다. 클라이언트는 실패 시 입력을 유지하고 한국어로 안내합니다.
+
+## 기존 POST /api/v1/analyze 호환성
+
+기존 요청·응답과 동작을 유지하는 이전 통합 실행 API입니다. 승인 없이 기존 모의 결과를
+반환하며, 새 참가자 UI는 이 경로를 사용하지 않습니다. 승인 필수 규칙은 새 UI와
+`/execute`에 적용됩니다. 기존 live 비활성화 오류도 유지합니다.
+
+## 검증
+
+저장소 루트에서 `make test`, `make typecheck`, `make check`를 실행합니다.
+`tests/conftest.py`는 앱 import 전 테스트 설정을 주입하고 실제 네트워크 연결을 막습니다.
+
+브라우저 동작 확인:
+
+1. 두 예시 질문 각각에서 해석 직후 자료·브리핑이 없는지 확인합니다.
+2. 대상·지표·기간·비교 기준과 추가 조건을 입력합니다. 미해결 안내와 조회 버튼 상태를 확인합니다.
+3. 변경된 항목의 ‘수정됨’과 처음 제시된 값을 확인합니다.
+4. 조회 버튼을 눌러 승인 조건과 결과의 조회 조건이 같은지 확인합니다.
+5. 질문·조건 변경 시 이전 결과가 사라지고 재승인해야 하는지 확인합니다.
+6. 자료원이 불명확한 질문, 잘못된 기간, 요청 실패와 재시도를 확인합니다.
+7. 응답 지연 중 질문·조건을 변경해 이전 응답이 현재 화면에 반영되지 않는지 확인합니다.
+8. 좁은 화면과 키보드 조작으로 조건 입력·승인이 가능한지 확인합니다.
