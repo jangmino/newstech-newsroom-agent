@@ -450,6 +450,35 @@ def test_missing_and_zero_values_are_not_fabricated_or_silently_dropped():
     assert "1위" not in all_missing["brief"]["summary"]
 
 
+def test_workshop_recovery_changes_period_without_repairing_original_missing_values():
+    body = approved_request()
+    body["conditions"].update({"metric": "취업자 수", "comparison": "증감률"})
+    body["conditions"]["filters"]["age_range"] = "15-34세"
+    original = client.post("/api/v1/execute", json=body).json()
+    assert [row["status"] for row in original["calculation"]["rows"]].count("calculated") == 1
+
+    body["conditions"]["period"] = "2021-2023"
+    response = client.post("/api/v1/execute", json=body)
+    assert response.status_code == 200
+    recovered = response.json()
+    calculation = recovered["calculation"]
+    assert len(calculation["rows"]) == 4
+    assert all(row["status"] == "calculated" for row in calculation["rows"])
+    assert calculation["warnings"] == []
+    row_a = next(row for row in calculation["rows"] if row["region"] == "가상 지역 A")
+    assert (row_a["start_value"], row_a["end_value"], row_a["change"]) == ("10", "14", "40.00")
+    assert {value["year"] for value in recovered["evidence"]["raw_values"]} == {2021, 2023}
+    assert recovered["evidence"]["query_parameters"]["period"] == "2021-2023"
+    assert recovered["query_plan"]["period"] == "2021-2023"
+    assert recovered["evidence"]["data_mode"] == "mock"
+    assert recovered["brief"]["verification_status"] == "review_required"
+
+    body["conditions"]["period"] = "2020-2024"
+    repeated = client.post("/api/v1/execute", json=body).json()
+    assert repeated["calculation"] == original["calculation"]
+    assert repeated["evidence"]["raw_values"] == original["evidence"]["raw_values"]
+
+
 def test_synthetic_period_is_bounded_without_changing_opendart_conditions():
     body = approved_request()
     body["conditions"]["period"] = "2019-2024"

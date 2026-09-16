@@ -124,6 +124,21 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .condition-comparison ul { padding-left: 20px; line-height: 1.7; }
 .region-inputs { display: block; margin-top: 6px; color: #506077; font-size: 0.9rem; }
 
+.workshop-guide { margin-top: 18px; }
+.guide-options { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.guide-options button, .secondary { border: 1px solid #b9c6d8; border-radius: 10px; padding: 10px 14px; background: #f7f9fc; color: #28415f; cursor: pointer; font-weight: 700; }
+.guide-options button[aria-pressed="true"] { color: #174eaf; border-color: #2762d9; background: #eaf1ff; }
+.guide-options button:focus-visible, .secondary:focus-visible, .guide-close:focus-visible { outline: 3px solid rgba(39, 98, 217, 0.35); outline-offset: 3px; }
+.secondary:disabled { opacity: 0.55; cursor: not-allowed; }
+.guide-active { margin-top: 22px; border-top: 1px solid #e7ecf3; padding-top: 12px; }
+.guide-active ol { padding-left: 22px; line-height: 1.8; }
+.guide-active .guide-status { padding: 12px 16px; background: #eaf1ff; border-radius: 12px; color: #174eaf; }
+.guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 14px 0; }
+.guide-actions .evidence-link { margin: 0; }
+.guide-recovery { padding: 16px; margin-bottom: 16px; border: 1px solid #dce4ee; border-radius: 12px; }
+.guide-recovery p { margin: 0 0 12px; }
+.guide-close { border: 0; padding: 8px 0; color: #506077; background: transparent; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
 @media (max-width: 760px) {
   .shell { width: min(100% - 20px, 680px); padding-top: 20px; }
   .topbar { align-items: flex-start; flex-direction: column; }

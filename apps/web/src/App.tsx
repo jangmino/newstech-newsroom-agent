@@ -6,12 +6,14 @@ import { ReviewSession } from "./ReviewSession";
 import { CalculationTable } from "./CalculationTable";
 import { ConditionComparison } from "./ConditionComparison";
 import { canCompareResults } from "./resultComparison";
+import { WorkshopGuide } from "./WorkshopGuide";
+import { workshopQuestion, type WorkshopScenarioId } from "./workshopScenarios";
 import type {
   ApiErrorDetail, ExecuteRequest, ExecutionResponse, PlanRequest, PlanResponse, QueryConditions,
 } from "./types";
 
 const samples = [
-  "최근 5년 동안 청년 고용이 가장 좋아진 지역은 어디인가?",
+  workshopQuestion,
   "삼성전자의 최근 실적은 악화됐는가?",
 ];
 
@@ -50,6 +52,7 @@ function App() {
   const lastSuccessfulResult = useRef<ExecutionResponse | null>(null);
   const [busy, setBusy] = useState<"plan" | "execute" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [guide, setGuide] = useState<WorkshopScenarioId | null>(null);
   const revision = useRef(0);
   const controller = useRef<AbortController | null>(null);
 
@@ -73,6 +76,18 @@ function App() {
     setQuestion(value);
     setPlan(null);
     setDraft(null);
+    setGuide(null);
+  }
+
+  function startGuide(id: WorkshopScenarioId) {
+    changeQuestion(workshopQuestion);
+    setGuide(id);
+  }
+
+  function applyGuideConditions(conditions: QueryConditions) {
+    if (!guide || busy || plan?.query_plan.selected_source !== "kosis" || !draft) return;
+    invalidate();
+    setDraft({ ...conditions, filters: { ...conditions.filters } });
   }
 
   function changeCondition(field: string, value: string) {
@@ -187,6 +202,8 @@ function App() {
         </form>
       </section>
 
+      <WorkshopGuide selected={guide} plan={plan} draft={draft} result={result} busy={busy} error={error}
+        onStart={startGuide} onClose={() => setGuide(null)} onApply={applyGuideConditions} />
       {error && <p className="error request-error" role="alert">{error}</p>}
       {!plan || !draft ? (
         <section className="empty-state" role="status">
