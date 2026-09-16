@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from newsroom_agent.calculations import CalculationDataError
 from newsroom_agent.config import get_settings
+from newsroom_agent.live_financials import execute_financials
 from newsroom_agent.models import (
     AnalysisRequest,
     AnalysisResponse,
@@ -20,8 +21,10 @@ from newsroom_agent.models import (
     PlanResponse,
 )
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
-from newsroom_agent.planning import InvalidPlannerOutput
+from newsroom_agent.planning import InvalidPlannerOutput, create_plan
 from newsroom_agent.providers.mock_planner import MockQuestionPlanner
+from newsroom_agent.providers.opendart import OpenDartClient
+from newsroom_agent.providers.opendart_financials import OpenDartError
 from newsroom_agent.providers.planner import (
     PlannerConfigurationError,
     PlannerDisabled,
@@ -50,6 +53,7 @@ def health() -> dict[str, str | bool]:
         "public_data_mode": settings.public_data_mode,
         "live_api_enabled": settings.live_api_enabled,
         "gemini_planner_enabled": settings.gemini_planner_enabled and settings.live_api_enabled,
+        "opendart_enabled": opendart_enabled(),
     }
 
 
@@ -70,7 +74,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
         return await request_validation_exception_handler(request, exc)
     messages = {
         "question": "질문을 3자 이상 1,000자 이하로 입력해 주세요.",
-        "mode": "이번 실습에서는 모의 자료 모드만 사용할 수 있습니다.",
+        "mode": "모의 자료 또는 OpenDART 실제 자료 모드를 선택해 주세요.",
         "approved": "조건을 확인한 뒤 ‘이 조건으로 조회’를 눌러 주세요.",
         "interpretation_method": "모의 규칙 또는 Gemini 중 질문 해석 방식을 선택해 주세요.",
     }
@@ -138,7 +142,9 @@ def plan(
     request: PlanRequest, planner: Annotated[QuestionPlanner, Depends(get_question_planner)],
 ) -> PlanResponse:
     try:
-        result = MockOrchestrator(planner).plan(request.question)
+        if request.mode == "live":
+            require_opendart()
+        result = create_plan(request.question, planner, request.mode)
         result.interpretation_method = request.interpretation_method
         result.interpretation_model = (
             settings.gemini_model if request.interpretation_method == "gemini" else None
@@ -189,9 +195,19 @@ def plan(
 
 
 @app.post("/api/v1/execute", response_model=ExecutionResponse)
-def execute(request: ExecuteRequest) -> ExecutionResponse:
+async def execute(request: ExecuteRequest) -> ExecutionResponse:
     try:
+        if request.mode == "live":
+            require_opendart()
+            return await execute_financials(request.question, request.conditions, lambda: (
+                OpenDartClient(settings.opendart_api_key, enabled=True)
+            ))
         return MockOrchestrator().execute(request.question, request.conditions)
+    except OpenDartError as exc:
+        raise HTTPException(
+            status_code=429 if exc.code == "rate_limited" else 503,
+            detail={"code": f"opendart_{exc.code}", "message": str(exc), "field_errors": {}},
+        ) from None
     except InvalidConditions as exc:
         raise HTTPException(
             status_code=422,
@@ -205,11 +221,28 @@ def execute(request: ExecuteRequest) -> ExecutionResponse:
         raise HTTPException(
             status_code=503,
             detail={
-                "code": "invalid_mock_data",
-                "message": "가상 자료의 숫자나 단위를 검증하지 못해 계산을 중단했습니다.",
+                "code": "invalid_live_data" if request.mode == "live" else "invalid_mock_data",
+                "message": ("자료의 숫자나 단위를 검증하지 못해 계산을 중단했습니다."
+                            if request.mode == "live" else
+                            "가상 자료의 숫자나 단위를 검증하지 못해 계산을 중단했습니다."),
                 "field_errors": {},
             },
         ) from exc
+
+
+def opendart_enabled() -> bool:
+    return (settings.live_api_enabled and settings.public_data_mode == "live"
+            and settings.opendart_enabled)
+
+
+def require_opendart() -> None:
+    code = "disabled" if not opendart_enabled() else (
+        "configuration" if not settings.opendart_api_key.strip() else None
+    )
+    if code:
+        raise HTTPException(status_code=503, detail={
+            "code": f"opendart_{code}", "message": str(OpenDartError(code)), "field_errors": {},
+        })
 
 
 static_dir = Path("/app/static")

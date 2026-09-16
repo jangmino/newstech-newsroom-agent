@@ -28,7 +28,7 @@ class QuestionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     question: str = Field(min_length=3, max_length=1000)
-    mode: Literal["mock"] = "mock"
+    mode: Literal["mock", "live"] = "mock"
 
 
 class PlanRequest(QuestionRequest):
@@ -55,6 +55,7 @@ class PlanResponse(BaseModel):
     available_years: list[int] = Field(default_factory=list)
     interpretation_method: InterpretationMethod = "mock_rules"
     interpretation_model: str | None = None
+    data_mode: Literal["mock", "live"] = "mock"
 
 
 class ExecuteRequest(QuestionRequest):
@@ -126,6 +127,21 @@ class CalculationResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class FinancialCalculation(BaseModel):
+    data_origin: Literal["opendart"] = "opendart"
+    start_year: int
+    end_year: int
+    start_value: str
+    end_value: str
+    input_unit: Literal["원"] = "원"
+    result_unit: Literal["원", "%"]
+    change: str | None
+    decimal_places: Literal[0, 2]
+    status: Literal["calculated", "zero_baseline"]
+    reason: str | None = None
+
+
 class ExecutionResponse(AnalysisResponse):
     general_response: GeneralResponseExample
     calculation: CalculationResult | None = None
+    financial_calculation: FinancialCalculation | None = None

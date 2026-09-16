@@ -1,4 +1,4 @@
-"""Opt-in OpenDART transport. Not yet wired to participant API routes."""
+"""Opt-in OpenDART transport for approved financial queries."""
 
 import asyncio
 import json

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, localcontext
 
-from newsroom_agent.models import CalculationRow
+from newsroom_agent.models import CalculationRow, FinancialCalculation
 
 
 class CalculationDataError(ValueError):
@@ -17,6 +17,36 @@ class ValuePair:
     end_value: str | None
     start_unit: str
     end_unit: str
+
+
+def financial_change(
+    pair: ValuePair, start_year: int, end_year: int, comparison: str,
+) -> FinancialCalculation:
+    """Exact integer KRW difference; percentage rounded only at the display boundary."""
+    if pair.start_unit != "원" or pair.end_unit != "원" or comparison not in ("증감 폭", "증감률"):
+        raise CalculationDataError("매출액의 단위 또는 비교 기준을 확인해 주세요.")
+    start, end = _number(pair.start_value, "원"), _number(pair.end_value, "원")
+    if any(value is None or value != value.to_integral_value() or value >= 10**30
+           for value in (start, end)):
+        raise CalculationDataError("원 단위의 매출액이 없거나 유효한 정수가 아닙니다.")
+    relative = comparison == "증감률"
+    result = FinancialCalculation(
+        start_year=start_year, end_year=end_year,
+        start_value=format(start, "f"), end_value=format(end, "f"),
+        result_unit="%" if relative else "원", decimal_places=2 if relative else 0,
+        change=None, status="calculated",
+    )
+    if relative and start == 0:
+        result.status = "zero_baseline"
+        result.reason = "시작 연도 매출액이 0이므로 증감률을 계산할 수 없습니다."
+        return result
+    with localcontext() as context:
+        context.prec = 80
+        change = end - start
+        if relative:
+            change = (change / start * 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        result.change = format(abs(change) if change == 0 else change, ".2f" if relative else ".0f")
+    return result
 
 
 def _number(value: str | None, unit: str) -> Decimal | None:

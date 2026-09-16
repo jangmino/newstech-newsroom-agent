@@ -10,6 +10,7 @@ export function ReviewSession({ result, children }: {
   children: ReactNode;
 }) {
   const [checked, setChecked] = useState<ReviewItem[]>([]);
+  const live = result.evidence.data_mode === "live";
   const items: { id: ReviewItem; title: string; description: string }[] = [
     {
       id: "conditions", title: "승인된 조회 조건",
@@ -17,11 +18,11 @@ export function ReviewSession({ result, children }: {
     },
     {
       id: "source", title: "자료의 출처와 시각",
-      description: "공식 자료를 조회하지 않은 모의 결과이며, 표시된 시각이 공식 자료 조회 시각이 아님을 확인했습니다.",
+      description: live ? "공시 원문·접수번호·연도별 실제 조회 시각을 확인했습니다." : "공식 자료를 조회하지 않은 모의 결과이며, 표시된 시각이 공식 자료 조회 시각이 아님을 확인했습니다.",
     },
     {
       id: "calculation", title: "원자료와 계산 근거",
-      description: result.calculation
+      description: live ? "공시 매출액·원 단위·계산식과 비교 결과를 확인했습니다." : result.calculation
         ? "가상 입력값·단위·계산식·순위와 계산 불가 여부를 확인했습니다."
         : "원자료 숫자와 계산 결과가 없으며, 표시된 계산식은 조회 설계임을 확인했습니다.",
     },
@@ -66,7 +67,7 @@ export function ReviewSession({ result, children }: {
         <p id="review-disclaimer" className="notice">
           {complete && <strong>실습 검토 항목을 모두 확인했습니다. </strong>}
           이 표시는 참가자가 실습 항목을 확인했다는 뜻입니다. 사실 검증 완료나 기사 사용 승인이 아닙니다.
-          가상 자료와 모의 응답은 실제 취재 근거로 사용할 수 없습니다.
+          {live ? "공식 공시도 원문 대조와 해석 검토가 필요하며, 일반 응답 예시는 취재 근거가 아닙니다." : "가상 자료와 모의 응답은 실제 취재 근거로 사용할 수 없습니다."}
         </p>
         <p id="review-reset-help" className="field-help">검토 표시는 현재 화면에만 유지됩니다. 질문·조건 변경, 다시 분석·조회, 새로고침 시 초기화됩니다.</p>
         <a className="evidence-link" href="#evidence-title">자료와 계산 근거 다시 보기</a>

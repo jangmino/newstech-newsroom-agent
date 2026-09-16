@@ -1,0 +1,62 @@
+{
+  "observations": [
+    {
+      "year": 2022,
+      "amount": "302231360000000",
+      "raw_amount": "302231360000000",
+      "account_id": "ifrs-full_Revenue",
+      "account_name": "수익(매출액)",
+      "statement_type": "IS",
+      "receipt_no": "20230307000542",
+      "retrieved_at": "2026-09-16 11:44:05.542918+00:00",
+      "corp_code": "00126380",
+      "report_code": "11011",
+      "statement_basis": "CFS",
+      "currency": "KRW",
+      "unit": "원",
+      "verification": {
+        "filing_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20230307000542",
+        "statement_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20230307000542&dcmNo=9040011&eleId=19&offset=305544&length=101364&dtd=dart3.xsd",
+        "statement_title": "연결 손익계산서",
+        "original_unit": "백만원",
+        "original_amount": "302231360",
+        "conversion_to_krw": "× 1000000",
+        "matches_api": true
+      }
+    },
+    {
+      "year": 2024,
+      "amount": "300870903000000",
+      "raw_amount": "300870903000000",
+      "account_id": "ifrs-full_Revenue",
+      "account_name": "매출액",
+      "statement_type": "IS",
+      "receipt_no": "20250311001085",
+      "retrieved_at": "2026-09-16 11:44:05.620401+00:00",
+      "corp_code": "00126380",
+      "report_code": "11011",
+      "statement_basis": "CFS",
+      "currency": "KRW",
+      "unit": "원",
+      "verification": {
+        "filing_url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250311001085",
+        "statement_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20250311001085&dcmNo=10392692&eleId=21&offset=374789&length=20043&dtd=dart4.xsd",
+        "statement_title": "연결 손익계산서",
+        "original_unit": "백만원",
+        "original_amount": "300870903",
+        "conversion_to_krw": "× 1000000",
+        "matches_api": true
+      }
+    }
+  ],
+  "caveats": [
+    "각 사업연도 보고서의 당기값입니다. 최신 보고서의 재작성 비교값과 다를 수 있습니다.",
+    "정정 공시로 값이 바뀔 수 있습니다. 접수번호와 공시 원문을 함께 확인해 주세요.",
+    "공식 API 조회와 조건 확인은 사실 검증 완료나 기사 사용 승인이 아닙니다."
+  ],
+  "fixture_kind": "normalized_public_excerpt",
+  "verified_by": "Codex: authenticated API retrieval and DART filing comparison; human review still required",
+  "verified_at": "2026-09-16",
+  "usage": "Offline regression tests only; not an application snapshot fallback",
+  "terms_url": "https://opendart.fss.or.kr/intro/terms.do"
+}

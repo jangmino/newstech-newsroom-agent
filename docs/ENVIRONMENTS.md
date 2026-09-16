@@ -29,7 +29,7 @@ GEMINI_PLANNER_ENABLED=true LIVE_API_ENABLED=true PUBLIC_DATA_MODE=mock GEMINI_A
 
 이 실행 설정은 `.env`에 저장되지 않습니다. 서버를 종료하고 일반 `make dev-api`로
 시작하면 기존 파일 설정이 다시 적용됩니다. `LIVE_API_ENABLED=true`만으로 공공데이터
-mock을 해제하는 것은 아닙니다. 현재 실제 호출은 명시적으로 선택한 Gemini 해석뿐입니다.
+mock을 해제하는 것은 아닙니다. Gemini 활성화만으로 OpenDART를 호출하지 않습니다. 아래의 별도 자료 설정이 필요합니다.
 
 ```text
 PUBLIC_DATA_MODE=mock
@@ -49,7 +49,7 @@ MAX_CONCURRENT_REQUESTS=8
 실제 Vertex 인증·리전·모델 접근을 검증하지 않았습니다.
 
 화면의 기본값은 여전히 ‘모의 규칙’입니다. 참가자가 ‘Gemini · 실제 모델’을 선택하면
-질문의 외부 전송을 안내하고 ‘질문 분석’을 누를 때만 요청합니다. 데이터와 브리핑은
+질문의 외부 전송을 안내하고 ‘질문 분석’을 누를 때만 요청합니다. 위 설정에서는 자료가
 mock이며 OpenDART·KOSIS는 호출하지 않습니다. 다시 분석할 때마다 모델 요청이 한 번
 추가되고, 조건 편집·조회 승인은 Gemini를 호출하지 않습니다. 기본 한도는 프로세스당
 분당 30회·동시 8회이며 서버 재시작 시 초기화됩니다. 별도의 인증 요청은 SDK 인증 방식에
@@ -64,6 +64,34 @@ mock이며 OpenDART·KOSIS는 호출하지 않습니다. 다시 분석할 때마
 
 개발 기본값으로 돌아갈 때는 `GEMINI_PLANNER_ENABLED=false`, `LIVE_API_ENABLED=false`로
 바꾸고 서버를 다시 시작합니다. 이 문서의 값은 활성화 안내이며 저장소가 자동 적용하지 않습니다.
+
+## OpenDART 실제 자료 활성화
+
+기본값은 비활성화입니다. 로컬 `.env`에 기존 `OPENDART_API_KEY`를 유지하고 다음
+공개 설정을 적용한 뒤 백엔드를 다시 시작합니다. 키를 출력하거나 프론트엔드에 넣지 않습니다.
+
+```text
+LIVE_API_ENABLED=true
+PUBLIC_DATA_MODE=live
+OPENDART_ENABLED=true
+```
+
+세 설정을 모두 만족해야 실제 자료 요청을 허용합니다. `PUBLIC_DATA_MODE=live`는
+서버의 허용 설정이며 화면의 기본 선택을 바꾸거나 KOSIS를 활성화하지 않습니다.
+화면의 ‘조회 자료’에서 ‘OpenDART 실제 자료’를 선택하고, 삼성전자 2022-2024년
+연간 연결 매출액 조건을 분석·승인해야 실제 요청합니다. 질문 해석은 모의 규칙과
+Gemini 중 독립적으로 선택합니다. `/health`의 `opendart_enabled`는 설정 허용 여부이며
+키 유효성·공급자 가용성 보증이 아닙니다.
+
+승인 한 번당 두 연도에 각각 한 번, 최대 두 번 순차 조회합니다. 요청별 20초 제한이며
+첫 오류에서 중단합니다. 자동 재시도·mock/snapshot 대체는 없습니다. 조건 재승인과
+동일 조건 재조회도 다시 두 번 요청합니다. 화면 취소가 이미 보낸 요청을 되돌리지는 않습니다.
+개발용 기능으로 캐시·행사 전체 호출 제한·인증은 M3 범위입니다. 외부 배포는 하지 않습니다.
+
+이번 개발 환경에는 사용자 승인에 따라 위 세 공개 설정을 로컬 `.env`에 적용했습니다.
+Gemini 설정과 키는 유지했습니다. 저장소의 기본값과 `.env.example`은 비활성 상태입니다.
+`OPENDART_ENABLED=false` 또는 `PUBLIC_DATA_MODE=mock`으로 바꾸고 재시작하면
+Gemini를 유지하면서 공공자료만 mock으로 제한할 수 있습니다.
 
 ## Stage
 

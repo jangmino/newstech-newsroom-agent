@@ -1,3 +1,4 @@
+import { FinancialSummary } from "./FinancialEvidence";
 import { comparisonConditions } from "./resultComparison";
 import type { CalculationResult, ExecutionResponse } from "./types";
 
@@ -7,13 +8,14 @@ function ResultSummary({ result, side }: { result: ExecutionResponse; side: "pre
   return (
     <article className="condition-result" aria-labelledby={`${side}-result-title`}>
       <h3 id={`${side}-result-title`}>{title}</h3>
-      <p className="synthetic-label">{calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 결과 · 실제 조회·계산 전"}</p>
+      <p className="synthetic-label">{evidence.data_mode === "live" ? "공식 공시 실제 조회 · 사람 검토 필요" : calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 결과 · 실제 조회·계산 전"}</p>
       <p className="result-summary">{brief.summary}</p>
+      {result.financial_calculation && <FinancialSummary calculation={result.financial_calculation} />}
       <dl>
         <div><dt>자료원</dt><dd>{evidence.source_name}</dd></div>
         <div><dt>자료</dt><dd>{evidence.table_or_report}</dd></div>
         <div><dt>단위</dt><dd>{calculation ? `입력 ${calculation.input_unit} · 결과 ${calculation.result_unit}` : evidence.unit}</dd></div>
-        <div><dt>{calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
+        <div><dt>{evidence.data_mode === "live" ? "자료 조회 완료 시각" : calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
         <div><dt>계산식</dt><dd>{evidence.formula}</dd></div>
       </dl>
       <details open>
@@ -86,7 +88,9 @@ export function ConditionComparison({ previous, current }: {
             <div className="notice" key={label}><strong>{label}의 계산 주의사항</strong><ul>{calculation.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>
           ))}
         </>
-      ) : <p className="notice">원자료 숫자와 계산 결과가 없어 수치 변화는 비교하지 않습니다. 승인 조건과 조회 설계의 차이를 확인해 주세요.</p>}
+      ) : current.financial_calculation && previous.financial_calculation
+        ? <p className="notice">각 결과의 비교 기준과 단위를 확인해 주세요. 원 단위 증감 폭과 % 증감률은 서로 다른 값입니다.</p>
+        : <p className="notice">원자료 숫자와 계산 결과가 없어 수치 변화는 비교하지 않습니다. 승인 조건과 조회 설계의 차이를 확인해 주세요.</p>}
       <p className="field-help">이전 결과의 검토 체크는 이어받지 않습니다. 아래에서 이번 결과를 새로 검토해 주세요. 두 결과 모두 실습용이며 사실 검증 완료나 기사 사용 승인이 아닙니다.</p>
       <a className="evidence-link" href="#review-title">이번 결과 검토하기</a>
     </section>

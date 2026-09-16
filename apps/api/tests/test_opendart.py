@@ -365,7 +365,7 @@ def test_participant_routes_remain_mock_even_with_gemini_enabled(monkeypatch):
     monkeypatch.setattr(main.settings, "live_api_enabled", True)
     monkeypatch.setattr(main.settings, "gemini_planner_enabled", True)
     monkeypatch.setattr(OpenDartClient, "__init__", lambda *args, **kwargs: pytest.fail(
-        "Participant routes must not construct OpenDART in this slice",
+        "Mock requests and Gemini opt-in alone must not construct OpenDART",
     ))
     api = TestClient(main.app)
     question = "삼성전자 매출액 2022-2024 증감률 연결 연간 비교"
@@ -381,4 +381,4 @@ def test_participant_routes_remain_mock_even_with_gemini_enabled(monkeypatch):
     assert response.json()["brief"]["verification_status"] == "review_required"
     assert api.post("/api/v1/execute", json={
         "question": question, "mode": "live", "approved": True, "conditions": conditions,
-    }).status_code == 422
+    }).status_code == 503

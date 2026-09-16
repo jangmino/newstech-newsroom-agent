@@ -8,7 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from newsroom_agent.conditions import (
     FIELD_OPTIONS,
+    OPENDART_LIVE_REASON,
+    OPENDART_LIVE_YEARS,
     SELECTION_REASONS,
+    field_options,
     route_question,
     validate_conditions,
 )
@@ -65,7 +68,7 @@ def parse_interpretation(raw: str) -> StructuredQuestion:
         raise InvalidPlannerOutput() from None
 
 
-def create_plan(question: str, planner: QuestionPlanner) -> PlanResponse:
+def create_plan(question: str, planner: QuestionPlanner, mode: str = "mock") -> PlanResponse:
     candidate = parse_interpretation(planner.interpret(question))
     source = candidate.selected_source
     if "selected_source" in candidate.uncertain_fields:
@@ -93,7 +96,7 @@ def create_plan(question: str, planner: QuestionPlanner) -> PlanResponse:
         # Uncertainty overrides even a syntactically valid, supported value.
         for field in candidate.uncertain_fields:
             _clear_field(conditions, field)
-    errors = validate_conditions(conditions)
+    errors = validate_conditions(conditions, mode)
     # Never prefill unsupported values as if they were accepted conditions.
     for field in errors:
         if field != "selected_source":
@@ -101,11 +104,16 @@ def create_plan(question: str, planner: QuestionPlanner) -> PlanResponse:
     return PlanResponse(
         request_id=str(uuid4()), question=question,
         query_plan=QueryPlan(
-            **conditions.model_dump(), selection_reason=SELECTION_REASONS[source],
+            **conditions.model_dump(), selection_reason=(
+                OPENDART_LIVE_REASON if mode == "live" and source == "opendart"
+                else SELECTION_REASONS[source]
+            ),
             clarification_required=bool(errors), clarification_questions=list(errors.values()),
         ),
-        required_fields=list(errors), field_options=options,
-        available_years=list(YEARS) if source == "kosis" else [],
+        required_fields=list(errors), field_options=field_options(source, mode),
+        available_years=(list(OPENDART_LIVE_YEARS) if mode == "live"
+                         else list(YEARS) if source == "kosis" else []),
+        data_mode=mode,
     )
 
 

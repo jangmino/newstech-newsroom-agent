@@ -3,6 +3,7 @@ import {
   conditionErrors, conditionLabels, conditionValue, editableConditions, sourceLabel, updateCondition,
 } from "./conditions";
 import { ReviewSession } from "./ReviewSession";
+import { FinancialEvidence } from "./FinancialEvidence";
 import { CalculationTable } from "./CalculationTable";
 import { ConditionComparison } from "./ConditionComparison";
 import { canCompareResults } from "./resultComparison";
@@ -10,7 +11,7 @@ import { WorkshopGuide } from "./WorkshopGuide";
 import { workshopQuestion, type WorkshopScenarioId } from "./workshopScenarios";
 import type {
   ApiErrorDetail, ExecuteRequest, ExecutionResponse, InterpretationMethod, PlanRequest, PlanResponse,
-  QueryConditions,
+  QueryConditions, QueryMode,
 } from "./types";
 
 const samples = [
@@ -55,6 +56,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [guide, setGuide] = useState<WorkshopScenarioId | null>(null);
   const [interpretationMethod, setInterpretationMethod] = useState<InterpretationMethod>("mock_rules");
+  const [dataMode, setDataMode] = useState<QueryMode>("mock");
   const revision = useRef(0);
   const controller = useRef<AbortController | null>(null);
 
@@ -82,8 +84,14 @@ function App() {
   }
 
   function startGuide(id: WorkshopScenarioId) {
+    setDataMode("mock");
     changeQuestion(workshopQuestion);
     setGuide(id);
+  }
+
+  function changeDataMode(value: QueryMode) {
+    changeQuestion(question);
+    setDataMode(value);
   }
 
   function changeInterpretationMethod(value: InterpretationMethod) {
@@ -122,9 +130,10 @@ function App() {
     setBusy("plan");
     try {
       const response = await post<PlanResponse>("/api/v1/plan", {
-        question: question.trim(), mode: "mock", interpretation_method: interpretationMethod,
+        question: question.trim(), mode: dataMode, interpretation_method: interpretationMethod,
       }, request.signal);
       if (current !== revision.current) return;
+      if (response.data_mode !== dataMode) throw new Error("조회 자료 모드가 일치하지 않습니다. 다시 분석해 주세요.");
       setPlan(response);
       setDraft(editableConditions(response.query_plan));
     } catch (caught) {
@@ -152,12 +161,16 @@ function App() {
     const conditions = { ...draft, period: draft.period.trim(), filters: { ...draft.filters } };
     try {
       const response = await post<ExecutionResponse>("/api/v1/execute", {
-        question: plan.question, mode: "mock", approved: true, conditions,
+        question: plan.question, mode: plan.data_mode, approved: true, conditions,
       }, request.signal);
       if (current !== revision.current) return;
       if (!response.general_response?.text || response.general_response.data_mode !== "mock"
         || response.general_response.generation_method !== "scripted") {
         throw new Error("응답 비교를 준비하지 못했습니다. 잠시 후 다시 조회해 주세요.");
+      }
+      if (response.evidence.data_mode !== plan.data_mode
+        || (plan.data_mode === "live" && !response.financial_calculation)) {
+        throw new Error("조회 자료 모드를 확인하지 못했습니다. 다시 조회해 주세요.");
       }
       setDraft(conditions);
       const previous = lastSuccessfulResult.current;
@@ -187,7 +200,7 @@ function App() {
           <p className="eyebrow">NewsTech Initiatives 2026 · 실습용 프로토타입</p>
           <h1>뉴스룸 데이터 에이전트</h1>
         </div>
-        <span className="mode">모의 자료 모드</span>
+        <span className="mode">{dataMode === "live" ? "OpenDART 실제 자료" : "모의 자료 모드"}</span>
       </header>
 
       <section className="question-panel" aria-labelledby="question-title" aria-busy={busy === "plan"}>
@@ -204,14 +217,28 @@ function App() {
           ))}
         </div>
         <div className="interpretation-choice">
+          <label htmlFor="data-mode">조회 자료</label>
+          <select id="data-mode" value={dataMode} aria-describedby="data-mode-help"
+            onChange={(event) => changeDataMode(event.target.value as QueryMode)}>
+            <option value="mock">모의 자료 · 두 실습 질문</option>
+            <option value="live">OpenDART 실제 자료 · 삼성전자 연결 매출액</option>
+          </select>
+          <p id="data-mode-help" className="field-help">{dataMode === "live"
+            ? "2022·2024년 연간 연결 매출액을 비교합니다. ‘이 조건으로 조회’를 누른 뒤 공시를 조회하며, KOSIS 실제 자료는 아직 지원하지 않습니다."
+            : "실제 공공데이터를 조회하지 않는 실습 자료입니다."}</p>
+        </div>
+        <div className="interpretation-choice">
           <label htmlFor="interpretation-method">질문 해석 방식</label>
           <select id="interpretation-method" value={interpretationMethod} aria-describedby="interpretation-help"
             onChange={(event) => changeInterpretationMethod(event.target.value as InterpretationMethod)}>
             <option value="mock_rules">모의 규칙 · 외부 전송 없음</option>
             <option value="gemini">Gemini · 실제 모델</option>
           </select>
-          <p id="interpretation-help" className="field-help">{interpretationMethod === "gemini"
-            ? "‘질문 분석’을 누르면 입력한 질문을 Google의 Gemini로 보냅니다. 조회 자료와 브리핑은 계속 모의 자료이며, 실제 취재 근거로 사용할 수 없습니다."
+          <p id="interpretation-help" className="field-help">{dataMode === "live"
+            ? (interpretationMethod === "gemini"
+              ? "‘질문 분석’을 누르면 질문을 Gemini로 보냅니다. 공시 조회와 계산은 조건 승인 후 별도로 실행합니다."
+              : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 공시 조회와 계산은 조건 승인 후 별도로 실행합니다.")
+            : interpretationMethod === "gemini" ? "‘질문 분석’을 누르면 입력한 질문을 Google의 Gemini로 보냅니다. 조회 자료와 브리핑은 계속 모의 자료이며, 실제 취재 근거로 사용할 수 없습니다."
             : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 조회 자료와 브리핑도 모의 자료입니다."}</p>
         </div>
         <form onSubmit={submit}>
@@ -229,7 +256,7 @@ function App() {
       {!plan || !draft ? (
         <section className="empty-state" role="status">
           <strong>{busy === "plan" ? "질문에서 조회 조건을 찾고 있습니다." : "먼저 질문을 분석해 주세요."}</strong>
-          <p>자료원과 조건을 확인하고 ‘이 조건으로 조회’를 누르면 두 응답과 모의 자료를 비교할 수 있습니다.</p>
+          <p>자료원과 조건을 확인하고 ‘이 조건으로 조회’를 누르면 두 응답과 선택한 자료를 비교할 수 있습니다.</p>
         </section>
       ) : (
         <div className="result-grid">
@@ -237,7 +264,7 @@ function App() {
             <p className="step">02 · 질문 해석과 조건 확인</p>
             <h2 id="conditions-title">{sourceLabel(plan.query_plan.selected_source)}</h2>
             {plan.interpretation_method === "mock_rules" && <p className="field-help">질문 해석: 모의 규칙 · Gemini를 호출하지 않았습니다.</p>}
-            {plan.interpretation_method === "gemini" && <p className="field-help">질문 해석: Gemini ({plan.interpretation_model}) · 자료 조회와 브리핑은 모의 자료입니다.</p>}
+            {plan.interpretation_method === "gemini" && <p className="field-help">질문 해석: Gemini ({plan.interpretation_model}) · {plan.data_mode === "live" ? "공시 자료는 조건 승인 후 조회합니다." : "자료 조회와 브리핑은 모의 자료입니다."}</p>}
             <p>{plan.query_plan.selection_reason}</p>
             {draft.selected_source !== "undetermined" && plan.query_plan.clarification_questions.length > 0 && <details className="planning-notes">
               <summary>처음 질문을 해석할 때 확인이 필요했던 내용</summary>
@@ -246,7 +273,7 @@ function App() {
             </details>}
             <p className="condition-status" role="status">
               {modifiedFields.length > 0 ? "참가자가 조건을 수정했습니다." : "에이전트가 제시한 조건입니다."}
-              {result ? " 승인한 조건으로 모의 조회했습니다." : " 조건을 확인한 뒤 승인해 주세요."}
+              {result ? (result.evidence.data_mode === "live" ? " 승인한 조건으로 실제 조회했습니다." : " 승인한 조건으로 모의 조회했습니다.") : " 조건을 확인한 뒤 승인해 주세요."}
             </p>
             {draft.selected_source === "undetermined" ? (
               <div className="notice" role="status">
@@ -281,8 +308,9 @@ function App() {
                   })}
                 </div>
                 <p id="period-help" className="field-help">
-                  {plan.available_years?.length
-                    ? `가상 수치 자료는 ${plan.available_years[0]}~${plan.available_years[plan.available_years.length - 1]}년을 지원합니다. 서로 다른 시작·종료 연도의 연간 값만 비교합니다.`
+                  {plan.data_mode === "live"
+                    ? "원문을 대조한 2022년과 2024년의 연간 연결 매출액만 지원합니다. 기간에 2022-2024를 입력해 주세요."
+                    : plan.available_years?.length ? `가상 수치 자료는 ${plan.available_years[0]}~${plan.available_years[plan.available_years.length - 1]}년을 지원합니다. 서로 다른 시작·종료 연도의 연간 값만 비교합니다.`
                     : "시작 연도와 종료 연도의 연간 값을 비교합니다. 모의 실습은 1900~2100년 안의 서로 다른 두 연도를 입력받으며, 실제 자료의 제공 기간을 뜻하지 않습니다."}
                 </p>
                 {draft.selected_source === "kosis" && <p className="field-help synthetic-label">공식 통계가 아닌 가상 숫자로 계산합니다. ‘전국’은 가상 지역 A~D, ‘수도권’은 A·B, ‘비수도권’은 C·D를 고르는 실습 분류입니다.</p>}
@@ -295,7 +323,7 @@ function App() {
                   <p className="field-help" role="status">{result ? "승인한 조회 조건과 두 응답을 아래에서 비교해 주세요." : "조건이 모두 입력됐습니다. 승인하면 일반 응답 예시와 근거 기반 브리핑이 함께 표시됩니다."}</p>
                 )}
                 <button className="primary" type="submit" disabled={busy !== null || errors.length > 0}>
-                  {busy === "execute" ? "모의 자료를 준비하는 중…" : "이 조건으로 조회"}
+                  {busy === "execute" ? (dataMode === "live" ? "공시 자료를 조회하는 중…" : "모의 자료를 준비하는 중…") : "이 조건으로 조회"}
                 </button>
                 <p className="field-help">조건을 수정하면 결과와 검토 표시가 숨겨집니다. 바꾼 조건을 다시 승인하면 직전 결과와 비교할 수 있습니다. 질문을 바꾸거나 다시 분석하면 비교도 초기화됩니다.</p>
               </form>
@@ -317,14 +345,15 @@ function App() {
                     ))}
                   </dl>
                   <dl>
-                    <div><dt>단위</dt><dd>{result.calculation ? `입력 ${result.calculation.input_unit} · 결과 ${result.calculation.result_unit}` : result.evidence.unit}</dd></div>
-                    <div><dt>{result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
+                    <div><dt>단위</dt><dd>{result.calculation ? `입력 ${result.calculation.input_unit} · 결과 ${result.calculation.result_unit}` : result.financial_calculation ? `입력 원 · 결과 ${result.financial_calculation.result_unit}` : result.evidence.unit}</dd></div>
+                    <div><dt>{result.evidence.data_mode === "live" ? "자료 조회 완료 시각" : result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
                     <div><dt>계산식</dt><dd>{result.evidence.formula}</dd></div>
                   </dl>
+                  {result.financial_calculation && <FinancialEvidence result={result} />}
                   {result.calculation && <CalculationTable calculation={result.calculation} comparison={result.query_plan.comparison} />}
                   <h3>자료 이용 시 주의사항</h3>
                   <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
-                  <span className="data-mode">{result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
+                  <span className="data-mode">{result.evidence.data_mode === "live" ? "공식 공시 실제 조회 · 사람 검토 필요" : result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
                 </section>
               </ReviewSession>
             </>

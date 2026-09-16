@@ -1,5 +1,6 @@
 export type SourceName = "opendart" | "kosis" | "undetermined";
 export type InterpretationMethod = "mock_rules" | "gemini";
+export type QueryMode = "mock" | "live";
 
 export interface QueryPlan {
   selected_source: SourceName;
@@ -15,7 +16,7 @@ export interface QueryPlan {
 
 export interface PlanRequest {
   question: string;
-  mode: "mock";
+  mode: QueryMode;
   interpretation_method?: InterpretationMethod;
 }
 
@@ -37,18 +38,20 @@ export interface PlanResponse {
   available_years: number[];
   interpretation_method: InterpretationMethod;
   interpretation_model: string | null;
+  data_mode: QueryMode;
 }
 
 export interface ExecuteRequest {
   question: string;
-  mode: "mock";
+  mode: QueryMode;
   approved: true;
   conditions: QueryConditions;
 }
 
 export interface ApiErrorDetail {
   code: "invalid_request" | "invalid_conditions" | "invalid_mock_data" | "invalid_planner_output" | "planner_unavailable"
-    | "planner_disabled" | "planner_configuration_error" | "planner_timeout" | "planner_rate_limited";
+    | "planner_disabled" | "planner_configuration_error" | "planner_timeout" | "planner_rate_limited"
+    | "invalid_live_data" | `opendart_${string}`;
   message: string;
   field_errors: Record<string, string>;
 }
@@ -90,6 +93,21 @@ export interface GeneralResponseExample {
 export interface ExecutionResponse extends AnalysisResponse {
   general_response: GeneralResponseExample;
   calculation: CalculationResult | null;
+  financial_calculation: FinancialCalculation | null;
+}
+
+export interface FinancialCalculation {
+  data_origin: "opendart";
+  start_year: number;
+  end_year: number;
+  start_value: string;
+  end_value: string;
+  input_unit: "원";
+  result_unit: "원" | "%";
+  change: string | null;
+  decimal_places: 0 | 2;
+  status: "calculated" | "zero_baseline";
+  reason: string | null;
 }
 
 export interface CalculationRow {

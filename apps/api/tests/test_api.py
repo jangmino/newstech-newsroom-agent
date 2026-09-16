@@ -270,7 +270,7 @@ def test_wrong_source_and_client_validation_flags_cannot_bypass_checks():
     assert client.post("/api/v1/execute", json=body).status_code == 422
 
 
-def test_new_endpoints_only_accept_mock_even_when_live_setting_is_enabled(monkeypatch):
+def test_live_requires_provider_opt_in_and_snapshot_is_unsupported(monkeypatch):
     from newsroom_agent.main import settings
 
     monkeypatch.setattr(settings, "live_api_enabled", True)
@@ -279,8 +279,11 @@ def test_new_endpoints_only_accept_mock_even_when_live_setting_is_enabled(monkey
             body = approved_request() if endpoint == "execute" else {"question": KOSIS_QUESTION}
             body["mode"] = mode
             response = client.post(f"/api/v1/{endpoint}", json=body)
-            assert response.status_code == 422
-            assert "모의 자료 모드" in response.json()["detail"]["field_errors"]["mode"]
+            assert response.status_code == (503 if mode == "live" else 422)
+            if mode == "live":
+                assert response.json()["detail"]["code"] == "opendart_disabled"
+            else:
+                assert "자료 모드" in response.json()["detail"]["field_errors"]["mode"]
 
 
 def test_blank_questions_and_malformed_requests_have_korean_errors():

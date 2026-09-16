@@ -12,13 +12,11 @@ FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-ap
      → ‘이 조건으로 조회’ → POST /api/v1/execute → 일반 응답 예시·근거 기반 브리핑 비교
 ```
 
-새 API의 자료 모드 `mode`는 `mock`만 받습니다. `LIVE_API_ENABLED` 설정과 관계없이
-`live`, `snapshot`은 422입니다. 별도 해석 방식 선택으로 Gemini만 연결할 수 있으며,
-OpenDART·KOSIS를 호출하거나 데이터·승인 이력을 저장하지 않습니다.
-
-OpenDART의 삼성전자 연간 연결 매출액 내부 어댑터는 모의 전송으로 검증했지만,
-아래 라우트에 아직 연결하지 않았습니다. 공개 계약과 프론트엔드 타입 변경은 없습니다.
-[내부 조회 계약·오류·실제 확인 범위](../../docs/OPENDART_REVENUE.md)를 참고하십시오.
+새 API는 기본 `mode=mock`, 선택형 `live`를 받습니다. live는 서버의 전역 live,
+`PUBLIC_DATA_MODE=live`, `OPENDART_ENABLED=true`와 키 설정이 필요하며 삼성전자
+2022·2024년 연간 연결 매출액만 지원합니다. KOSIS는 mock입니다. `snapshot`은 422이며
+자료·승인 이력을 저장하지 않습니다. 질문 해석 방식은 자료 모드와 독립적입니다.
+[실제 조회 계약](../../docs/OPENDART_REVENUE.md)을 참고하십시오.
 
 ### POST /api/v1/plan
 
@@ -29,8 +27,8 @@ OpenDART의 삼성전자 연간 연결 매출액 내부 어댑터는 모의 전�
 ```
 
 응답은 `request_id`, `question`, `query_plan`, `required_fields`, `field_options`, `available_years`,
-`interpretation_method`, `interpretation_model`입니다.
-`evidence`, `brief`, `general_response`, `calculation`은 포함하지 않고, 모의 결과도 생성하지 않습니다.
+`interpretation_method`, `interpretation_model`, `data_mode`입니다.
+`evidence`, `brief`, `general_response`, `calculation`, `financial_calculation`은 포함하지 않고, 모의 결과도 생성하지 않습니다.
 
 - `query_plan`: 기존 계획 구조. 질문에서 명확하게 찾은 조건만 채웁니다.
 - `interpretation_method`: `mock_rules` 또는 `gemini`. 요청에서 생략하면 `mock_rules`입니다.
@@ -38,7 +36,8 @@ OpenDART의 삼성전자 연간 연결 매출액 내부 어댑터는 모의 전�
 - `required_fields`: 해결할 조건의 경로. 예: `metric`, `period`, `filters.age_range`.
 - `field_options`: 자료원별 지원 선택값. 프런트엔드는 이 목록으로 입력란을 구성합니다.
 - `available_years`: KOSIS 가상 자료의 지원 연도 `[2020, 2021, 2022, 2023, 2024]`.
-  다른 자료원은 빈 배열이며 기존 기간 형식 검증을 사용합니다.
+  OpenDART live는 `[2022, 2024]`, OpenDART mock은 빈 배열입니다.
+- `data_mode`: 요청에서 확정한 `mock` 또는 `live`. 계획 단계에는 공공자료를 조회하지 않습니다.
 - `clarification_required`와 `clarification_questions`: 계획 당시의 미해결 조건과 한국어 안내.
 - 자료원이 `undetermined`이면 질문을 구체화해야 합니다.
 - 모의 규칙은 키워드와 명시적인 조건 문자열만 해석합니다. Gemini도 기존 자료원 범위
@@ -85,6 +84,8 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 이때 질문 해석기를 다시 호출하지 않으며 참가자가 승인한 값을 그대로 사용합니다.
 `clarification_required`, `selection_reason` 등 서버 계산 필드를 요청에 넣을 수 없습니다.
 
+아래는 mock 모드의 선택 범위입니다.
+
 | 조건 | KOSIS | OpenDART |
 |---|---|---|
 | 대상 | 전국 시·도 / 수도권 시·도 / 비수도권 시·도 | 삼성전자 |
@@ -97,7 +98,7 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 존재를 보증하지 않습니다. 비교는 시작·종료 연도의 연간 값을 대상으로 설계합니다.
 
 성공 응답은 `ExecutionResponse`입니다. 기존 `AnalysisResponse`의 모든 필드를 유지하며
-`general_response`, `calculation`을 추가합니다. 기존 요청 형식은 바꾸지 않습니다.
+`general_response`, `calculation`, `financial_calculation`을 추가합니다. 기존 요청 형식은 바꾸지 않습니다.
 
 - `query_plan`: 검증된 승인 조건. `clarification_required=false`이며 미해결 질문은 없습니다.
 - `evidence.query_parameters`: 같은 조건을 문자열 사전으로 표시합니다.
@@ -107,7 +108,8 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 - `raw_values`: 청년 고용은 가상 지역별 시작·종료 값, 연도, 지표, 연령, 단위를 제공합니다.
   숫자는 십진 문자열이며 누락은 `null`입니다. 기업 실적은 빈 배열입니다.
 - `retrieved_at`: 가상 자료 계산 시각 또는 모의 결과 생성 시각입니다. 공식 자료 조회 시각이 아닙니다.
-- `data_mode=mock`, `verification_status=review_required`를 유지합니다.
+- mock에서는 `data_mode=mock`, 모든 결과는 `verification_status=review_required`입니다.
+- `financial_calculation`: mock에서는 `null`, 실제 매출액은 아래 별도 계약을 사용합니다.
 - 브리핑은 승인 조건과 가상 계산 결과를 구분해 표시합니다. 실제 수치가 검증된 사실인 것처럼 표현하지 않습니다.
 - `general_response`: 질문 유형별로 미리 작성한 일반 응답 예시입니다.
   `text`는 한국어 설명, `data_mode`는 `mock`, `generation_method`는 `scripted`입니다.
@@ -120,7 +122,7 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 
 프런트엔드는 승인 후 두 응답을 나란히 표시하고 조회 조건·자료원·단위·계산식·시각·
 원자료·사람 검토 항목을 비교합니다. 좁은 화면에서는 위아래로 배치합니다.
-양쪽 모두 mock 안내를 유지하고, 일반 응답에는 사람 검토 필요, 근거 기반 브리핑에는
+모의 조회에서는 양쪽 모두 mock 안내를 유지하고, 일반 응답에는 사람 검토 필요, 근거 기반 브리핑에는
 참가자의 실습 검토 진행 상태를 표시합니다. 청년 고용 계산에 사용한 숫자는
 공식 통계가 아닌 가상 자료임을 명시합니다. 질문이나 조건을 바꾸면 비교 화면 전체를
 숨기고 재승인을 요구합니다.
@@ -129,6 +131,33 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 비교합니다. 프론트엔드 메모리에만 두 응답을 유지하며, 별도 비교 API나 추가 조회는
 없습니다. 실패·취소된 요청은 비교 기준을 갱신하지 않습니다. 기존 요청·응답 계약과
 검증 상태는 그대로입니다. [조건 변경 전후 비교](../../docs/CONDITION_COMPARISON.md)를 참고하십시오.
+
+### OpenDART 실제 실행 계약
+
+위 요청 구조에 `mode=live`를 사용합니다. 조건은 `selected_source=opendart`,
+`entity=삼성전자`, `metric=매출액`, `period=2022-2024`, `comparison=증감 폭|증감률`,
+`filters={"statement_basis":"연결","report_type":"연간"}`만 지원합니다.
+지원하지 않는 계획 값은 비우고 한국어 확인 안내를 제공합니다. 실행 조건 오류는 외부
+요청 전에 422로 거부하며, 참가자가 승인한 조건을 다시 해석하거나 바꾸지 않습니다.
+
+성공 응답은 `evidence.data_mode=live`, `calculation=null`이며 다음을 추가합니다.
+
+- `financial_calculation`: `data_origin=opendart`, 시작·종료 연도/값, 입력 단위 `원`,
+  변화값, 결과 단위 `원|%`, 표시 소수 자릿수 `0|2`, 상태 `calculated|zero_baseline`, 이유.
+- `evidence.raw_values`: 연도별 정확한 금액 문자열, API 금액 원문, KRW/원,
+  계정 ID/명·재무제표 구분, 접수번호·원문 링크·조회 시각, 키를 제외한 API 조회 인자.
+- 승인 조건은 `query_plan`과 `evidence.query_parameters`에 동일하게 남깁니다.
+- 브리핑은 조회값과 Decimal 계산으로 구성하며, 사람 검토 필요를 유지합니다.
+- `general_response`는 계속 고정된 mock 예시입니다. 실제 조회 결과와 구분합니다.
+
+원 단위 증감 폭은 정수 그대로, 증감률은 소수 둘째 자리까지 반올림합니다. 시작값 0의
+증감률은 `change=null`과 한국어 이유를 반환합니다. 두 연도 중 하나라도 조회·정규화에
+실패하면 근거·브리핑 전체를 반환하지 않습니다. 모의 자료나 fixture로 자동 대체하지 않습니다.
+
+공급자 오류는 503 `opendart_<code>`(한도는 429 `opendart_rate_limited`), 안전한 한국어
+메시지와 빈 `field_errors`입니다. 설정 비활성은 `opendart_disabled`, 키 누락은
+`opendart_configuration`, 조회 없음은 `opendart_no_data`입니다. 전체 오류 목록·정확한
+필드는 [조회 계약](../../docs/OPENDART_REVENUE.md)을 따릅니다.
 
 ### 가상 계산 계약
 
@@ -213,7 +242,7 @@ Gemini 전용 오류도 같은 `detail` 구조와 빈 `field_errors`를 사용�
 기존 요청·응답과 동작을 유지하는 이전 통합 실행 API입니다. 승인 없이 기존 모의 결과를
 반환하며, 새 참가자 UI는 이 경로를 사용하지 않습니다. 승인 필수 규칙은 새 UI와
 `/execute`에 적용됩니다. 기존 live 비활성화 오류도 유지합니다.
-`/analyze`에는 `general_response`, `calculation`을 추가하지 않아 기존 응답 필드를 그대로 유지합니다.
+`/analyze`에는 `general_response`, `calculation`, `financial_calculation`을 추가하지 않아 기존 응답 필드를 그대로 유지합니다.
 기존 소비자·실습 예제를 깨뜨리지 않기 위한 호환 경로이며 새 계산은 `/execute`에만 적용합니다.
 
 ## 검증
@@ -252,3 +281,7 @@ Gemini 전용 오류도 같은 `detail` 구조와 빈 `field_errors`를 사용�
 26. 해석 방식 선택만으로 요청하지 않고 Gemini 선택 시 질문 전송 안내가 표시되는지 확인합니다.
 27. Gemini 비활성·오류 시 모의 규칙으로 자동 전환하지 않으며, 방식 변경 시 조건·비교·검토가 초기화되는지 확인합니다.
 28. Gemini 성공 화면은 해석 모델과 mock 자료를 구분하며, 승인 전에는 근거·브리핑이 없는지 확인합니다.
+
+OpenDART 실제 화면은 [수동 확인 기록](../../docs/OPENDART_SMOKE_TEST.md)을 따릅니다.
+자동 테스트에서는 실제 API를 호출하지 않습니다. 자료 모드 변경·late 응답·조회 실패 때
+결과와 검토를 숨기고, 재승인 후 항상 검토 0/4로 시작하는지도 검사합니다.
