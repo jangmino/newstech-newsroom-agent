@@ -1,8 +1,14 @@
-import re
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from newsroom_agent.conditions import FIELD_OPTIONS, calculation_metadata, validate_conditions
+from newsroom_agent.conditions import (
+    KOSIS_HINTS,
+    OPENDART_HINTS,
+    SELECTION_REASONS,
+    calculation_metadata,
+    route_question,
+    validate_conditions,
+)
 from newsroom_agent.models import (
     AnalysisResponse,
     Brief,
@@ -14,10 +20,10 @@ from newsroom_agent.models import (
     QueryPlan,
     SourceName,
 )
-from newsroom_agent.providers.mock_employment import YEARS, calculate_employment
-
-KOSIS_HINTS = ("고용", "실업", "인구", "물가", "지역", "청년", "통계")
-OPENDART_HINTS = ("기업", "회사", "매출", "영업이익", "당기순이익", "공시", "실적", "삼성전자")
+from newsroom_agent.planning import create_plan
+from newsroom_agent.providers.mock_employment import calculate_employment
+from newsroom_agent.providers.mock_planner import MockQuestionPlanner
+from newsroom_agent.providers.planner import QuestionPlanner
 
 # Authored workshop examples, not recorded model outputs or retrieved facts.
 GENERAL_RESPONSE_EXAMPLES = {
@@ -43,67 +49,16 @@ class InvalidConditions(ValueError):
 class MockOrchestrator:
     """Mock-first orchestrator used until provider contracts are verified."""
 
-    def plan(self, question: str) -> PlanResponse:
-        source = self._route(question)
-        reasons = {
-            "kosis": (
-                "청년 고용 통계의 조회 대상으로 KOSIS를 선택했습니다. "
-                "이번 계산은 가상 자료를 사용합니다."
-            ),
-            "opendart": "기업 실적은 OpenDART에서 확인합니다. 모의 실습은 삼성전자를 다룹니다.",
-            "undetermined": "기업공시와 국가통계 중 적합한 자료원을 정하기 어렵습니다.",
-        }
-        options = FIELD_OPTIONS.get(source, {})
-        values: dict[str, str] = {}
-        filters: dict[str, str] = {}
-        for field, choices in options.items():
-            matches = []
-            remaining = question
-            # Remove a longer name before checking nested names, while retaining
-            # separately mentioned targets as unresolved alternatives.
-            for choice in sorted(choices, key=len, reverse=True):
-                if choice in remaining:
-                    matches.append(choice)
-                    remaining = remaining.replace(choice, " ")
-            value = matches[0] if len(matches) == 1 else ""
-            if field in {"filters.frequency", "filters.report_type"}:
-                # Do not silently convert explicitly requested monthly/quarterly data.
-                value = "" if any(word in question for word in ("분기", "월간", "월별")) else "연간"
-            if field.startswith("filters."):
-                filters[field.removeprefix("filters.")] = value
-            else:
-                values[field] = value
+    def __init__(self, planner: QuestionPlanner | None = None) -> None:
+        self.planner = planner if planner is not None else MockQuestionPlanner()
 
-        periods = re.findall(r"(?<!\d)(\d{4})\s*년?\s*(?:-|~|–|부터)\s*(\d{4})(?!\d)", question)
-        values["period"] = "-".join(periods[0]) if len(periods) == 1 else ""
-        conditions = QueryConditions(
-            selected_source=source,
-            entity=values.get("entity", ""),
-            metric=values.get("metric", ""),
-            period=values["period"],
-            comparison=values.get("comparison", ""),
-            filters=filters,
-        )
-        errors = validate_conditions(conditions)
-        query_plan = QueryPlan(
-            **conditions.model_dump(),
-            selection_reason=reasons[source],
-            clarification_required=bool(errors),
-            clarification_questions=list(errors.values()),
-        )
-        return PlanResponse(
-            request_id=str(uuid4()),
-            question=question,
-            query_plan=query_plan,
-            required_fields=list(errors),
-            field_options=options,
-            available_years=list(YEARS) if source == "kosis" else [],
-        )
+    def plan(self, question: str) -> PlanResponse:
+        return create_plan(question, self.planner)
 
     def execute(self, question: str, conditions: QueryConditions) -> ExecutionResponse:
-        plan = self.plan(question)
+        source = route_question(question)
         errors = validate_conditions(conditions)
-        if conditions.selected_source != plan.query_plan.selected_source:
+        if conditions.selected_source != source:
             errors["selected_source"] = "자료원과 질문이 달라졌습니다. 질문을 다시 해석해 주세요."
         if errors:
             raise InvalidConditions(errors)
@@ -111,7 +66,7 @@ class MockOrchestrator:
         unit, formula = calculation_metadata(conditions)
         query_plan = QueryPlan(
             **conditions.model_dump(),
-            selection_reason=plan.query_plan.selection_reason,
+            selection_reason=SELECTION_REASONS[source],
         )
         parameters = {
             "selected_source": conditions.selected_source,

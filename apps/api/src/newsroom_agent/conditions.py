@@ -2,7 +2,7 @@
 
 import re
 
-from newsroom_agent.models import QueryConditions
+from newsroom_agent.models import QueryConditions, SourceName
 from newsroom_agent.providers.mock_employment import YEARS
 
 FIELD_LABELS = {
@@ -33,6 +33,31 @@ FIELD_OPTIONS = {
     },
 }
 
+KOSIS_HINTS = ("고용", "실업", "인구", "물가", "지역", "청년", "통계")
+OPENDART_HINTS = ("기업", "회사", "매출", "영업이익", "당기순이익", "공시", "실적", "삼성전자")
+SELECTION_REASONS = {
+    "kosis": (
+        "청년 고용 통계의 조회 대상으로 KOSIS를 선택했습니다. "
+        "이번 계산은 가상 자료를 사용합니다."
+    ),
+    "opendart": "기업 실적은 OpenDART에서 확인합니다. 모의 실습은 삼성전자를 다룹니다.",
+    "undetermined": (
+        "기업공시와 국가통계 중 적합한 자료원을 정하기 어렵습니다. "
+        "두 자료원이 함께 언급됐다면 질문을 나누어 주세요."
+    ),
+}
+
+
+def route_question(question: str) -> SourceName:
+    """Deterministic scope guard for the two mock workshop question families."""
+    kosis = any(hint in question for hint in KOSIS_HINTS)
+    opendart = any(hint in question for hint in OPENDART_HINTS)
+    if kosis and not opendart:
+        return "kosis"
+    if opendart and not kosis:
+        return "opendart"
+    return "undetermined"
+
 
 def validate_conditions(conditions: QueryConditions) -> dict[str, str]:
     options = FIELD_OPTIONS.get(conditions.selected_source)
@@ -47,7 +72,7 @@ def validate_conditions(conditions: QueryConditions) -> dict[str, str]:
             else getattr(conditions, field)
         )
         if value not in choices:
-            errors[field] = f"{FIELD_LABELS[field]}을(를) 선택해 주세요: {', '.join(choices)}."
+            errors[field] = f"{FIELD_LABELS[field]} 항목을 선택해 주세요: {', '.join(choices)}."
 
     period = re.fullmatch(r"([0-9]{4})-([0-9]{4})", conditions.period)
     if period is None or not 1900 <= int(period[1]) < int(period[2]) <= 2100:

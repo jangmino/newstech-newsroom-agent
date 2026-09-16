@@ -33,6 +33,7 @@ export interface PlanResponse {
   required_fields: string[];
   field_options: Record<string, string[]>;
   available_years: number[];
+  interpretation_method: "mock_rules";
 }
 
 export interface ExecuteRequest extends PlanRequest {
@@ -41,7 +42,7 @@ export interface ExecuteRequest extends PlanRequest {
 }
 
 export interface ApiErrorDetail {
-  code: "invalid_request" | "invalid_conditions" | "invalid_mock_data";
+  code: "invalid_request" | "invalid_conditions" | "invalid_mock_data" | "invalid_planner_output" | "planner_unavailable";
   message: string;
   field_errors: Record<string, string>;
 }

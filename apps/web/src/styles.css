@@ -63,6 +63,8 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .evidence-card dt { word-break: keep-all; }
 .approved-conditions { margin-bottom: 24px; }
 .primary:disabled { cursor: not-allowed; }
+.planning-notes { margin: 16px 0; padding: 14px; border-radius: 12px; background: #f7f9fc; line-height: 1.7; }
+.planning-notes summary { cursor: pointer; color: #174eaf; font-weight: 700; }
 
 .comparison-section { grid-column: 1 / -1; display: grid; gap: 16px; min-width: 0; }
 .comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }

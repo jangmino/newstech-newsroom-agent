@@ -88,6 +88,7 @@ def test_plan_only_interprets_without_generating_results(monkeypatch):
         assert "evidence" not in payload and "brief" not in payload
         assert "general_response" not in payload
         assert "calculation" not in payload
+        assert payload["interpretation_method"] == "mock_rules"
         assert payload["available_years"] == (
             [2020, 2021, 2022, 2023, 2024] if source == "kosis" else []
         )
@@ -365,6 +366,60 @@ def test_legacy_analysis_response_keeps_its_original_fields():
         response = client.post("/api/v1/analyze", json={"question": question, "mode": "mock"})
         assert response.status_code == 200
         assert set(response.json()) == {"request_id", "question", "query_plan", "evidence", "brief"}
+
+
+@pytest.mark.parametrize("failure", ["invalid_planner_output", "planner_unavailable"])
+def test_planner_failure_is_safe_retryable_and_does_not_run_tools(monkeypatch, caplog, failure):
+    from newsroom_agent.main import get_question_planner
+    from newsroom_agent.orchestrator import MockOrchestrator
+    from newsroom_agent.providers.planner import PlannerUnavailable
+
+    class FailingPlanner:
+        def interpret(self, question):
+            if failure == "planner_unavailable":
+                raise PlannerUnavailable("internal-adapter-detail")
+            return "untrusted-adapter-output"
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Planning must not execute or generate results")
+
+    monkeypatch.setitem(app.dependency_overrides, get_question_planner, lambda: FailingPlanner())
+    monkeypatch.setattr(MockOrchestrator, "execute", forbidden)
+    monkeypatch.setattr(MockOrchestrator, "_now", forbidden)
+    response = client.post("/api/v1/plan", json={"question": KOSIS_QUESTION})
+    assert response.status_code == 503
+    assert set(response.json()) == {"detail"}
+    assert response.json()["detail"]["code"] == failure
+    assert response.json()["detail"]["field_errors"] == {}
+    assert "질문 분석" in response.json()["detail"]["message"]
+    for marker in ("internal-adapter-detail", "untrusted-adapter-output"):
+        assert marker not in response.text and marker not in caplog.text
+    monkeypatch.delitem(app.dependency_overrides, get_question_planner)
+    retried = client.post("/api/v1/plan", json={"question": KOSIS_QUESTION})
+    assert retried.status_code == 200
+    assert "evidence" not in retried.json()
+
+
+def test_execution_and_legacy_analysis_do_not_depend_on_planner(monkeypatch):
+    from newsroom_agent.providers.mock_planner import MockQuestionPlanner
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Approved execution and legacy analysis must not call a planner")
+
+    monkeypatch.setattr(MockQuestionPlanner, "interpret", forbidden)
+    assert client.post("/api/v1/execute", json=approved_request()).status_code == 200
+    assert client.post("/api/v1/analyze", json={"question": KOSIS_QUESTION}).status_code == 200
+
+
+def test_mixed_source_question_cannot_bypass_the_scope_guard_on_execution():
+    body = approved_request()
+    body["question"] = "삼성전자 매출액과 청년 고용률 지역 통계 비교"
+    plan = client.post("/api/v1/plan", json={"question": body["question"]}).json()
+    assert plan["query_plan"]["selected_source"] == "undetermined"
+    assert "질문을 나누어" in plan["query_plan"]["selection_reason"]
+    response = client.post("/api/v1/execute", json=body)
+    assert response.status_code == 422
+    assert "selected_source" in response.json()["detail"]["field_errors"]
 
 
 def test_synthetic_results_change_when_comparison_changes():

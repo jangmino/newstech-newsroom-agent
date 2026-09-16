@@ -23,10 +23,12 @@ Gemini·OpenDART·KOSIS 공급자를 호출하지 않으며, 데이터나 승인
 {"question":"최근 5년 동안 청년 고용이 가장 좋아진 지역은 어디인가?","mode":"mock"}
 ```
 
-응답은 `request_id`, `question`, `query_plan`, `required_fields`, `field_options`, `available_years`입니다.
+응답은 `request_id`, `question`, `query_plan`, `required_fields`, `field_options`, `available_years`,
+`interpretation_method`입니다.
 `evidence`, `brief`, `general_response`, `calculation`은 포함하지 않고, 모의 결과도 생성하지 않습니다.
 
 - `query_plan`: 기존 계획 구조. 질문에서 명확하게 찾은 조건만 채웁니다.
+- `interpretation_method`: 현재 `mock_rules`만 반환합니다. Gemini 호출은 없습니다.
 - `required_fields`: 해결할 조건의 경로. 예: `metric`, `period`, `filters.age_range`.
 - `field_options`: 자료원별 지원 선택값. 프런트엔드는 이 목록으로 입력란을 구성합니다.
 - `available_years`: KOSIS 가상 자료의 지원 연도 `[2020, 2021, 2022, 2023, 2024]`.
@@ -35,8 +37,14 @@ Gemini·OpenDART·KOSIS 공급자를 호출하지 않으며, 데이터나 승인
 - 자료원이 `undetermined`이면 질문을 구체화해야 합니다.
 - 키워드와 명시적인 조건 문자열만 해석하는 mock입니다. 자연어 전체를 이해하지 않습니다.
 - ‘최근 5년’, ‘실적 악화’, 복수 지표·기간 등은 임의로 하나를 정하지 않습니다.
+- 기업공시·국가통계 단서가 함께 있으면 키워드 개수로 한쪽을 선택하지 않고 질문을
+  나누도록 안내합니다. 지원하지 않는 조건 값과 불확실한 값은 비워 반환합니다.
 - 이번 모의 실습의 주기는 연간으로 제시합니다. 질문에서 분기·월간을 명시했다면
   해당 조건을 비워 두고 지원하는 연간 기준을 참가자가 직접 확인하게 합니다.
+
+내부 해석기는 JSON 문자열만 반환하고, 서버가 형식·자료원·지원 조건을 검증한 뒤
+선택 이유·확인 안내·필수 항목을 만듭니다. 공개 응답에 원래 해석기 출력이나 공급자
+오류를 넣지 않습니다. [내부 계약](../../docs/QUESTION_PLANNING.md)을 참고하십시오.
 
 ### POST /api/v1/execute
 
@@ -60,6 +68,7 @@ Gemini·OpenDART·KOSIS 공급자를 호출하지 않으며, 데이터나 승인
 
 `approved`는 JSON boolean `true`만 허용합니다. 생략, `false`, 문자열, 숫자는 거부합니다.
 서버는 질문과 자료원의 일치, 필수값, 지원 선택값, 기간, 추가 조건을 다시 검증합니다.
+이때 질문 해석기를 다시 호출하지 않으며 참가자가 승인한 값을 그대로 사용합니다.
 `clarification_required`, `selection_reason` 등 서버 계산 필드를 요청에 넣을 수 없습니다.
 
 | 조건 | KOSIS | OpenDART |
@@ -142,6 +151,11 @@ API의 `brief.verification_status=review_required`와 구분하고 이 값을 �
 
 ### 오류
 
+질문 해석의 형식·자료원 계약을 검증하지 못하면 503 `invalid_planner_output`,
+해석기에서 결과를 얻지 못하면 503 `planner_unavailable`을 반환합니다. 아래와 같은
+`detail` 구조를 사용하며 한국어 재시도 안내와 `field_errors={}`를 제공합니다.
+이때 계획·근거·브리핑은 반환하지 않고 다른 해석기로 자동 대체하지 않습니다.
+
 새 API의 입력 오류는 422와 다음 구조를 반환합니다. 형식 오류는 `invalid_request`,
 조건 검증 오류는 `invalid_conditions`입니다. 원래 입력값이나 내부 예외는 반환하지 않습니다.
 
@@ -205,3 +219,6 @@ API의 `brief.verification_status=review_required`와 구분하고 이 값을 �
 20. 세 실습 장면을 선택해 분석·예시 조건 적용만으로는 조회되지 않는지 확인합니다.
 21. 기간 오류를 수정하거나 계산 가능 기간으로 바꾼 뒤 직접 재승인해야 결과가 나오는지 확인합니다.
 22. 장면 변경은 결과·비교·검토를 초기화하고, 안내만 닫으면 현재 결과·검토가 유지되는지 확인합니다.
+23. 질문 해석의 ‘모의 규칙’ 표시와 접을 수 있는 최초 확인 안내를 확인합니다.
+24. 지원 범위 밖 기간을 질문에 직접 넣으면 입력란이 비고 최초 안내에 이유가 남는지 확인합니다.
+25. 해석 실패는 질문을 보존하며 이전 결과를 숨기고, 재분석 뒤에도 별도 승인이 필요한지 확인합니다.

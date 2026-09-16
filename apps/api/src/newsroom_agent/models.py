@@ -48,6 +48,7 @@ class PlanResponse(BaseModel):
     required_fields: list[str]
     field_options: dict[str, list[str]]
     available_years: list[int] = Field(default_factory=list)
+    interpretation_method: Literal["mock_rules"] = "mock_rules"
 
 
 class ExecuteRequest(PlanRequest):

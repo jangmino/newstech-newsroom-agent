@@ -51,6 +51,72 @@ function expectEmptyReview(panel: HTMLElement) {
   expect(within(panel).getAllByRole<HTMLInputElement>("checkbox").every((item) => !item.checked)).toBe(true);
 }
 
+test("mock interpretation is labeled and unresolved output requires a choice before approval", async () => {
+  const { fetch } = mockApi();
+  const plan = examplePlan();
+  plan.query_plan.period = "";
+  plan.query_plan.clarification_required = true;
+  plan.query_plan.clarification_questions = ["가상 청년 고용 자료는 2020~2024년만 지원합니다. 기간을 수정해 주세요."];
+  plan.required_fields = ["period"];
+  fetch.mockResolvedValueOnce(json(plan));
+  render(<App />);
+  await planQuestion();
+  expect(screen.getByText("질문 해석: 모의 규칙 · Gemini를 호출하지 않았습니다.")).toBeTruthy();
+  const notes = screen.getByText("처음 질문을 해석할 때 확인이 필요했던 내용").closest("details")!;
+  fireEvent.click(within(notes).getByText("처음 질문을 해석할 때 확인이 필요했던 내용"));
+  expect(notes.textContent).toContain("기간을 수정해 주세요");
+  expect(screen.getByRole<HTMLInputElement>("textbox", { name: "기간" }).value).toBe("");
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: "이 조건으로 조회" }).disabled).toBe(true);
+  fireEvent.change(screen.getByRole("textbox", { name: "기간" }), { target: { value: "2021-2023" } });
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: "이 조건으로 조회" }).disabled).toBe(false);
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(notes.textContent).toContain("현재 조회 가능 여부는 입력란 아래의 안내");
+  await approve();
+  const request = JSON.parse(String(fetch.mock.calls.at(-1)?.[1]?.body)) as ExecuteRequest;
+  expect(request.conditions.period).toBe("2021-2023");
+  expect(request.approved).toBe(true);
+});
+
+test("an unresolved source asks for a question edit without offering condition approval", async () => {
+  const { fetch } = mockApi();
+  const plan = examplePlan();
+  plan.query_plan.selected_source = "undetermined";
+  plan.query_plan.selection_reason = "두 자료원이 함께 언급됐다면 질문을 나누어 주세요.";
+  plan.query_plan.clarification_required = true;
+  plan.query_plan.clarification_questions = ["자료원을 정할 수 있도록 질문을 구체화해 주세요."];
+  plan.field_options = {};
+  plan.available_years = [];
+  plan.required_fields = ["selected_source"];
+  fetch.mockResolvedValueOnce(json(plan));
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "질문 분석" }));
+  await screen.findByRole("heading", { name: "자료원 확인 필요" });
+  expect(screen.getByText(/질문을 나누어 주세요/)).toBeTruthy();
+  expect(screen.queryByText("처음 질문을 해석할 때 확인이 필요했던 내용")).toBeNull();
+  expect(screen.queryByRole("button", { name: "이 조건으로 조회" })).toBeNull();
+  expect(screen.queryByRole("table")).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test.each(["invalid_planner_output", "planner_unavailable"])("%s clears old results, retains the question and permits a new plan", async (code) => {
+  const { fetch, panel } = await approvedResult();
+  checkAll(panel);
+  const message = "질문을 해석하지 못했습니다. ‘질문 분석’을 다시 눌러 주세요.";
+  fetch.mockResolvedValueOnce(json({ detail: { code, message, field_errors: {} } }, 503));
+  const question = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "질문 입력" }).value;
+  fireEvent.click(screen.getByRole("button", { name: "질문 분석" }));
+  expect((await screen.findByRole("alert")).textContent).toBe(message);
+  expect(screen.getByRole<HTMLTextAreaElement>("textbox", { name: "질문 입력" }).value).toBe(question);
+  expect(screen.queryByRole("button", { name: "이 조건으로 조회" })).toBeNull();
+  expect(screen.queryByRole("table")).toBeNull();
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  await planQuestion();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expectEmptyReview(await approve());
+});
+
 test("review is absent before approval and during loading, then starts unchecked", async () => {
   const { fetch } = mockApi();
   render(<App />);

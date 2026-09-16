@@ -1,6 +1,7 @@
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,9 @@ from newsroom_agent.models import (
     PlanResponse,
 )
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
+from newsroom_agent.planning import InvalidPlannerOutput
+from newsroom_agent.providers.mock_planner import MockQuestionPlanner
+from newsroom_agent.providers.planner import PlannerUnavailable, QuestionPlanner
 
 settings = get_settings()
 app = FastAPI(title="NewsTech Newsroom Agent API", version="0.1.0")
@@ -78,9 +82,38 @@ async def validation_error(request: Request, exc: RequestValidationError):
     )
 
 
+def get_question_planner() -> QuestionPlanner:
+    # Deliberately independent of credentials and live settings in this slice.
+    return MockQuestionPlanner()
+
+
 @app.post("/api/v1/plan", response_model=PlanResponse)
-def plan(request: PlanRequest) -> PlanResponse:
-    return MockOrchestrator().plan(request.question)
+def plan(
+    request: PlanRequest, planner: Annotated[QuestionPlanner, Depends(get_question_planner)],
+) -> PlanResponse:
+    try:
+        return MockOrchestrator(planner).plan(request.question)
+    except InvalidPlannerOutput:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "invalid_planner_output",
+                "message": (
+                    "질문 해석 결과의 형식을 확인하지 못했습니다. "
+                    "질문은 유지됩니다. ‘질문 분석’을 다시 눌러 주세요."
+                ),
+                "field_errors": {},
+            },
+        ) from None
+    except PlannerUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "planner_unavailable",
+                "message": "질문을 해석하지 못했습니다. 잠시 후 ‘질문 분석’을 다시 눌러 주세요.",
+                "field_errors": {},
+            },
+        ) from None
 
 
 @app.post("/api/v1/execute", response_model=ExecutionResponse)

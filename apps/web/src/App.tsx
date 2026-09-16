@@ -215,7 +215,13 @@ function App() {
           <section className="card conditions-card" aria-labelledby="conditions-title" aria-busy={busy === "execute"}>
             <p className="step">02 · 질문 해석과 조건 확인</p>
             <h2 id="conditions-title">{sourceLabel(plan.query_plan.selected_source)}</h2>
+            {plan.interpretation_method === "mock_rules" && <p className="field-help">질문 해석: 모의 규칙 · Gemini를 호출하지 않았습니다.</p>}
             <p>{plan.query_plan.selection_reason}</p>
+            {draft.selected_source !== "undetermined" && plan.query_plan.clarification_questions.length > 0 && <details className="planning-notes">
+              <summary>처음 질문을 해석할 때 확인이 필요했던 내용</summary>
+              <ul>{plan.query_plan.clarification_questions.map((message, index) => <li key={index}>{message}</li>)}</ul>
+              <p className="field-help">아래에서 조건을 수정할 수 있습니다. 현재 조회 가능 여부는 입력란 아래의 안내를 확인해 주세요.</p>
+            </details>}
             <p className="condition-status" role="status">
               {modifiedFields.length > 0 ? "참가자가 조건을 수정했습니다." : "에이전트가 제시한 조건입니다."}
               {result ? " 승인한 조건으로 모의 조회했습니다." : " 조건을 확인한 뒤 승인해 주세요."}
