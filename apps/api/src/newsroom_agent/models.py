@@ -7,6 +7,11 @@ DataMode = Literal["mock", "live", "snapshot"]
 InterpretationMethod = Literal["mock_rules", "gemini"]
 
 
+class WorkshopAccessStatus(BaseModel):
+    required: bool
+    available: bool
+
+
 class AnalysisRequest(BaseModel):
     question: str = Field(min_length=3, max_length=1000)
     mode: DataMode = "mock"

@@ -7,6 +7,15 @@ FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-ap
 
 ## 참가자 흐름
 
+먼저 `GET /api/v1/access`로 `{required, available}`을 확인합니다. 코드가 필요하면
+`POST /api/v1/access`와 이후 모든 API 요청에 `X-Workshop-Code`를 보냅니다.
+입장은 자료 조회 승인이 아닙니다. 코드가 없거나 틀리면 본문 처리 전에 401
+`workshop_access_required`, 서버 설정 오류면 503 `workshop_access_unavailable`입니다.
+두 오류는 기존 `detail.code/message/field_errors` 구조이며 코드를 노출하지 않습니다.
+`/analyze`·OpenAPI 문서도 같은 검사 대상이고 기존 성공 응답 본문은 유지합니다.
+`/health`·정적 UI·공개 GET 상태는 코드가 필요 없습니다.
+[환경별 설정·정확한 계약](../../docs/WORKSHOP_ACCESS.md)을 참고하십시오.
+
 ```text
 질문 → POST /api/v1/plan → 조건 편집·확인
      → ‘이 조건으로 조회’ → POST /api/v1/execute → 일반 응답 예시·근거 기반 브리핑 비교
@@ -39,7 +48,7 @@ OpenDART는 `OPENDART_ENABLED=true`, KOSIS는 `KOSIS_ENABLED=true`를 각각 검
 - `field_options`: 자료원별 지원 선택값. 프런트엔드는 이 목록으로 입력란을 구성합니다.
 - `available_years`: KOSIS mock/live 지원 연도 `[2020, 2021, 2022, 2023, 2024]`.
   OpenDART live는 `[2022, 2024]`, OpenDART mock은 빈 배열입니다.
-- `data_mode`: 요청에서 확정한 `mock` 또는 `live`. 계획 단계에는 공공자료를 조회하지 않습니다.
+- `data_mode`: 요청에서 확정한 `mock|live|snapshot`. 계획 단계에는 공공자료를 조회하지 않습니다.
 - `clarification_required`와 `clarification_questions`: 계획 당시의 미해결 조건과 한국어 안내.
 - 자료원이 `undetermined`이면 질문을 구체화해야 합니다.
 - 모의 규칙은 키워드와 명시적인 조건 문자열만 해석합니다. Gemini도 기존 자료원 범위

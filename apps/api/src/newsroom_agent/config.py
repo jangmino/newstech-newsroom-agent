@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     public_data_mode: str = "mock"
     live_api_enabled: bool = False
     fallback_snapshot_enabled: bool = True
-    workshop_access_code: str = ""
+    workshop_access_code: str = Field(default="", repr=False)
     cors_origins: str = "http://localhost:5173"
 
     gemini_auth_mode: str = "api_key"

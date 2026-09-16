@@ -4,6 +4,10 @@
 공식 저장 자료 JSON은 백엔드 패키지 안에 포함되어 기존 Dockerfile의 `COPY apps/api/src`와
 패키지 설치로 제공됩니다. 별도 파일 서버·볼륨·DB는 필요하지 않습니다.
 사용은 `FALLBACK_SNAPSHOT_ENABLED`와 참가자의 명시적 선택·재승인을 따릅니다.
+행사 접근코드 검사를 구현했으며 stage/event에서는 `APP_ENV`를 명시하고
+`WORKSHOP_ACCESS_CODE`를 기관 Secret Manager에서 주입해야 합니다. 미설정·잘못된 값은
+실습 API를 차단합니다. `/health`와 입장용 UI는 공개이며 HTTPS가 필요합니다.
+실제 Secret Manager 구성·Cloud Run 배포는 아직 실행하지 않았습니다.
 
 ## 권장 구성
 

@@ -12,8 +12,9 @@ import { ConditionComparison } from "./ConditionComparison";
 import { canCompareResults } from "./resultComparison";
 import { WorkshopGuide } from "./WorkshopGuide";
 import { workshopQuestion, type WorkshopScenarioId } from "./workshopScenarios";
+import { postJson, type ApiPost } from "./api";
 import type {
-  ApiErrorDetail, ExecuteRequest, ExecutionResponse, InterpretationMethod, PlanRequest, PlanResponse,
+  ExecutionResponse, InterpretationMethod, PlanResponse,
   QueryConditions, QueryMode,
 } from "./types";
 
@@ -22,37 +23,7 @@ const samples = [
   "삼성전자의 최근 실적은 악화됐는가?",
 ];
 
-async function post<T>(path: string, body: PlanRequest | ExecuteRequest, signal: AbortSignal): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body), signal,
-    });
-  } catch {
-    throw new Error("요청을 보내지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
-  }
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { detail?: ApiErrorDetail } | null;
-    const detail = payload?.detail;
-    if (detail?.message && detail.field_errors) {
-      const seconds = detail.retry_after_seconds;
-      const waitHint = detail.code === "public_data_rate_limited"
-        && typeof seconds === "number" && Number.isInteger(seconds) && seconds >= 1 && seconds <= 60
-        ? `다시 조회할 수 있는 예상 시간은 약 ${seconds}초 뒤입니다. 다른 요청에 따라 달라질 수 있습니다.`
-        : "";
-      throw new Error([detail.message, ...Object.values(detail.field_errors), waitHint].filter(Boolean).join(" "));
-    }
-    throw new Error("요청을 처리하지 못했습니다. 입력한 내용은 유지됩니다. 다시 시도해 주세요.");
-  }
-  try {
-    return await response.json() as T;
-  } catch {
-    throw new Error("응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.");
-  }
-}
-
-function App() {
+function App({ post = postJson }: { post?: ApiPost }) {
   const [question, setQuestion] = useState(samples[0]);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [draft, setDraft] = useState<QueryConditions | null>(null);

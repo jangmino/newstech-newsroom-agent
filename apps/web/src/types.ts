@@ -2,6 +2,11 @@ export type SourceName = "opendart" | "kosis" | "undetermined";
 export type InterpretationMethod = "mock_rules" | "gemini";
 export type QueryMode = "mock" | "live" | "snapshot";
 
+export interface WorkshopAccessStatus {
+  required: boolean;
+  available: boolean;
+}
+
 export interface QueryPlan {
   selected_source: SourceName;
   selection_reason: string;
@@ -57,7 +62,8 @@ export interface ApiErrorDetail {
     | "planner_disabled" | "planner_configuration_error" | "planner_timeout" | "planner_rate_limited"
     | "invalid_live_data" | "live_disabled" | `opendart_${string}` | `kosis_${string}`
     | "public_data_rate_limited" | "public_data_busy" | "snapshot_disabled"
-    | "snapshot_changed" | "snapshot_unavailable" | "invalid_snapshot_data";
+    | "snapshot_changed" | "snapshot_unavailable" | "invalid_snapshot_data"
+    | "workshop_access_required" | "workshop_access_unavailable";
   message: string;
   field_errors: Record<string, string>;
   source?: "kosis" | "opendart";

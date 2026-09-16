@@ -276,10 +276,25 @@ live 설정과 독립적입니다. 결과의 `evidence.data_mode=snapshot`, `sna
 미지원 범위·자료 누락·무결성 오류는 대체 자료 없이 중단합니다.
 [ADR 0011](decisions/0011-explicit-public-data-snapshot.md), [계약·검증](SNAPSHOT_FALLBACK.md)을 참고합니다.
 
+## M3 행사용 접근코드
+
+`WorkshopAccessMiddleware`가 라우팅·본문 파싱 전에 `/api/*`와 OpenAPI 문서의
+`X-Workshop-Code`를 검사합니다. CORS를 바깥에 두어 허용 출처의 사전 요청을 처리합니다.
+공개 GET `/api/v1/access`는 필요/가용 여부만 알려 주며 POST는 코드 확인용입니다.
+`/health`·정적 UI는 공개입니다. 코드 누락·불일치는 401, 잘못된 서버 설정은 503입니다.
+local/test에서 빈 코드만 제한 없이 사용하며 stage/event의 빈 설정은 차단합니다.
+계정·DB·쿠키·JWT 없이 매 요청을 검사하고 기존 조건 승인·자료 모드·캐시 규칙을 유지합니다.
+
+프론트엔드 진입점 `WorkshopAccess`는 상태 확인·입장이 끝나야 기존 `App`을 마운트합니다.
+코드는 탭 메모리에서 같은 출처 API 헤더로만 보내며 나가기·접근 오류에는 `App`을 제거하여
+질문·조건·결과·비교·검토를 지웁니다. 요청 취소와 버전 검사로 이전 응답을 무시하고
+재입장 후 자동 재실행하지 않습니다. 기존 API 본문 계약은 유지하되 `/analyze`도 보호합니다.
+API 응답의 `no-store`와 `Vary`는 공공자료 메모리 캐시와 별개입니다.
+[ADR 0012](decisions/0012-shared-workshop-access-code.md), [계약·한계](WORKSHOP_ACCESS.md)를 참고합니다.
+
 ## 추후 추가할 운영 장치
 
 - 여러 인스턴스의 호출 한도·캐시 정책
-- 행사용 접근코드
 - 실행 ID를 포함한 구조화 로그
 - API별 타임아웃·제한적 재시도
 - 민감정보 제거

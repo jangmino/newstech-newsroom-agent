@@ -134,6 +134,7 @@ JSON을 wheel/sdist에 포함하며 기존 Dockerfile의 `COPY apps/api/src`에�
 - `git diff --check` 통과. 추적·추가 대상 126개 파일의 비밀정보 검사에서 발견 0건,
   실제 `.env`는 변경하지 않았고 Git 제외 상태를 확인.
 
-다음 최소 기능은 **행사용 접근코드**입니다. 계정·DB 없이 공유 행사 코드로 API 접근을
-제한하는 계약을 별도 ADR로 정한 뒤 구현합니다. 운영 상태·구조화 로그, 기관 Secret Manager·
+후속 **행사용 접근코드**는 [접근 계약](WORKSHOP_ACCESS.md)으로 완료했습니다.
+저장 자료도 같은 요청별 코드 검사를 거칩니다. 다음 최소 기능은 요청 ID를 연결한
+구조화 로그입니다. 운영 상태, 기관 Secret Manager·
 Cloud Run stage 배포, 분산 호출 정책, 30명 부하 시험과 실제 행사 장애 리허설은 남아 있습니다.

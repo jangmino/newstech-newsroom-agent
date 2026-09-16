@@ -13,6 +13,7 @@ _patch = pytest.MonkeyPatch()
 def pytest_configure() -> None:
     settings = SimpleNamespace(
         app_env="test",
+        workshop_access_code="",
         public_data_mode="mock",
         live_api_enabled=False,
         fallback_snapshot_enabled=True,

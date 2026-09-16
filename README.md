@@ -108,6 +108,10 @@ make dev-web
 - 프론트엔드: http://localhost:5173
 - 백엔드 상태 확인: http://localhost:8000/health
 
+로컬의 `WORKSHOP_ACCESS_CODE`가 비어 있으면 기존처럼 바로 실습합니다. 코드를 설정하고
+API를 재시작하면 입장 화면이 표시됩니다. [행사용 접근코드 안내](docs/WORKSHOP_ACCESS.md)를
+참고하십시오. 입장과 조회 조건 승인은 별도이며 코드는 현재 탭에서만 유지합니다.
+
 또는 VS Code에서 `Terminal > Run Task > Dev: web + api`를 실행할 수 있습니다.
 
 ## 검증
@@ -137,12 +141,13 @@ VS Code에서 이 저장소 루트를 열면 Codex가 루트의 `AGENTS.md`를 �
 ## 현재 범위
 
 - 포함: 단일 오케스트레이터, 조건 편집·승인, 응답·조건 비교, 오류 실습, 결정론적 계산·검증, 근거·사람 검토, Gemini 질문 해석, OpenDART/KOSIS의 한정된 실제 조회, Cloud Run 이미지 구조
-- 후속 구현: M3 접근코드·운영 상태·행사 운영 준비, Gemini 추가 표현·반복 실행 품질 검증
+- 후속 구현: M3 구조화 로그·운영 상태·행사 운영 준비, Gemini 추가 표현·반복 실행 품질 검증
 - 제외: 멀티에이전트, 기사 자동 발행, CMS 연동, 모든 공공데이터 자유 질의, 행사 이후 상시 운영
 
 제품 범위는 [제품 개요](docs/PRODUCT_BRIEF.md)에 정리되어 있습니다.
 현재 **M1과 기존 두 질문의 한정된 M2 실제 연결을 완료**했으며,
-M3 캐시·동일 요청 합치기·프로세스 내부 호출 제한·명시적 snapshot fallback까지 구현했습니다. 다음은 행사용 접근코드이며,
+M3 캐시·동일 요청 합치기·프로세스 내부 호출 제한·명시적 snapshot fallback·공유 접근코드까지
+구현했습니다. 다음은 요청 ID를 연결한 구조화 로그이며,
 기관 Secret Manager·Cloud Run stage 배포·부하 시험과 넓은 모델 품질 검증은 남아 있습니다.
 전체 진행 상태는 [로드맵](docs/ROADMAP.md)을 참고하십시오.
 가상 숫자로 비교 기준과 오류를 체험하는 방법은 [계산 실습 안내](fixtures/synthetic/README.md)를 참고하십시오.

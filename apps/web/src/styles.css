@@ -33,6 +33,10 @@ textarea { width: 100%; resize: vertical; border: 1px solid #b9c6d8; border-radi
 textarea:focus { outline: 3px solid rgba(39, 98, 217, 0.16); border-color: #2762d9; }
 .primary { justify-self: end; border: 0; border-radius: 12px; padding: 11px 19px; color: #fff; background: #2762d9; font-weight: 750; cursor: pointer; }
 .primary:disabled { opacity: 0.55; cursor: wait; }
+.access-shell { max-width: 760px; }
+.access-shell .card p { word-break: keep-all; }
+.access-session { width: min(1180px, calc(100% - 32px)); margin: 20px auto 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: #174eaf; }
+.access-session button, .access-shell .card > button { border: 1px solid #cbd6e5; border-radius: 10px; padding: 9px 14px; color: #28415f; background: #f7f9fc; cursor: pointer; }
 .error { color: #a52626; font-weight: 650; }
 
 .empty-state { margin-top: 18px; padding: 40px; border-radius: 18px; text-align: center; border-style: dashed; }

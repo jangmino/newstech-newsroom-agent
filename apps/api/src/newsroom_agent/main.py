@@ -22,6 +22,7 @@ from newsroom_agent.models import (
     ExecutionResponse,
     PlanRequest,
     PlanResponse,
+    WorkshopAccessStatus,
 )
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
 from newsroom_agent.planning import InvalidPlannerOutput, create_plan, plan_from_conditions
@@ -45,6 +46,7 @@ from newsroom_agent.public_data_limits import (
     PublicDataLimitError,
     PublicDataSource,
 )
+from newsroom_agent.workshop_access import WorkshopAccessMiddleware, access_status
 
 settings = get_settings()
 
@@ -67,6 +69,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="NewsTech Newsroom Agent API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(WorkshopAccessMiddleware, settings=lambda: settings)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -87,6 +90,12 @@ async def snapshot_error(request: Request, exc: SnapshotError):
 def require_snapshot() -> None:
     if not settings.fallback_snapshot_enabled:
         raise SnapshotError("snapshot_disabled")
+
+
+@app.get("/api/v1/access", response_model=WorkshopAccessStatus)
+@app.post("/api/v1/access", response_model=WorkshopAccessStatus)
+def workshop_access() -> WorkshopAccessStatus:
+    return access_status(settings)
 
 
 @app.get("/health")
