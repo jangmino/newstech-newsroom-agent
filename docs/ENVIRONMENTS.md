@@ -208,6 +208,8 @@ OpenDART는 두 연도를 조회하므로 정상 완료를 위해 분당 한도�
 공급자 키는 복사하지 않고 접근코드만 개인 Secret Manager에서 고정 버전으로 주입합니다.
 이는 기관 소유 원칙의 임시 예외이며 행사 전 기관 환경으로 교체합니다.
 [결정](decisions/0015-temporary-personal-stage.md), [배포·이전 절차](STAGE_DEPLOYMENT.md)를 따릅니다.
+2026-09-17 Cloud Run 배포·접근코드 보호·mock/저장 자료의 승인 실행을 확인했습니다.
+[실제 구성과 검증 기록](STAGE_SMOKE_TEST.md)을 참고하십시오.
 
 ## 기관 Stage
 

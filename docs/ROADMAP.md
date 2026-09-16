@@ -47,7 +47,8 @@ OpenDART와 KOSIS 모두 실제 자료 선택·조건 승인 뒤에만 조회합
 완료했습니다. [접근 계약·확인 방법](WORKSHOP_ACCESS.md)을 따릅니다.
 요청 ID와 허용 필드만 기록하는 [구조화 로그](REQUEST_LOGGING.md)도 완료했습니다.
 [읽기 전용 실습 운영 상태 화면](OPERATIONS_STATUS.md)도 완료했습니다.
-다음 최소 단위는 기관 프로젝트·권한·비밀정보 주입·실행 설정을 정리하는 stage 배포 준비입니다.
+기관 계정이 준비되기 전 사용자 승인으로 [개인 임시 stage 배포](STAGE_SMOKE_TEST.md)를
+완료했습니다. 다음 최소 단위는 이 stage의 30명 동시 사용 시험(mock/저장 자료)입니다.
 
 ## M3 — Event readiness
 
@@ -57,7 +58,9 @@ OpenDART와 KOSIS 모두 실제 자료 선택·조건 승인 뒤에만 조회합
 - [x] 행사용 공유 접근코드·입장/나가기·요청별 검사
 - [x] 요청 ID·구조화 로그·오류 문의 번호
 - [x] 읽기 전용 실습 운영 상태 화면 (설정·저장 파일·프로세스 한도, 외부 호출 없음)
-- [ ] stage 배포
+- [x] 개인 임시 stage 배포 (전용 프로젝트·Secret Manager·비용 알림·mock/저장 자료)
+- [ ] 기관 stage로 재배포·기관 키 전환
+- [ ] stage 실제 공급자 Secret 연결·소규모 live 확인
 - [ ] 30명 부하 시험
 - [ ] 장애·snapshot fallback 리허설
 - [ ] 운영자 가이드
@@ -66,5 +69,6 @@ Gemini와 공공자료에는 각각 프로세스 내부 한도를 적용했습�
 전체의 제한·인스턴스 간 정책·부하 검증은 위 항목의 남은 범위입니다.
 [캐시 검증](PUBLIC_DATA_CACHE.md)의 30개 동시 작업 검사는 행사 부하 시험을 대신하지 않습니다.
 [호출 제한 계약·검증](PUBLIC_DATA_LIMITS.md)에 HTTP 계산 단위와 적용 범위를 기록합니다.
-stage는 프론트엔드 정적 빌드와 FastAPI를 단일 Cloud Run 서비스로 제공하며, 기관/주최 측
-프로젝트·자격증명과 Secret Manager를 사용합니다. 실제 배포·과금 활성화는 별도 승인 범위입니다.
+stage는 프론트엔드 정적 빌드와 FastAPI를 단일 Cloud Run 서비스로 제공합니다.
+현재 개인 임시 stage는 [ADR 0015](decisions/0015-temporary-personal-stage.md)의 승인된 예외입니다.
+행사는 기관/주최 측 프로젝트·자격증명과 Secret Manager로 교체한 뒤 진행합니다.
