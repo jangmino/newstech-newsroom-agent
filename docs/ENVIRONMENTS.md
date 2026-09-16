@@ -78,7 +78,7 @@ OPENDART_ENABLED=true
 
 세 설정을 모두 만족해야 실제 자료 요청을 허용합니다. `PUBLIC_DATA_MODE=live`는
 서버의 허용 설정이며 화면의 기본 선택을 바꾸거나 KOSIS를 활성화하지 않습니다.
-화면의 ‘조회 자료’에서 ‘OpenDART 실제 자료’를 선택하고, 삼성전자 2022-2024년
+화면의 ‘조회 자료’에서 ‘공식 실제 자료 · OpenDART / KOSIS’를 선택하고, 삼성전자 2022-2024년
 연간 연결 매출액 조건을 분석·승인해야 실제 요청합니다. 질문 해석은 모의 규칙과
 Gemini 중 독립적으로 선택합니다. `/health`의 `opendart_enabled`는 설정 허용 여부이며
 키 유효성·공급자 가용성 보증이 아닙니다.
@@ -90,8 +90,37 @@ Gemini 중 독립적으로 선택합니다. `/health`의 `opendart_enabled`는 �
 
 이번 개발 환경에는 사용자 승인에 따라 위 세 공개 설정을 로컬 `.env`에 적용했습니다.
 Gemini 설정과 키는 유지했습니다. 저장소의 기본값과 `.env.example`은 비활성 상태입니다.
-`OPENDART_ENABLED=false` 또는 `PUBLIC_DATA_MODE=mock`으로 바꾸고 재시작하면
-Gemini를 유지하면서 공공자료만 mock으로 제한할 수 있습니다.
+`OPENDART_ENABLED=false`로 바꾸면 OpenDART만 차단합니다. `PUBLIC_DATA_MODE=mock`으로
+바꾸고 재시작하면 Gemini를 유지하면서 모든 공공자료를 mock으로 제한할 수 있습니다.
+
+## KOSIS 실제 자료 활성화
+
+기존 `KOSIS_API_KEY`는 백엔드 `.env`에만 두고 다음 공개 설정을 적용한 뒤 API 서버를
+다시 시작합니다. `KOSIS_ENABLED`가 없으면 기본값은 `false`입니다.
+
+```text
+LIVE_API_ENABLED=true
+PUBLIC_DATA_MODE=live
+KOSIS_ENABLED=true
+```
+
+KOSIS 활성화는 OpenDART·Gemini 활성화와 독립적입니다. 화면의 ‘공식 실제 자료 ·
+OpenDART / KOSIS’와 ‘모의 규칙’을 선택한 뒤 다음 질문으로 분석·승인할 수 있습니다.
+
+```text
+전국 시·도 15-29세 청년 고용률 2020-2024년 연간 증감 폭 비교
+```
+
+계획·편집에는 KOSIS 호출이 없고, 승인 한 번에 최대 85개 셀을 한 번 조회합니다.
+비교 기준만 바꾸거나 같은 조건으로 다시 승인해도 현재는 한 번 더 요청합니다.
+HTTP/전체 수신 제한 20초, 응답 크기 상한 2MB이며 자동 재시도·mock/snapshot 대체가 없습니다.
+`/health`의 `kosis_enabled`는 설정상 허용 여부이며 키 유효성이나 공급자 상태를 보증하지 않습니다.
+15~34세·취업자 수·월/분기·2020~2024년 밖 기간은 지원하지 않습니다.
+
+이번 로컬 환경은 사용자 승인에 따라 `KOSIS_ENABLED=true`를 추가하고 실제 UI 조회를
+2회 확인했습니다. 키와 Gemini/OpenDART 설정은 유지했으며 `.env`는 Git에서 제외합니다.
+저장소 기본값은 계속 비활성화입니다. `KOSIS_ENABLED=false`로 바꾸고 재시작하면
+KOSIS만 비활성화합니다. 자세한 결과는 [확인 기록](KOSIS_SMOKE_TEST.md)을 참고하십시오.
 
 ## Stage
 

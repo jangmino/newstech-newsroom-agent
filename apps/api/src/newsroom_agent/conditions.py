@@ -1,8 +1,9 @@
-"""Supported mock workshop conditions; no providers or data retrieval."""
+"""Supported workshop conditions; no data retrieval."""
 
 import re
 
 from newsroom_agent.models import QueryConditions, SourceName
+from newsroom_agent.providers.kosis_employment import YEARS as KOSIS_LIVE_YEARS
 from newsroom_agent.providers.mock_employment import YEARS
 
 FIELD_LABELS = {
@@ -35,10 +36,19 @@ FIELD_OPTIONS = {
 
 OPENDART_LIVE_YEARS = (2022, 2024)
 OPENDART_LIVE_REASON = "기업의 공시 재무정보를 확인하기 위해 OpenDART를 선택했습니다."
+KOSIS_LIVE_REASON = (
+    "청년 고용의 시도별 변화를 확인하기 위해 KOSIS 경제활동인구조사를 선택했습니다. "
+    "실제 자료는 15~29세·연간 고용률만 지원합니다. 조건 승인 후 조회합니다."
+)
 
 
 def field_options(source: SourceName, mode: str = "mock") -> dict[str, list[str]]:
     if mode == "live":
+        if source == "kosis":
+            return {
+                **FIELD_OPTIONS["kosis"], "metric": ["고용률"],
+                "filters.age_range": ["15-29세"],
+            }
         if source != "opendart":
             return {}
         return {
@@ -74,9 +84,6 @@ def route_question(question: str) -> SourceName:
 
 
 def validate_conditions(conditions: QueryConditions, mode: str = "mock") -> dict[str, str]:
-    if mode == "live" and conditions.selected_source != "opendart":
-        return {"selected_source": "실제 자료는 삼성전자 연결 매출액만 지원합니다. "
-                "기업 질문으로 바꾸거나 모의 자료를 선택해 주세요."}
     options = field_options(conditions.selected_source, mode)
     if not options:
         return {"selected_source": "자료원을 정할 수 있도록 질문을 구체화해 주세요."}
@@ -95,10 +102,13 @@ def validate_conditions(conditions: QueryConditions, mode: str = "mock") -> dict
     if period is None or not 1900 <= int(period[1]) < int(period[2]) <= 2100:
         errors["period"] = "기간을 시작 연도-종료 연도로 입력해 주세요. 예: 2020-2024."
     elif conditions.selected_source == "kosis" and any(
-        int(year) not in YEARS for year in period.groups()
+        int(year) not in (KOSIS_LIVE_YEARS if mode == "live" else YEARS) for year in period.groups()
     ):
-        errors["period"] = "가상 청년 고용 자료는 2020~2024년만 지원합니다. 기간을 수정해 주세요."
-    elif mode == "live" and tuple(map(int, period.groups())) != OPENDART_LIVE_YEARS:
+        errors["period"] = ("실제" if mode == "live" else "가상") + (
+            " 청년 고용 자료는 2020~2024년만 지원합니다. 기간을 수정해 주세요."
+        )
+    elif (mode == "live" and conditions.selected_source == "opendart"
+          and tuple(map(int, period.groups())) != OPENDART_LIVE_YEARS):
         errors["period"] = "실제 매출액 실습은 원문을 대조한 2022-2024년 비교만 지원합니다."
 
     allowed_filters = {

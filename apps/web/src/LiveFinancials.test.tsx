@@ -107,11 +107,11 @@ test("unsupported live period blocks approval with Korean guidance", async () =>
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
-test("KOSIS in live mode cannot be approved", async () => {
+test("a plan without supported options cannot be approved", async () => {
   const fetch = setup();
   fetch.mockResolvedValueOnce(json({ ...examplePlan(), data_mode: "live", field_options: {} }));
   await plan();
-  expect(screen.getByText(/기업 질문으로 바꾸거나 모의 자료를 선택/)).toBeTruthy();
+  expect(screen.getByText(/지원하는 조회 조건을 확인하지 못했습니다/)).toBeTruthy();
   expect(screen.getByRole<HTMLButtonElement>("button", { name: "이 조건으로 조회" }).disabled).toBe(true);
 });
 

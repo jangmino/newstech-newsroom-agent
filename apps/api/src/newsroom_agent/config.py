@@ -31,7 +31,8 @@ class Settings(BaseSettings):
 
     opendart_api_key: str = Field(default="", repr=False)
     opendart_enabled: bool = False
-    kosis_api_key: str = ""
+    kosis_api_key: str = Field(default="", repr=False)
+    kosis_enabled: bool = False
 
     requests_per_minute: int = Field(default=30, ge=1, le=300)
     max_concurrent_requests: int = Field(default=8, ge=1, le=30)

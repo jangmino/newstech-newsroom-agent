@@ -37,12 +37,14 @@ KOSIS 개발가이드는 회원당 인증키 1개가 발급된다고 안내합�
 
 2026-09-16에 `101 / DT_1DA7015S`의 15~29세 고용률·17개 시도·2020~2024년 자료와
 메타데이터를 확인했습니다. [자료 계약·확인 기록](KOSIS_EMPLOYMENT.md)에 지원 범위와
-기존 mock의 15~34세·취업자 수 조건과의 차이를 기록합니다. 공개 발췌와 순수 정규화 검증은
-완료했으며 참가자 화면은 계속 mock입니다.
+기존 mock의 15~34세·취업자 수 조건과의 차이를 기록합니다. 공개 발췌·순수 정규화 검증과
+승인 후 실제 조회·계산·근거·검토 화면 연결을 완료했습니다. 기본 모드는 계속 mock입니다.
 
-초기 검색 골격은 `apps/api/src/newsroom_agent/providers/kosis.py`, 순수 자료 계약은
-`providers/kosis_employment.py`에 있습니다. 후속 실제 연결에는 명시적 활성화·승인 검증과
-키가 포함된 URL을 노출하지 않는 전송·오류 처리가 필요합니다.
+안전한 단일 요청 어댑터는 `apps/api/src/newsroom_agent/providers/kosis.py`, 순수 자료 계약은
+`providers/kosis_employment.py`에 있습니다. `live_employment.py`가 승인 조건 검증 후에만
+호출하고 계산합니다. 비활성 설정·키 누락·오류에서는 중단하며 인증 URL을 노출하거나
+mock으로 대체하지 않습니다. [활성화 방법](ENVIRONMENTS.md#kosis-실제-자료-활성화)과
+[공식 통계표 대조·실제 UI 확인 기록](KOSIS_SMOKE_TEST.md)을 참고하십시오.
 
 ## Gemini
 

@@ -10,7 +10,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from newsroom_agent.calculations import CalculationDataError
+from newsroom_agent.conditions import route_question, validate_conditions
 from newsroom_agent.config import get_settings
+from newsroom_agent.live_employment import execute_employment
 from newsroom_agent.live_financials import execute_financials
 from newsroom_agent.models import (
     AnalysisRequest,
@@ -22,6 +24,8 @@ from newsroom_agent.models import (
 )
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
 from newsroom_agent.planning import InvalidPlannerOutput, create_plan
+from newsroom_agent.providers.kosis import KosisClient
+from newsroom_agent.providers.kosis_employment import KosisError
 from newsroom_agent.providers.mock_planner import MockQuestionPlanner
 from newsroom_agent.providers.opendart import OpenDartClient
 from newsroom_agent.providers.opendart_financials import OpenDartError
@@ -54,6 +58,7 @@ def health() -> dict[str, str | bool]:
         "live_api_enabled": settings.live_api_enabled,
         "gemini_planner_enabled": settings.gemini_planner_enabled and settings.live_api_enabled,
         "opendart_enabled": opendart_enabled(),
+        "kosis_enabled": kosis_enabled(),
     }
 
 
@@ -74,7 +79,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
         return await request_validation_exception_handler(request, exc)
     messages = {
         "question": "질문을 3자 이상 1,000자 이하로 입력해 주세요.",
-        "mode": "모의 자료 또는 OpenDART 실제 자료 모드를 선택해 주세요.",
+        "mode": "모의 자료 또는 공식 실제 자료 모드를 선택해 주세요.",
         "approved": "조건을 확인한 뒤 ‘이 조건으로 조회’를 눌러 주세요.",
         "interpretation_method": "모의 규칙 또는 Gemini 중 질문 해석 방식을 선택해 주세요.",
     }
@@ -143,7 +148,7 @@ def plan(
 ) -> PlanResponse:
     try:
         if request.mode == "live":
-            require_opendart()
+            require_live_source(route_question(request.question))
         result = create_plan(request.question, planner, request.mode)
         result.interpretation_method = request.interpretation_method
         result.interpretation_model = (
@@ -198,15 +203,27 @@ def plan(
 async def execute(request: ExecuteRequest) -> ExecutionResponse:
     try:
         if request.mode == "live":
-            require_opendart()
+            errors = validate_conditions(request.conditions, "live")
+            if request.conditions.selected_source != route_question(request.question):
+                errors["selected_source"] = (
+                    "자료원과 질문이 달라졌습니다. 질문을 다시 해석해 주세요."
+                )
+            if errors:
+                raise InvalidConditions(errors)
+            require_live_source(request.conditions.selected_source)
+            if request.conditions.selected_source == "kosis":
+                return await execute_employment(request.question, request.conditions, lambda: (
+                    KosisClient(settings.kosis_api_key, enabled=True)
+                ))
             return await execute_financials(request.question, request.conditions, lambda: (
                 OpenDartClient(settings.opendart_api_key, enabled=True)
             ))
         return MockOrchestrator().execute(request.question, request.conditions)
-    except OpenDartError as exc:
+    except (OpenDartError, KosisError) as exc:
+        provider = "kosis" if isinstance(exc, KosisError) else "opendart"
         raise HTTPException(
             status_code=429 if exc.code == "rate_limited" else 503,
-            detail={"code": f"opendart_{exc.code}", "message": str(exc), "field_errors": {}},
+            detail={"code": f"{provider}_{exc.code}", "message": str(exc), "field_errors": {}},
         ) from None
     except InvalidConditions as exc:
         raise HTTPException(
@@ -242,6 +259,29 @@ def require_opendart() -> None:
     if code:
         raise HTTPException(status_code=503, detail={
             "code": f"opendart_{code}", "message": str(OpenDartError(code)), "field_errors": {},
+        })
+
+
+def kosis_enabled() -> bool:
+    return (settings.live_api_enabled and settings.public_data_mode == "live"
+            and settings.kosis_enabled)
+
+
+def require_live_source(source: str) -> None:
+    if source == "opendart":
+        require_opendart()
+    elif source == "kosis":
+        code = "disabled" if not kosis_enabled() else (
+            "configuration" if not settings.kosis_api_key.strip() else None
+        )
+        if code:
+            raise HTTPException(status_code=503, detail={
+                "code": f"kosis_{code}", "message": str(KosisError(code)), "field_errors": {},
+            })
+    elif not settings.live_api_enabled or settings.public_data_mode != "live":
+        raise HTTPException(status_code=503, detail={
+            "code": "live_disabled", "message": "공식 실제 자료 조회가 꺼져 있습니다.",
+            "field_errors": {},
         })
 
 

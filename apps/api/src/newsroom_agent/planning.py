@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from newsroom_agent.conditions import (
     FIELD_OPTIONS,
+    KOSIS_LIVE_REASON,
+    KOSIS_LIVE_YEARS,
     OPENDART_LIVE_REASON,
     OPENDART_LIVE_YEARS,
     SELECTION_REASONS,
@@ -106,12 +108,14 @@ def create_plan(question: str, planner: QuestionPlanner, mode: str = "mock") -> 
         query_plan=QueryPlan(
             **conditions.model_dump(), selection_reason=(
                 OPENDART_LIVE_REASON if mode == "live" and source == "opendart"
+                else KOSIS_LIVE_REASON if mode == "live" and source == "kosis"
                 else SELECTION_REASONS[source]
             ),
             clarification_required=bool(errors), clarification_questions=list(errors.values()),
         ),
         required_fields=list(errors), field_options=field_options(source, mode),
-        available_years=(list(OPENDART_LIVE_YEARS) if mode == "live"
+        available_years=(list(KOSIS_LIVE_YEARS) if mode == "live" and source == "kosis"
+                         else list(OPENDART_LIVE_YEARS) if mode == "live" and source == "opendart"
                          else list(YEARS) if source == "kosis" else []),
         data_mode=mode,
     )

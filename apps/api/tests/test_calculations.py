@@ -118,3 +118,13 @@ def test_non_finite_overflow_and_unsupported_calculations_are_rejected():
     ]:
         with pytest.raises(CalculationDataError):
             rank_changes([pair("A", start, "2", unit)], unit, comparison)
+
+
+def test_precise_provider_values_do_not_become_false_ties_before_display_rounding():
+    rows, _ = rank_changes([
+        pair("A", "1", "2.00000000000000000000000000001"),
+        pair("B", "1", "2.00000000000000000000000000002"),
+    ], "%", "증감 폭", region_label="시도")
+    assert [(row.region, row.rank, row.change) for row in rows] == [
+        ("B", 1, "1.00"), ("A", 2, "1.00"),
+    ]

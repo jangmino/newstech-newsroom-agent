@@ -116,7 +116,7 @@ class CalculationRow(BaseModel):
 
 class CalculationResult(BaseModel):
     dataset_id: str
-    data_origin: Literal["synthetic"] = "synthetic"
+    data_origin: Literal["synthetic", "kosis"] = "synthetic"
     start_year: int
     end_year: int
     input_unit: str

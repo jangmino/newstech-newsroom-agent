@@ -12,11 +12,12 @@ FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-ap
      → ‘이 조건으로 조회’ → POST /api/v1/execute → 일반 응답 예시·근거 기반 브리핑 비교
 ```
 
-새 API는 기본 `mode=mock`, 선택형 `live`를 받습니다. live는 서버의 전역 live,
-`PUBLIC_DATA_MODE=live`, `OPENDART_ENABLED=true`와 키 설정이 필요하며 삼성전자
-2022·2024년 연간 연결 매출액만 지원합니다. KOSIS는 mock입니다. `snapshot`은 422이며
-자료·승인 이력을 저장하지 않습니다. 질문 해석 방식은 자료 모드와 독립적입니다.
-[실제 조회 계약](../../docs/OPENDART_REVENUE.md)을 참고하십시오.
+새 API는 기본 `mode=mock`, 선택형 `live`를 받습니다. live는 서버의 전역 live와
+`PUBLIC_DATA_MODE=live` 외에 질문에 맞는 공급자의 활성화·키 설정이 필요합니다.
+OpenDART는 `OPENDART_ENABLED=true`, KOSIS는 `KOSIS_ENABLED=true`를 각각 검사합니다.
+`snapshot`은 422이며 자료·승인 이력을 저장하지 않습니다. 질문 해석 방식은 자료 모드와
+독립적입니다. [OpenDART 계약](../../docs/OPENDART_REVENUE.md)과
+[KOSIS 계약](../../docs/KOSIS_EMPLOYMENT.md)의 확인된 범위만 지원합니다.
 
 ### POST /api/v1/plan
 
@@ -35,7 +36,7 @@ FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-ap
 - `interpretation_model`: mock은 `null`, Gemini는 서버에서 설정한 모델명입니다.
 - `required_fields`: 해결할 조건의 경로. 예: `metric`, `period`, `filters.age_range`.
 - `field_options`: 자료원별 지원 선택값. 프런트엔드는 이 목록으로 입력란을 구성합니다.
-- `available_years`: KOSIS 가상 자료의 지원 연도 `[2020, 2021, 2022, 2023, 2024]`.
+- `available_years`: KOSIS mock/live 지원 연도 `[2020, 2021, 2022, 2023, 2024]`.
   OpenDART live는 `[2022, 2024]`, OpenDART mock은 빈 배열입니다.
 - `data_mode`: 요청에서 확정한 `mock` 또는 `live`. 계획 단계에는 공공자료를 조회하지 않습니다.
 - `clarification_required`와 `clarification_questions`: 계획 당시의 미해결 조건과 한국어 안내.
@@ -159,6 +160,45 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 `opendart_configuration`, 조회 없음은 `opendart_no_data`입니다. 전체 오류 목록·정확한
 필드는 [조회 계약](../../docs/OPENDART_REVENUE.md)을 따릅니다.
 
+### KOSIS 실제 실행 계약
+
+위 요청 구조에 `mode=live`를 사용합니다. `selected_source=kosis`,
+`entity=전국 시·도|수도권 시·도|비수도권 시·도`, `metric=고용률`,
+`period=YYYY-YYYY`(2020 ≤ 시작 < 종료 ≤ 2024), `comparison=증감 폭|증감률`,
+`filters={"age_range":"15-29세","frequency":"연간"}`만 지원합니다.
+15~34세·취업자 수·월/분기 등을 임의로 지원 조건으로 바꾸지 않습니다. `/plan`의 지원
+선택값을 제한하고 미지원 값은 비워 참가자가 결정하도록 합니다.
+
+승인·필수 조건·질문과 자료원 일치를 검증한 뒤 고정 통계표를 한 번 조회합니다.
+최대 17개 시도 × 5개 연도 = 85개 셀이며 모든 요청 셀의 정규화에 성공해야 계산합니다.
+수도권은 서울·인천·경기 3개, 비수도권은 나머지 14개를 각각 비교하며 권역 평균은 없습니다.
+조건·비교 기준 재승인 때마다 새 요청을 합니다. 자동 재시도·캐시·snapshot 대체는 없습니다.
+
+성공 응답은 `evidence.data_mode=live`, `financial_calculation=null`입니다.
+
+- `calculation`: 아래 가상 계산과 같은 행 계약이며 `data_origin=kosis`,
+  `dataset_id=kosis:101:DT_1DA7015S:T90:75:annual`, 입력 `%`, 결과 `%p|%`입니다.
+  Decimal로 시작·종료 값의 변화를 계산하고 반올림 전 순위·공동 순위를 정합니다.
+  0 기준 증감률은 `zero_baseline`, `change=null`, `rank=null`과 이유를 표시합니다.
+- `evidence.query_parameters`: 검증된 승인 조건과 필터를 그대로 보존합니다.
+- `evidence.raw_values`: 기간 내 **모든 연간 셀**을 담습니다. `region`, `region_code`,
+  `year`(정수), `value`(십진 문자열), `raw_value`(공표 문자열), `unit=%`,
+  `last_changed_at`(날짜), `retrieved_at`(시각), `source_url`(키 없는 공식 표 링크),
+  `org_id=101`, `table_id=DT_1DA7015S`, `item_id=T90`, `age_code=75`, `period_code=A`입니다.
+  공개 조회 인자는 이 식별 코드·승인 대상·기간과 자료 계약의 고정 인자로 재구성할 수 있습니다.
+- `evidence.retrieved_at`: 정규화에 사용한 API 응답 수신 시각입니다. 자료 최종수정일과
+  구분합니다. 조회한 원자료와 코드 계산으로 브리핑을 구성하며 모델은 호출하지 않습니다.
+- `general_response`는 고정 mock, `brief.verification_status`는 `review_required`입니다.
+
+공급자 오류는 503 `kosis_<code>`(한도는 429 `kosis_rate_limited`)와 고정 한국어 안내,
+빈 `field_errors`를 반환합니다. 전체 목록은 [자료 계약](../../docs/KOSIS_EMPLOYMENT.md#실제-실행과-오류-계약)을
+따릅니다. 전역 live가 꺼진 불명확한 질문은 503 `live_disabled`입니다.
+오류에는 원래 응답·인증 URL을 넣지 않으며 근거·브리핑도 반환하지 않습니다.
+
+프론트엔드는 결과의 자료 모드·자료원이 승인값과 같은지, KOSIS live의 계산 출처가
+`kosis`인지 확인합니다. 출처가 다른 성공 응답도 표시하지 않습니다. 원표 링크·연간 값·
+수정일·통계 코드와 실제 통계용 검토 문구를 표시하고 조건 변경 시 숨김·초기화를 유지합니다.
+
 ### 가상 계산 계약
 
 청년 고용의 `calculation`은 다음 구조입니다. 기업 실적에서는 `null`입니다.
@@ -250,7 +290,7 @@ Gemini 전용 오류도 같은 `detail` 구조와 빈 `field_errors`를 사용�
 저장소 루트에서 `make test`, `make test-web`, `make typecheck`, `make check`를 실행합니다.
 `tests/conftest.py`는 앱 import 전 테스트 설정을 주입하고 실제 네트워크 연결을 막습니다.
 
-브라우저 동작 확인:
+아래 브라우저 동작 확인은 기본 mock 모드 기준입니다.
 
 1. 두 예시 질문 각각에서 해석 직후 자료·브리핑이 없는지 확인합니다.
 2. 대상·지표·기간·비교 기준과 추가 조건을 입력합니다. 미해결 안내와 조회 버튼 상태를 확인합니다.
@@ -282,6 +322,7 @@ Gemini 전용 오류도 같은 `detail` 구조와 빈 `field_errors`를 사용�
 27. Gemini 비활성·오류 시 모의 규칙으로 자동 전환하지 않으며, 방식 변경 시 조건·비교·검토가 초기화되는지 확인합니다.
 28. Gemini 성공 화면은 해석 모델과 mock 자료를 구분하며, 승인 전에는 근거·브리핑이 없는지 확인합니다.
 
-OpenDART 실제 화면은 [수동 확인 기록](../../docs/OPENDART_SMOKE_TEST.md)을 따릅니다.
+실제 화면은 [OpenDART 기록](../../docs/OPENDART_SMOKE_TEST.md)과
+[KOSIS 기록](../../docs/KOSIS_SMOKE_TEST.md)을 따릅니다.
 자동 테스트에서는 실제 API를 호출하지 않습니다. 자료 모드 변경·late 응답·조회 실패 때
 결과와 검토를 숨기고, 재승인 후 항상 검토 0/4로 시작하는지도 검사합니다.

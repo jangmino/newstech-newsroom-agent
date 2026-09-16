@@ -4,6 +4,7 @@ import {
 } from "./conditions";
 import { ReviewSession } from "./ReviewSession";
 import { FinancialEvidence } from "./FinancialEvidence";
+import { KosisEvidence } from "./KosisEvidence";
 import { CalculationTable } from "./CalculationTable";
 import { ConditionComparison } from "./ConditionComparison";
 import { canCompareResults } from "./resultComparison";
@@ -169,7 +170,10 @@ function App() {
         throw new Error("응답 비교를 준비하지 못했습니다. 잠시 후 다시 조회해 주세요.");
       }
       if (response.evidence.data_mode !== plan.data_mode
-        || (plan.data_mode === "live" && !response.financial_calculation)) {
+        || response.query_plan.selected_source !== conditions.selected_source
+        || (plan.data_mode === "live" && (conditions.selected_source === "kosis"
+          ? response.calculation?.data_origin !== "kosis" || response.financial_calculation !== null
+          : !response.financial_calculation || response.financial_calculation.data_origin !== "opendart"))) {
         throw new Error("조회 자료 모드를 확인하지 못했습니다. 다시 조회해 주세요.");
       }
       setDraft(conditions);
@@ -200,7 +204,7 @@ function App() {
           <p className="eyebrow">NewsTech Initiatives 2026 · 실습용 프로토타입</p>
           <h1>뉴스룸 데이터 에이전트</h1>
         </div>
-        <span className="mode">{dataMode === "live" ? "OpenDART 실제 자료" : "모의 자료 모드"}</span>
+        <span className="mode">{dataMode === "live" ? "공식 실제 자료" : "모의 자료 모드"}</span>
       </header>
 
       <section className="question-panel" aria-labelledby="question-title" aria-busy={busy === "plan"}>
@@ -221,10 +225,10 @@ function App() {
           <select id="data-mode" value={dataMode} aria-describedby="data-mode-help"
             onChange={(event) => changeDataMode(event.target.value as QueryMode)}>
             <option value="mock">모의 자료 · 두 실습 질문</option>
-            <option value="live">OpenDART 실제 자료 · 삼성전자 연결 매출액</option>
+            <option value="live">공식 실제 자료 · OpenDART / KOSIS</option>
           </select>
           <p id="data-mode-help" className="field-help">{dataMode === "live"
-            ? "2022·2024년 연간 연결 매출액을 비교합니다. ‘이 조건으로 조회’를 누른 뒤 공시를 조회하며, KOSIS 실제 자료는 아직 지원하지 않습니다."
+            ? "KOSIS는 15~29세 고용률의 시도별 연간 값(2020~2024년), OpenDART는 삼성전자 연간 연결 매출액(2022·2024년)을 지원합니다. ‘이 조건으로 조회’를 누른 뒤 자료를 조회합니다."
             : "실제 공공데이터를 조회하지 않는 실습 자료입니다."}</p>
         </div>
         <div className="interpretation-choice">
@@ -236,8 +240,8 @@ function App() {
           </select>
           <p id="interpretation-help" className="field-help">{dataMode === "live"
             ? (interpretationMethod === "gemini"
-              ? "‘질문 분석’을 누르면 질문을 Gemini로 보냅니다. 공시 조회와 계산은 조건 승인 후 별도로 실행합니다."
-              : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 공시 조회와 계산은 조건 승인 후 별도로 실행합니다.")
+              ? "‘질문 분석’을 누르면 질문을 Gemini로 보냅니다. 공식 자료 조회와 계산은 조건 승인 후 별도로 실행합니다."
+              : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 공식 자료 조회와 계산은 조건 승인 후 별도로 실행합니다.")
             : interpretationMethod === "gemini" ? "‘질문 분석’을 누르면 입력한 질문을 Google의 Gemini로 보냅니다. 조회 자료와 브리핑은 계속 모의 자료이며, 실제 취재 근거로 사용할 수 없습니다."
             : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 조회 자료와 브리핑도 모의 자료입니다."}</p>
         </div>
@@ -264,7 +268,7 @@ function App() {
             <p className="step">02 · 질문 해석과 조건 확인</p>
             <h2 id="conditions-title">{sourceLabel(plan.query_plan.selected_source)}</h2>
             {plan.interpretation_method === "mock_rules" && <p className="field-help">질문 해석: 모의 규칙 · Gemini를 호출하지 않았습니다.</p>}
-            {plan.interpretation_method === "gemini" && <p className="field-help">질문 해석: Gemini ({plan.interpretation_model}) · {plan.data_mode === "live" ? "공시 자료는 조건 승인 후 조회합니다." : "자료 조회와 브리핑은 모의 자료입니다."}</p>}
+            {plan.interpretation_method === "gemini" && <p className="field-help">질문 해석: Gemini ({plan.interpretation_model}) · {plan.data_mode === "live" ? "공식 자료는 조건 승인 후 조회합니다." : "자료 조회와 브리핑은 모의 자료입니다."}</p>}
             <p>{plan.query_plan.selection_reason}</p>
             {draft.selected_source !== "undetermined" && plan.query_plan.clarification_questions.length > 0 && <details className="planning-notes">
               <summary>처음 질문을 해석할 때 확인이 필요했던 내용</summary>
@@ -308,12 +312,16 @@ function App() {
                   })}
                 </div>
                 <p id="period-help" className="field-help">
-                  {plan.data_mode === "live"
+                  {plan.data_mode === "live" && draft.selected_source === "opendart"
                     ? "원문을 대조한 2022년과 2024년의 연간 연결 매출액만 지원합니다. 기간에 2022-2024를 입력해 주세요."
+                    : plan.data_mode === "live" && draft.selected_source === "kosis"
+                    ? "2020~2024년 안에서 서로 다른 시작·종료 연도의 연간 고용률을 비교합니다. 예: 2020-2024."
                     : plan.available_years?.length ? `가상 수치 자료는 ${plan.available_years[0]}~${plan.available_years[plan.available_years.length - 1]}년을 지원합니다. 서로 다른 시작·종료 연도의 연간 값만 비교합니다.`
                     : "시작 연도와 종료 연도의 연간 값을 비교합니다. 모의 실습은 1900~2100년 안의 서로 다른 두 연도를 입력받으며, 실제 자료의 제공 기간을 뜻하지 않습니다."}
                 </p>
-                {draft.selected_source === "kosis" && <p className="field-help synthetic-label">공식 통계가 아닌 가상 숫자로 계산합니다. ‘전국’은 가상 지역 A~D, ‘수도권’은 A·B, ‘비수도권’은 C·D를 고르는 실습 분류입니다.</p>}
+                {draft.selected_source === "kosis" && <p className="field-help synthetic-label">{plan.data_mode === "live"
+                  ? "실제 자료는 15~29세 고용률만 지원하며, 15~34세·취업자 수로 바꾸어 조회하지 않습니다. ‘전국’은 17개 시도, ‘수도권’은 서울·인천·경기, ‘비수도권’은 나머지 14개 시도를 각각 비교합니다. 권역 전체 고용률을 평균내지 않습니다."
+                  : "공식 통계가 아닌 가상 숫자로 계산합니다. ‘전국’은 가상 지역 A~D, ‘수도권’은 A·B, ‘비수도권’은 C·D를 고르는 실습 분류입니다."}</p>}
                 {errors.length > 0 ? (
                   <div className="notice" role="status">
                     <strong>조회 전에 확인해 주세요.</strong>
@@ -323,7 +331,7 @@ function App() {
                   <p className="field-help" role="status">{result ? "승인한 조회 조건과 두 응답을 아래에서 비교해 주세요." : "조건이 모두 입력됐습니다. 승인하면 일반 응답 예시와 근거 기반 브리핑이 함께 표시됩니다."}</p>
                 )}
                 <button className="primary" type="submit" disabled={busy !== null || errors.length > 0}>
-                  {busy === "execute" ? (dataMode === "live" ? "공시 자료를 조회하는 중…" : "모의 자료를 준비하는 중…") : "이 조건으로 조회"}
+                  {busy === "execute" ? (dataMode === "live" ? (draft.selected_source === "kosis" ? "통계 자료를 조회하는 중…" : "공시 자료를 조회하는 중…") : "모의 자료를 준비하는 중…") : "이 조건으로 조회"}
                 </button>
                 <p className="field-help">조건을 수정하면 결과와 검토 표시가 숨겨집니다. 바꾼 조건을 다시 승인하면 직전 결과와 비교할 수 있습니다. 질문을 바꾸거나 다시 분석하면 비교도 초기화됩니다.</p>
               </form>
@@ -350,10 +358,11 @@ function App() {
                     <div><dt>계산식</dt><dd>{result.evidence.formula}</dd></div>
                   </dl>
                   {result.financial_calculation && <FinancialEvidence result={result} />}
+                  {result.calculation?.data_origin === "kosis" && <KosisEvidence result={result} />}
                   {result.calculation && <CalculationTable calculation={result.calculation} comparison={result.query_plan.comparison} />}
                   <h3>자료 이용 시 주의사항</h3>
                   <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
-                  <span className="data-mode">{result.evidence.data_mode === "live" ? "공식 공시 실제 조회 · 사람 검토 필요" : result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
+                  <span className="data-mode">{result.evidence.data_mode === "live" ? (result.calculation?.data_origin === "kosis" ? "공식 통계 실제 조회 · 사람 검토 필요" : "공식 공시 실제 조회 · 사람 검토 필요") : result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
                 </section>
               </ReviewSession>
             </>

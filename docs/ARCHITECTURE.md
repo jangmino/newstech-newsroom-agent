@@ -54,7 +54,7 @@ FastAPI
 요청 버전도 확인하므로 늦게 도착한 이전 응답이 새 조건의 결과로 표시되지 않습니다.
 서버에 계획이나 승인 이력을 저장하지 않습니다. 단일 오케스트레이터와 기존 두 실습
 시나리오를 유지합니다. 자료 조회는 기본 mock이며 아래 M2의 명시적 설정과 참가자 선택으로
-Gemini 해석과 OpenDART 실제 조회를 각각 사용할 수 있습니다.
+Gemini 해석과 OpenDART/KOSIS 실제 조회를 각각 사용할 수 있습니다.
 
 모의 결과는 승인된 조건, 단위, 설계된 계산식, 생성 시각, 주의사항을 표시합니다.
 청년 고용에는 가상 숫자와 계산 결과가 있으며, 기업 실적의 `raw_values`는 빈 배열입니다.
@@ -179,7 +179,7 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 `calculations.financial_change`가 Decimal로 증감 폭/률을 계산하고 고정 문장으로
 브리핑을 구성합니다. LLM은 조회·계산·브리핑 작성에 관여하지 않습니다.
 
-`/plan`·`/execute`의 `mode=live`는 삼성전자 2022·2024년 연결 매출액만 지원합니다.
+`/plan`·`/execute`의 OpenDART `mode=live`는 삼성전자 2022·2024년 연결 매출액만 지원합니다.
 전역 live, 공공자료 live 허용, OpenDART 활성화와 키 설정을 모두 검사합니다.
 계획에는 `data_mode`를 추가하며 근거·계산값을 반환하지 않습니다. 실행에는 별도
 `financial_calculation`을 추가하고 `evidence.raw_values`에 정확한 정수 문자열과
@@ -193,21 +193,36 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 
 재시도·리다이렉트·환경 프록시·자동 fallback을 사용하지 않고 키 포함 URL과 원래
 오류를 노출하지 않습니다. 요청별 HTTP/전체 수신 시간 제한과 응답 크기 상한을 적용하고
-한 연도라도 실패하면 부분 결과를 반환하지 않습니다. KOSIS는 아직 mock입니다.
+한 연도라도 실패하면 부분 결과를 반환하지 않습니다.
 [조회 계약](OPENDART_REVENUE.md), [ADR 0006](decisions/0006-opendart-approved-live-flow.md),
 [원문 대조 기록](OPENDART_SMOKE_TEST.md)을 참고합니다.
 
-## M2 KOSIS 자료 계약 준비
+## M2 KOSIS 승인 조회
 
 `providers/kosis_employment.py`는 네트워크·설정 접근 없이 15~29세 고용률의 공식 표·분류·
 단위와 17개 시도·2020~2024년 범위를 검사합니다. 요청 연간 코드 `Y`와 실제 응답의 `A`를
 구분하고, 명시한 지역·연도별 셀의 중복·누락·비수치·단위 불일치를 중단합니다.
 공개 API 발췌는 오프라인 회귀 테스트에서만 읽습니다. 원래 값·최종수정일·조회 시각을 구분합니다.
 
-아직 오케스트레이터나 공개 API에 연결하지 않았으므로 화면·프론트엔드 타입·mock 계약은
-그대로입니다. 다음 단계에서 기존 검색 골격의 전송을 보강하고 승인 후 실제 조회·계산·
-브리핑·검토를 연결합니다. [자료 계약](KOSIS_EMPLOYMENT.md)과
-[ADR 0007](decisions/0007-kosis-youth-employment-contract.md)을 참고합니다.
+`providers/kosis.py`는 고정된 자료 API에 한 번 요청합니다. 전역 live와 공공자료 live 허용,
+`KOSIS_ENABLED`·키 설정을 검사하며 OpenDART 설정에 의존하지 않습니다. `/plan`에는
+자료 조회가 없습니다. `/execute`는 자료원·모드별 조건 검증 후 `live_employment.py`로
+분기합니다. 승인된 대상·연령·지표·기간만 요청하고 해석기를 다시 호출하지 않습니다.
+
+`calculations.rank_changes`로 시작·종료 연간 값의 증감 폭/률과 순위를 계산합니다.
+`calculation.data_origin=kosis`로 mock을 구분하고 모든 중간 연도 값도 `raw_values`에
+남깁니다. 0 기준 증감률은 순위에서 제외하지만 통계 부호·누락 셀·단위 오류는 조회 전체를
+실패시킵니다. 일부 응답으로 전체 지역 순위를 만들지 않습니다.
+
+`KosisEvidence`는 공식 표 링크·연간 공표값·시도/표/항목/연령 코드·최종수정일을 표시합니다.
+`CalculationTable`·응답/조건 비교·검토 항목도 출처에 맞는 한국어 안내를 사용합니다.
+승인 전 숨김·편집 후 재승인·검토 초기화는 유지하며 실제 결과를 가상 자료로 표시하지 않습니다.
+브리핑은 고정 문장과 검증된 계산으로 구성하고 일반 응답은 계속 mock입니다.
+
+요청당 최대 85개 셀, HTTP/전체 수신 제한 20초·2MB 상한이며 재시도·리다이렉트·환경
+프록시·자동 fallback이 없습니다. 전송 로그와 오류에서 키 포함 URL을 노출하지 않습니다.
+[자료 계약](KOSIS_EMPLOYMENT.md), [ADR 0008](decisions/0008-kosis-approved-live-flow.md),
+[실제 확인 기록](KOSIS_SMOKE_TEST.md)을 참고합니다. 기존 `/analyze`는 계속 mock 전용입니다.
 
 ## 추후 추가할 운영 장치
 

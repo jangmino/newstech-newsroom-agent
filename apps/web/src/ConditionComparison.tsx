@@ -8,7 +8,7 @@ function ResultSummary({ result, side }: { result: ExecutionResponse; side: "pre
   return (
     <article className="condition-result" aria-labelledby={`${side}-result-title`}>
       <h3 id={`${side}-result-title`}>{title}</h3>
-      <p className="synthetic-label">{evidence.data_mode === "live" ? "공식 공시 실제 조회 · 사람 검토 필요" : calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 결과 · 실제 조회·계산 전"}</p>
+      <p className="synthetic-label">{evidence.data_mode === "live" ? (calculation?.data_origin === "kosis" ? "공식 통계 실제 조회 · 사람 검토 필요" : "공식 공시 실제 조회 · 사람 검토 필요") : calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 결과 · 실제 조회·계산 전"}</p>
       <p className="result-summary">{brief.summary}</p>
       {result.financial_calculation && <FinancialSummary calculation={result.financial_calculation} />}
       <dl>
@@ -46,6 +46,7 @@ export function ConditionComparison({ previous, current }: {
   const conditions = comparisonConditions(previous.query_plan, current.query_plan);
   const before = previous.calculation;
   const after = current.calculation;
+  const official = before?.data_origin === "kosis" && after?.data_origin === "kosis";
   const regions = [...new Set([...(before?.rows ?? []), ...(after?.rows ?? [])].map((row) => row.region))].sort();
   return (
     <section className="card condition-comparison" aria-labelledby="condition-comparison-title">
@@ -71,10 +72,10 @@ export function ConditionComparison({ previous, current }: {
       {before && after ? (
         <>
           <p className="notice">각 순위는 해당 조회 대상 안에서 매긴 순위입니다. 단위·지표·기간·대상·연령 등 기준이 다른 값은 그대로 대소 비교할 수 없습니다. 여러 조건을 바꿨다면 특정 조건 하나의 영향으로 단정하지 마세요.</p>
-          <div className="comparison-scroll" role="region" aria-label="가상 지역별 결과 비교 표, 작은 화면에서는 좌우로 이동할 수 있습니다" tabIndex={0}>
+          <div className="comparison-scroll" role="region" aria-label={`${official ? "시도별" : "가상 지역별"} 결과 비교 표, 작은 화면에서는 좌우로 이동할 수 있습니다`} tabIndex={0}>
             <table className="condition-comparison-table">
-              <caption>가상 지역별 결과 비교 · 공식 통계 아님</caption>
-              <thead><tr><th scope="col">가상 지역</th><th scope="col">이전 결과</th><th scope="col">이번 결과</th></tr></thead>
+              <caption>{official ? "시도별 결과 비교 · KOSIS 실제 조회" : "가상 지역별 결과 비교 · 공식 통계 아님"}</caption>
+              <thead><tr><th scope="col">{official ? "시도" : "가상 지역"}</th><th scope="col">이전 결과</th><th scope="col">이번 결과</th></tr></thead>
               <tbody>{regions.map((region) => (
                 <tr key={region}><th scope="row">{region}</th>
                   <td><RegionResult calculation={before} region={region} /></td>

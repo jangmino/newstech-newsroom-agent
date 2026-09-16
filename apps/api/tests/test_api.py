@@ -281,7 +281,7 @@ def test_live_requires_provider_opt_in_and_snapshot_is_unsupported(monkeypatch):
             response = client.post(f"/api/v1/{endpoint}", json=body)
             assert response.status_code == (503 if mode == "live" else 422)
             if mode == "live":
-                assert response.json()["detail"]["code"] == "opendart_disabled"
+                assert response.json()["detail"]["code"] == "kosis_disabled"
             else:
                 assert "자료 모드" in response.json()["detail"]["field_errors"]["mode"]
 

@@ -29,6 +29,13 @@ GROUPS = MappingProxyType({
 })
 
 ERROR_MESSAGES = {
+    "disabled": "KOSIS 실제 조회가 꺼져 있습니다. 모의 자료를 선택하거나 운영자에게 문의해 주세요.",
+    "configuration": "KOSIS 연결 설정을 확인해야 합니다. 운영자에게 문의해 주세요.",
+    "authentication": "KOSIS 인증키 또는 접근 권한을 확인해야 합니다. 운영자에게 문의해 주세요.",
+    "rate_limited": "KOSIS 요청 한도에 도달했습니다. 잠시 후 다시 조회해 주세요.",
+    "invalid_request": "KOSIS 조회 조건을 처리하지 못했습니다. 조건과 연결 설정을 확인해 주세요.",
+    "timeout": "KOSIS 응답 시간이 초과됐습니다. 잠시 후 다시 조회해 주세요.",
+    "unavailable": "KOSIS 자료를 가져오지 못했습니다. 잠시 후 다시 조회해 주세요.",
     "unsupported_conditions": "실제 고용 자료는 15~29세 고용률의 시도별 비교만 지원합니다.",
     "unsupported_period": "2020~2024년 안에서 시작 연도보다 늦은 종료 연도를 선택해 주세요.",
     "invalid_response": "KOSIS 자료의 표·지역·연령·항목·주기가 조회 조건과 맞지 않습니다.",
@@ -44,12 +51,16 @@ ERROR_MESSAGES = {
 }
 
 
-class KosisContractError(Exception):
+class KosisError(Exception):
     """Fixed messages only: never echo provider values, URLs, or exception details."""
 
     def __init__(self, code: str) -> None:
         self.code = code
         super().__init__(ERROR_MESSAGES[code])
+
+
+class KosisContractError(KosisError):
+    """A deterministic request/response contract failure."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -83,7 +94,7 @@ class EmploymentQuery:
 
     @property
     def parameters(self) -> dict[str, str]:
-        """Public parameters only; a future backend transport supplies authentication."""
+        """Public parameters only; the backend transport supplies authentication."""
         return {
             "method": "getList", "orgId": ORG_ID, "tblId": TABLE_ID,
             "objL1": "+".join(self.region_codes), "objL2": AGE_CODE, "itmId": ITEM_ID,

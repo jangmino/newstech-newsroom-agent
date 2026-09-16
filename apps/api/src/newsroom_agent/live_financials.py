@@ -26,7 +26,8 @@ async def execute_financials(
     question: str, conditions: QueryConditions, client_factory: Callable[[], OpenDartClient],
 ) -> ExecutionResponse:
     errors = validate_conditions(conditions, "live")
-    if conditions.selected_source != route_question(question):
+    if (conditions.selected_source != "opendart"
+            or conditions.selected_source != route_question(question)):
         errors["selected_source"] = "자료원과 질문이 달라졌습니다. 질문을 다시 해석해 주세요."
     if errors:
         raise InvalidConditions(errors)

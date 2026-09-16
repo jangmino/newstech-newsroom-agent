@@ -149,11 +149,10 @@ def test_unsupported_live_plan_values_are_cleared(live):
     assert not live
 
 
-def test_kosis_live_plan_explains_supported_scope(live):
+def test_opendart_activation_does_not_enable_kosis(live):
     response = api.post("/api/v1/plan", json={"question": "청년 고용률 비교", "mode": "live"})
-    assert response.status_code == 200
-    assert "삼성전자" in response.json()["query_plan"]["clarification_questions"][0]
-    assert response.json()["required_fields"] == ["selected_source"]
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "kosis_disabled"
     assert not live
 
 

@@ -1,4 +1,4 @@
-"""Deterministic arithmetic for mock observations, independent of providers and LLMs."""
+"""Deterministic arithmetic for validated observations, independent of providers and LLMs."""
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, localcontext
@@ -65,6 +65,7 @@ def rank_changes(
     pairs: list[ValuePair],
     input_unit: str,
     comparison: str,
+    *, region_label: str = "가상 지역",
 ) -> tuple[list[CalculationRow], list[str]]:
     if input_unit not in ("%", "천 명") or comparison not in ("증감 폭", "증감률"):
         raise CalculationDataError("지원하지 않는 단위나 비교 기준입니다.")
@@ -74,7 +75,8 @@ def rank_changes(
     calculated: list[tuple[Decimal, CalculationRow]] = []
     unavailable: list[CalculationRow] = []
     with localcontext() as context:
-        context.prec = 28
+        # Covers the provider contract's bounded decimal strings without merging close ranks.
+        context.prec = 80
         context.rounding = ROUND_HALF_UP
         for pair in pairs:
             if pair.start_unit != input_unit or pair.end_unit != input_unit:
@@ -119,10 +121,10 @@ def rank_changes(
     warnings = []
     if unavailable:
         warnings.append(
-            f"계산 가능한 {len(calculated)}개 가상 지역만 순위를 매겼습니다. "
+            f"계산 가능한 {len(calculated)}개 {region_label}만 순위를 매겼습니다. "
             "계산 불가 지역을 포함한 전체 순위로 해석하지 마세요."
             if calculated
-            else "계산 가능한 가상 지역이 0개여서 순위를 매기지 않았습니다."
+            else f"계산 가능한 {region_label}이 0개여서 순위를 매기지 않았습니다."
         )
         warnings.extend(f"{row.region}: {row.reason}" for row in unavailable)
     return [row for _, row in calculated] + unavailable, warnings

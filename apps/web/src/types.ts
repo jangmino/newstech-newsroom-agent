@@ -51,7 +51,7 @@ export interface ExecuteRequest {
 export interface ApiErrorDetail {
   code: "invalid_request" | "invalid_conditions" | "invalid_mock_data" | "invalid_planner_output" | "planner_unavailable"
     | "planner_disabled" | "planner_configuration_error" | "planner_timeout" | "planner_rate_limited"
-    | "invalid_live_data" | `opendart_${string}`;
+    | "invalid_live_data" | "live_disabled" | `opendart_${string}` | `kosis_${string}`;
   message: string;
   field_errors: Record<string, string>;
 }
@@ -122,7 +122,7 @@ export interface CalculationRow {
 
 export interface CalculationResult {
   dataset_id: string;
-  data_origin: "synthetic";
+  data_origin: "synthetic" | "kosis";
   start_year: number;
   end_year: number;
   input_unit: string;
