@@ -15,7 +15,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /uvx /bin/
 COPY apps/api/pyproject.toml apps/api/uv.lock apps/api/README.md ./
 COPY apps/api/src ./src
-RUN uv sync --no-dev --no-editable
+RUN uv sync --frozen --no-dev --no-editable
 COPY --from=web-build /workspace/apps/web/dist /app/static
 EXPOSE 8080
 CMD ["/app/.venv/bin/uvicorn", "newsroom_agent.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]

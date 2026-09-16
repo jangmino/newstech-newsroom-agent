@@ -1,0 +1,19 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --platform=linux/amd64
+      - -f
+      - infra/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/newsroom-agent:${_IMAGE_TAG}
+      - .
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/newsroom-agent:${_IMAGE_TAG}
+substitutions:
+  _REGION: asia-northeast3
+  _REPOSITORY: newsroom-stage
+  _IMAGE_TAG: manual
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

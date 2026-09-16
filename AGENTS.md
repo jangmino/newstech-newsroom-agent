@@ -51,7 +51,7 @@ Use `git status --short` before edits. Preserve user changes and do not overwrit
 - Never commit `.env`, API keys, service-account JSON, access codes, or copied production responses containing secrets.
 - Never expose Gemini, OpenDART, or KOSIS keys in frontend code or `VITE_*` variables.
 - Local development may use the developer's personal credentials only in `.env`.
-- Stage and event environments must use credentials, billing, and GCP resources owned by Konkuk University or the organizer.
+- Stage and event normally use credentials, billing, and GCP resources owned by Konkuk University or the organizer. The user authorized a temporary personal-GCP stage while institutional access is pending; follow ADR 0015 and replace it with an institutional deployment before the event.
 - Use Secret Manager for stage/event secrets.
 - Do not log secrets, authorization headers, full access codes, or raw credential-bearing URLs.
 - Live external calls in automated tests are forbidden. Use fixtures and mocked transports.

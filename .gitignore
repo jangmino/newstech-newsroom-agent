@@ -36,3 +36,4 @@ fixtures/public-data/private/
 
 # Google Cloud local state
 .gcloud/
+infra/stage-config.local.json

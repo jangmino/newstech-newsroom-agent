@@ -1,0 +1,11 @@
+{
+  "account": "developer@example.com",
+  "project": "your-stage-project",
+  "region": "asia-northeast3",
+  "service": "newsroom-stage",
+  "repository": "newsroom-stage",
+  "runtime_service_account": "newsroom-runtime",
+  "build_service_account": "newsroom-build",
+  "access_secret": "newsroom-workshop-code",
+  "access_secret_version": "1"
+}
