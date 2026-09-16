@@ -210,3 +210,73 @@ test("checking every official result review item is not article approval", async
   expect(within(review).getByText(/사실 검증 완료나 기사 사용 승인이 아닙니다/)).toBeTruthy();
   expect(within(review).getByText(/공식 통계도 원표·표본오차·지역 경계와 해석 검토가 필요/)).toBeTruthy();
 });
+
+const cacheMetadata = {
+  scope: "process" as const, stored_at: "2026-09-16T00:00:00Z",
+  expires_at: "2026-09-16T01:00:00Z", ttl_seconds: 3600, age_seconds: 20,
+};
+
+test.each([
+  ["miss", "공식 자료를 새로 조회했습니다."],
+  ["hit", "보관된 공식 자료를 재사용했습니다."],
+  ["coalesced", "같은 조건의 진행 중 조회 결과를 함께 사용했습니다."],
+] as const)("%s explains data reuse only after approval and retains original time", async (status, label) => {
+  const fetch = setup();
+  await plan();
+  expect(screen.queryByLabelText("공식 자료 재사용 안내")).toBeNull();
+  const result = liveResult({ question, mode: "live", approved: true,
+    conditions: editableConditions(livePlan().query_plan) });
+  result.evidence.retrieved_at = "2026-09-15T23:59:59Z";
+  result.cache = { ...cacheMetadata, status };
+  fetch.mockResolvedValueOnce(json(result));
+  const review = await approve();
+  const evidence = screen.getByRole("region", { name: "KOSIS · 국가데이터처 경제활동인구조사" });
+  const notice = within(evidence).getByLabelText("공식 자료 재사용 안내");
+  expect(within(notice).getByText(label)).toBeTruthy();
+  expect(within(notice).getByText(`원자료 조회 시각: ${new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}`)).toBeTruthy();
+  expect(within(notice).getByText(`재사용 기한: ${new Date(cacheMetadata.expires_at).toLocaleString("ko-KR")}`)).toBeTruthy();
+  if (status === "hit") {
+    expect(within(notice).getByText(/외부 API를 다시 호출하지 않았습니다/)).toBeTruthy();
+    expect(screen.queryByText("승인한 조건으로 실제 조회했습니다.", { exact: false })).toBeNull();
+    expect(screen.getByText(/이전에 조회해 보관한 KOSIS/)).toBeTruthy();
+  }
+  expect(within(notice).getByText(/다음 승인 때 새로 조회/)).toBeTruthy();
+  expect(within(review).getByText(/자료 재사용 여부와 원래 조회 시각·재사용 기한/)).toBeTruthy();
+  expect(within(review).getByRole("status").textContent).toContain("0/4");
+});
+
+test("cached reapproval recalculates, compares acquisition status, and resets review", async () => {
+  const fetch = setup();
+  let count = 0;
+  fetch.mockImplementation(async (path, init) => {
+    if (path === "/api/v1/plan") return json(livePlan());
+    const request = JSON.parse(String(init?.body)) as ExecuteRequest;
+    const result = liveResult(request);
+    result.cache = { ...cacheMetadata, status: count++ ? "hit" : "miss" };
+    return json(result);
+  });
+  await plan();
+  const firstReview = await approve();
+  for (const check of within(firstReview).getAllByRole("checkbox")) fireEvent.click(check);
+  fireEvent.change(screen.getByRole("combobox", { name: "비교 기준" }), { target: { value: "증감률" } });
+  expect(screen.queryByLabelText("공식 자료 재사용 안내")).toBeNull();
+  expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
+  const review = await approve();
+  expect(fetch).toHaveBeenCalledTimes(3); // A cache hit still requires an explicit /execute approval.
+  expect(within(review).getByRole("status").textContent).toContain("0/4");
+  const previous = screen.getByRole("article", { name: "이전 승인 결과" });
+  const current = screen.getByRole("article", { name: "이번 승인 결과" });
+  expect(within(previous).getByText("공식 자료를 새로 조회했습니다.")).toBeTruthy();
+  expect(within(current).getByText("보관된 공식 자료를 재사용했습니다.")).toBeTruthy();
+  const evidence = screen.getByRole("region", { name: "KOSIS · 국가데이터처 경제활동인구조사" });
+  expect(within(evidence).getByText("증감률")).toBeTruthy();
+  expect(within(evidence).getByText("20.00")).toBeTruthy();
+  // A later failed refresh cannot restore the cached result or its review state.
+  fetch.mockResolvedValueOnce(json({ detail: {
+    code: "kosis_unavailable", message: "KOSIS 자료를 가져오지 못했습니다.", field_errors: {},
+  } }, 503));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  await screen.findByRole("alert");
+  expect(screen.queryByLabelText("공식 자료 재사용 안내")).toBeNull();
+  expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
+});

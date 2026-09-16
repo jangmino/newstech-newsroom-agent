@@ -36,7 +36,9 @@ class Settings(BaseSettings):
 
     requests_per_minute: int = Field(default=30, ge=1, le=300)
     max_concurrent_requests: int = Field(default=8, ge=1, le=30)
-    cache_ttl_seconds: int = 3600
+    public_data_cache_enabled: bool = True
+    cache_ttl_seconds: int = Field(default=3600, ge=1, le=86400)
+    cache_max_entries: int = Field(default=64, ge=1, le=256)
 
     @property
     def cors_origin_list(self) -> list[str]:

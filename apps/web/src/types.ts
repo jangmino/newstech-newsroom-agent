@@ -90,10 +90,20 @@ export interface GeneralResponseExample {
   generation_method: "scripted";
 }
 
+export interface CacheMetadata {
+  status: "miss" | "hit" | "coalesced";
+  scope: "process";
+  stored_at: string;
+  expires_at: string;
+  ttl_seconds: number;
+  age_seconds: number;
+}
+
 export interface ExecutionResponse extends AnalysisResponse {
   general_response: GeneralResponseExample;
   calculation: CalculationResult | null;
   financial_calculation: FinancialCalculation | null;
+  cache: CacheMetadata | null;
 }
 
 export interface FinancialCalculation {

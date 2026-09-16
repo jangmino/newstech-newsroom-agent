@@ -20,10 +20,17 @@ from newsroom_agent.models import (
 )
 from newsroom_agent.orchestrator import GENERAL_RESPONSE_EXAMPLES, InvalidConditions
 from newsroom_agent.providers.opendart import OpenDartClient
+from newsroom_agent.providers.opendart_financials import (
+    ANNUAL_REPORT_CODE,
+    SAMSUNG_CORP_CODE,
+    RevenuePair,
+)
+from newsroom_agent.public_data_cache import PublicDataCache
 
 
 async def execute_financials(
     question: str, conditions: QueryConditions, client_factory: Callable[[], OpenDartClient],
+    *, cache: PublicDataCache[RevenuePair] | None = None,
 ) -> ExecutionResponse:
     errors = validate_conditions(conditions, "live")
     if (conditions.selected_source != "opendart"
@@ -32,7 +39,18 @@ async def execute_financials(
     if errors:
         raise InvalidConditions(errors)
     start_year, end_year = map(int, conditions.period.split("-"))
-    pair = await client_factory().fetch_revenue(start_year, end_year)
+    async def fetch():
+        return await client_factory().fetch_revenue(start_year, end_year)
+
+    cache_metadata = None
+    if cache is None:
+        pair = await fetch()
+    else:
+        pair, cache_metadata = await cache.get((
+            ("contract", "opendart-revenue-v1"), ("corp_code", SAMSUNG_CORP_CODE),
+            ("reprt_code", ANNUAL_REPORT_CODE), ("fs_div", "CFS"),
+            ("start_year", str(start_year)), ("end_year", str(end_year)),
+        ), fetch)
     calculation = financial_change(ValuePair(
         region=conditions.entity, start_value=pair.start.amount, end_value=pair.end.amount,
         start_unit=pair.start.unit, end_unit=pair.end.unit,
@@ -55,6 +73,7 @@ async def execute_financials(
         query_plan=QueryPlan(**conditions.model_dump(), selection_reason=OPENDART_LIVE_REASON),
         general_response=GeneralResponseExample(text=GENERAL_RESPONSE_EXAMPLES["opendart"]),
         financial_calculation=calculation,
+        cache=cache_metadata,
         evidence=Evidence(
             source_name="OpenDART · 금융감독원 전자공시",
             table_or_report=(f"삼성전자 {start_year}·{end_year}년 사업보고서 "

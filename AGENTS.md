@@ -19,9 +19,9 @@ Use `git status --short` before edits. Preserve user changes and do not overwrit
 
 ## Current phase
 
-- Phase: foundation / mock-first MVP
+- Phase: M3 event readiness; M1 and constrained M2 flows are complete.
 - Live Gemini, OpenDART, and KOSIS calls are off by default.
-- The first product slice is a working mock flow: question → interpreted conditions → evidence → briefing.
+- Preserve the mock flow and explicit approval before live data access, including cache reuse.
 - Do not deploy or enable billing unless the user explicitly asks.
 
 ## Architecture constraints

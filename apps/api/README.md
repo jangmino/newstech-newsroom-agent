@@ -99,7 +99,7 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 존재를 보증하지 않습니다. 비교는 시작·종료 연도의 연간 값을 대상으로 설계합니다.
 
 성공 응답은 `ExecutionResponse`입니다. 기존 `AnalysisResponse`의 모든 필드를 유지하며
-`general_response`, `calculation`, `financial_calculation`을 추가합니다. 기존 요청 형식은 바꾸지 않습니다.
+`general_response`, `calculation`, `financial_calculation`, `cache`를 추가합니다. 기존 요청 형식은 바꾸지 않습니다.
 
 - `query_plan`: 검증된 승인 조건. `clarification_required=false`이며 미해결 질문은 없습니다.
 - `evidence.query_parameters`: 같은 조건을 문자열 사전으로 표시합니다.
@@ -169,10 +169,11 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 15~34세·취업자 수·월/분기 등을 임의로 지원 조건으로 바꾸지 않습니다. `/plan`의 지원
 선택값을 제한하고 미지원 값은 비워 참가자가 결정하도록 합니다.
 
-승인·필수 조건·질문과 자료원 일치를 검증한 뒤 고정 통계표를 한 번 조회합니다.
+승인·필수 조건·질문과 자료원 일치를 검증한 뒤 필요한 경우 고정 통계표를 한 번 조회합니다.
 최대 17개 시도 × 5개 연도 = 85개 셀이며 모든 요청 셀의 정규화에 성공해야 계산합니다.
 수도권은 서울·인천·경기 3개, 비수도권은 나머지 14개를 각각 비교하며 권역 평균은 없습니다.
-조건·비교 기준 재승인 때마다 새 요청을 합니다. 자동 재시도·캐시·snapshot 대체는 없습니다.
+조건 재승인은 항상 필요하며 같은 자료는 아래 캐시 계약에 따라 재사용할 수 있습니다.
+비교 기준만 바꾸면 자료를 재사용하여 다시 계산합니다. 자동 재시도·snapshot 대체는 없습니다.
 
 성공 응답은 `evidence.data_mode=live`, `financial_calculation=null`입니다.
 
@@ -198,6 +199,27 @@ Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","in
 프론트엔드는 결과의 자료 모드·자료원이 승인값과 같은지, KOSIS live의 계산 출처가
 `kosis`인지 확인합니다. 출처가 다른 성공 응답도 표시하지 않습니다. 원표 링크·연간 값·
 수정일·통계 코드와 실제 통계용 검토 문구를 표시하고 조건 변경 시 숨김·초기화를 유지합니다.
+
+### 공공자료 캐시 계약
+
+M3에서 `/execute` 응답에만 nullable `cache`를 추가했습니다. mock·캐시 비활성은 `null`이며
+기존 `/analyze`와 `/plan`에는 이 필드를 추가하지 않습니다. `evidence.data_mode=live`는
+공식 자료 출처를 의미하며 이번 승인에서 외부 조회했는지는 `cache.status`로 구분합니다.
+
+| 필드 | 의미 |
+|---|---|
+| `status` | `miss`: 새 조회 시작, `hit`: 완료 자료 재사용, `coalesced`: 진행 중 동일 조회 공유 |
+| `scope` | `process`: 단일 프로세스 메모리 |
+| `stored_at`, `expires_at` | 전체 정규화 완료 후 저장 시각과 재사용 기한, ISO 시각 |
+| `ttl_seconds`, `age_seconds` | 저장부터의 유효기간과 이번 응답 구성 때 경과 초 |
+
+기본 `PUBLIC_DATA_CACHE_ENABLED=true`, `CACHE_TTL_SECONDS=3600`, `CACHE_MAX_ENTRIES=64`입니다.
+실제 조회의 승인·활성화·조건 검증을 먼저 통과해야 하며 원래 조회 시각·출처를 유지합니다.
+KOSIS는 조회 조건의 연간 자료 묶음, OpenDART는 두 연도 한 쌍만 보관합니다. 실패·부분
+결과는 캐시하지 않습니다. 매 승인마다 계산·브리핑·요청 ID는 새로 만들며 검토 상태는
+이어받지 않습니다. 만료 후 실패에도 오래된 자료를 반환하지 않습니다.
+재시작 시 초기화되고 워커/인스턴스 간 공유는 없습니다. 상세 수명·취소·키·검증은
+[공공자료 캐시](../../docs/PUBLIC_DATA_CACHE.md)를 따릅니다.
 
 ### 가상 계산 계약
 

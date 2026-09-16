@@ -141,7 +141,17 @@ class FinancialCalculation(BaseModel):
     reason: str | None = None
 
 
+class CacheMetadata(BaseModel):
+    status: Literal["miss", "hit", "coalesced"]
+    scope: Literal["process"] = "process"
+    stored_at: str
+    expires_at: str
+    ttl_seconds: int = Field(ge=1, le=86400)
+    age_seconds: float = Field(ge=0)
+
+
 class ExecutionResponse(AnalysisResponse):
     general_response: GeneralResponseExample
     calculation: CalculationResult | None = None
     financial_calculation: FinancialCalculation | None = None
+    cache: CacheMetadata | None = None

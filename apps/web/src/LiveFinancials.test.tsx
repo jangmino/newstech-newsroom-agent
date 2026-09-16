@@ -200,3 +200,24 @@ test("exact amount formatting and result mode comparison", () => {
     conditions: { ...editableConditions(plan.query_plan), comparison: "증감률" } });
   expect(canCompareResults(before, after)).toBe(false);
 });
+
+test("cached financial data preserves source times and clearly distinguishes reuse", async () => {
+  const fetch = setup();
+  await plan();
+  const result = liveResult({ question: "삼성전자의 최근 실적은 악화됐는가?", mode: "live",
+    approved: true, conditions: editableConditions(livePlan().query_plan) });
+  result.cache = {
+    status: "hit", scope: "process", stored_at: "2026-09-16T00:00:00Z",
+    expires_at: "2026-09-16T01:00:00Z", ttl_seconds: 3600, age_seconds: 120,
+  };
+  fetch.mockResolvedValueOnce(json(result));
+  const review = await approve();
+  const notice = screen.getByLabelText("공식 자료 재사용 안내");
+  expect(within(notice).getByText("보관된 공식 자료를 재사용했습니다.")).toBeTruthy();
+  expect(within(notice).getByText(/외부 API를 다시 호출하지 않았습니다/)).toBeTruthy();
+  expect(screen.getByText(/이전에 조회해 보관한 OpenDART 공시/)).toBeTruthy();
+  expect(screen.queryByText("승인한 조건으로 실제 조회했습니다.", { exact: false })).toBeNull();
+  expect(screen.getByRole("link", { name: /2022년 사업보고서/ })).toBeTruthy();
+  expect(within(review).getByText(/자료 재사용 여부와 원래 조회 시각·재사용 기한/)).toBeTruthy();
+  expect(within(review).getByRole("status").textContent).toContain("0/4");
+});

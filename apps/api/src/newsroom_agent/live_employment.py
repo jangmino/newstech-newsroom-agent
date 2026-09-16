@@ -21,11 +21,13 @@ from newsroom_agent.models import (
 )
 from newsroom_agent.orchestrator import GENERAL_RESPONSE_EXAMPLES, InvalidConditions
 from newsroom_agent.providers.kosis import KosisClient
-from newsroom_agent.providers.kosis_employment import TABLE_NAME, EmploymentQuery
+from newsroom_agent.providers.kosis_employment import TABLE_NAME, EmploymentQuery, EmploymentSeries
+from newsroom_agent.public_data_cache import PublicDataCache
 
 
 async def execute_employment(
     question: str, conditions: QueryConditions, client_factory: Callable[[], KosisClient],
+    *, cache: PublicDataCache[EmploymentSeries] | None = None,
 ) -> ExecutionResponse:
     errors = validate_conditions(conditions, "live")
     if (conditions.selected_source != "kosis"
@@ -39,7 +41,16 @@ async def execute_employment(
         age_range=conditions.filters["age_range"],
         start_year=start_year, end_year=end_year,
     )
-    series = await client_factory().fetch_employment(query)
+    async def fetch():
+        return await client_factory().fetch_employment(query)
+
+    cache_metadata = None
+    if cache is None:
+        series = await fetch()
+    else:
+        series, cache_metadata = await cache.get(
+            (("contract", "kosis-employment-v1"), *sorted(query.parameters.items())), fetch,
+        )
     by_cell = {(row.region_code, row.year): row for row in series.observations}
     rows, warnings = rank_changes([
         ValuePair(
@@ -85,6 +96,7 @@ async def execute_employment(
         query_plan=QueryPlan(**conditions.model_dump(), selection_reason=KOSIS_LIVE_REASON),
         general_response=GeneralResponseExample(text=GENERAL_RESPONSE_EXAMPLES["kosis"]),
         calculation=calculation,
+        cache=cache_metadata,
         evidence=Evidence(
             source_name="KOSIS · 국가데이터처 경제활동인구조사",
             table_or_report=f"{TABLE_NAME} · 15~29세 연간 고용률",

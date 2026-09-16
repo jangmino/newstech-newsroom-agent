@@ -224,10 +224,28 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 [자료 계약](KOSIS_EMPLOYMENT.md), [ADR 0008](decisions/0008-kosis-approved-live-flow.md),
 [실제 확인 기록](KOSIS_SMOKE_TEST.md)을 참고합니다. 기존 `/analyze`는 계속 mock 전용입니다.
 
+## M3 공공자료 캐시와 요청 공유
+
+`public_data_cache.py`의 `PublicDataCache`는 FastAPI lifespan마다 공급자별로 생성합니다.
+`/execute`의 승인·조건·자료원·활성화 검증 뒤 각 실행 함수가 정규화 자료를 요청합니다.
+캐시는 공개 조회 조건으로 만든 키를 사용하며 비교 기준·질문·키는 포함하지 않습니다.
+완료 자료의 TTL·LRU와 진행 작업 사전을 분리하고 같은 키만 작업을 공유합니다.
+
+전체 정규화 성공 후에만 TTL을 시작하고, 저장값과 응답값은 복사하여 분리합니다.
+만료 후 실패 시 이전 자료를 반환하지 않습니다. 요청 취소는 공유 작업을 취소하지 않으며
+서버 종료 시 작업을 취소·회수합니다. 한 프로세스의 한 ASGI 이벤트 루프에서만 사용합니다.
+여러 워커·Cloud Run 인스턴스 간 저장·공유·호출 제한을 제공하지 않습니다.
+
+`ExecutionResponse.cache`에 사용 방식·저장/만료 시각·TTL·경과 초를 추가합니다.
+기존 `Evidence`와 `/analyze` 계약을 바꾸지 않으며 원래 조회 시각을 유지합니다.
+`CacheNotice`와 브리핑·검토·조건 비교에서 자료 재사용을 표시합니다. 승인마다 계산과
+브리핑·요청 ID를 새로 만들고 검토를 초기화합니다. [계약·검증](PUBLIC_DATA_CACHE.md)과
+[ADR 0009](decisions/0009-process-public-data-cache.md)를 참고합니다.
+
 ## 추후 추가할 운영 장치
 
 - 프로세스 내부 동시 실행 제한
-- 캐시와 요청 중복 제거
+- 여러 인스턴스의 호출 한도·캐시 정책
 - 실행 ID를 포함한 구조화 로그
 - API별 타임아웃·제한적 재시도
 - 민감정보 제거

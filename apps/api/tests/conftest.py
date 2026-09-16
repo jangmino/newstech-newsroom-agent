@@ -22,6 +22,7 @@ def pytest_configure() -> None:
         gemini_timeout_ms=20_000, gemini_max_output_tokens=2048,
         google_cloud_project="", google_cloud_location="asia-northeast3",
         requests_per_minute=30, max_concurrent_requests=8,
+        public_data_cache_enabled=False, cache_ttl_seconds=3600, cache_max_entries=64,
         cors_origin_list=["http://localhost:5173"],
     )
     _patch.setattr(config, "get_settings", lambda: settings)

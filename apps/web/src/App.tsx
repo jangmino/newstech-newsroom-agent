@@ -5,6 +5,7 @@ import {
 import { ReviewSession } from "./ReviewSession";
 import { FinancialEvidence } from "./FinancialEvidence";
 import { KosisEvidence } from "./KosisEvidence";
+import { CacheNotice, cacheLabel } from "./CacheNotice";
 import { CalculationTable } from "./CalculationTable";
 import { ConditionComparison } from "./ConditionComparison";
 import { canCompareResults } from "./resultComparison";
@@ -228,7 +229,7 @@ function App() {
             <option value="live">공식 실제 자료 · OpenDART / KOSIS</option>
           </select>
           <p id="data-mode-help" className="field-help">{dataMode === "live"
-            ? "KOSIS는 15~29세 고용률의 시도별 연간 값(2020~2024년), OpenDART는 삼성전자 연간 연결 매출액(2022·2024년)을 지원합니다. ‘이 조건으로 조회’를 누른 뒤 자료를 조회합니다."
+            ? "KOSIS는 15~29세 고용률의 시도별 연간 값(2020~2024년), OpenDART는 삼성전자 연간 연결 매출액(2022·2024년)을 지원합니다. 승인 후 자료를 확인하며, 같은 자료는 재사용 기한 안에서 다시 사용할 수 있습니다."
             : "실제 공공데이터를 조회하지 않는 실습 자료입니다."}</p>
         </div>
         <div className="interpretation-choice">
@@ -277,7 +278,7 @@ function App() {
             </details>}
             <p className="condition-status" role="status">
               {modifiedFields.length > 0 ? "참가자가 조건을 수정했습니다." : "에이전트가 제시한 조건입니다."}
-              {result ? (result.evidence.data_mode === "live" ? " 승인한 조건으로 실제 조회했습니다." : " 승인한 조건으로 모의 조회했습니다.") : " 조건을 확인한 뒤 승인해 주세요."}
+              {result ? (result.evidence.data_mode === "live" ? (result.cache ? ` ${cacheLabel(result.cache)}` : " 승인한 조건으로 실제 조회했습니다.") : " 승인한 조건으로 모의 조회했습니다.") : " 조건을 확인한 뒤 승인해 주세요."}
             </p>
             {draft.selected_source === "undetermined" ? (
               <div className="notice" role="status">
@@ -357,6 +358,7 @@ function App() {
                     <div><dt>{result.evidence.data_mode === "live" ? "자료 조회 완료 시각" : result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
                     <div><dt>계산식</dt><dd>{result.evidence.formula}</dd></div>
                   </dl>
+                  <CacheNotice result={result} />
                   {result.financial_calculation && <FinancialEvidence result={result} />}
                   {result.calculation?.data_origin === "kosis" && <KosisEvidence result={result} />}
                   {result.calculation && <CalculationTable calculation={result.calculation} comparison={result.query_plan.comparison} />}

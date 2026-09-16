@@ -60,7 +60,7 @@ export function ReviewSession({ result, children }: {
                 onChange={(event) => toggle(item.id, event.target.checked)} />
               <span>
                 <strong id={`review-${item.id}-label`}>{item.title}</strong>
-                <span id={`review-${item.id}-help`}>{item.description}</span>
+                <span id={`review-${item.id}-help`}>{item.description}{item.id === "source" && live && result.cache && " 자료 재사용 여부와 원래 조회 시각·재사용 기한도 확인했습니다."}</span>
               </span>
             </label>
           ))}

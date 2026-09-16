@@ -1,4 +1,5 @@
 import { FinancialSummary } from "./FinancialEvidence";
+import { CacheNotice } from "./CacheNotice";
 import { comparisonConditions } from "./resultComparison";
 import type { CalculationResult, ExecutionResponse } from "./types";
 
@@ -18,6 +19,7 @@ function ResultSummary({ result, side }: { result: ExecutionResponse; side: "pre
         <div><dt>{evidence.data_mode === "live" ? "자료 조회 완료 시각" : calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
         <div><dt>계산식</dt><dd>{evidence.formula}</dd></div>
       </dl>
+      <CacheNotice result={result} compact />
       <details open>
         <summary>{title}의 주의사항과 해석 한계</summary>
         <ul>{[...new Set([...evidence.caveats, ...brief.interpretation_limits])].map((text) => <li key={text}>{text}</li>)}</ul>

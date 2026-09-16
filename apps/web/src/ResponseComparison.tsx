@@ -1,4 +1,5 @@
 import type { ExecutionResponse } from "./types";
+import { cacheLabel } from "./CacheNotice";
 
 export function ResponseComparison({ result, reviewProgress }: {
   result: ExecutionResponse;
@@ -7,6 +8,8 @@ export function ResponseComparison({ result, reviewProgress }: {
   const { brief, evidence, general_response: general, question, calculation } = result;
   const live = evidence.data_mode === "live";
   const kosis = live && calculation?.data_origin === "kosis";
+  const acquisition = result.cache?.status === "hit" ? "이전에 조회해 보관한"
+    : result.cache?.status === "coalesced" ? "같은 조건으로 함께 조회한" : "승인 후 조회한";
   const rows = [
     ["조회 조건", "구체적인 조회 조건을 제시하지 않음", "참가자가 수정·승인한 조건 표시"],
     ["자료원", "직접 조회한 자료·출처 없음", kosis ? "KOSIS 공식 통계 실제 조회" : live ? "OpenDART 공시 실제 조회" : calculation ? "워크숍 가상 자료 · 공식 통계 아님" : `${evidence.source_name} 조회 계획 · 실제 조회 전`],
@@ -22,7 +25,7 @@ export function ResponseComparison({ result, reviewProgress }: {
         <p className="step">03 · 응답 비교</p>
         <h2 id="comparison-title">같은 질문의 두 응답</h2>
         <p className="comparison-question"><strong>질문</strong> {question}</p>
-        <p>{live ? `일반 응답은 미리 작성한 모의 예시입니다. 근거 기반 브리핑은 승인 후 조회한 ${kosis ? "KOSIS 공식 통계" : "OpenDART 공시"}와 코드 계산을 사용합니다.` : "두 응답 모두 실습용 모의 예시입니다. 일반 응답은 미리 작성한 문장이며, 근거 기반 브리핑도 실제 공공데이터를 조회하지 않았습니다."}</p>
+        <p>{live ? `일반 응답은 미리 작성한 모의 예시입니다. 근거 기반 브리핑은 ${acquisition} ${kosis ? "KOSIS 공식 통계" : "OpenDART 공시"}와 코드 계산을 사용합니다.` : "두 응답 모두 실습용 모의 예시입니다. 일반 응답은 미리 작성한 문장이며, 근거 기반 브리핑도 실제 공공데이터를 조회하지 않았습니다."}</p>
         <p className="field-help">답변에서 확인할 수 있는 조건과 근거를 비교해 보세요. 실제 모델의 응답 품질을 평가하는 화면은 아닙니다.</p>
       </header>
 
@@ -44,6 +47,7 @@ export function ResponseComparison({ result, reviewProgress }: {
         <article className="card response-card" aria-labelledby="grounded-title">
           <span className="data-mode">{kosis ? "공식 통계 기반 브리핑 · 사람 검토 필요" : live ? "공식 공시 기반 브리핑 · 사람 검토 필요" : calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 브리핑 · 실제 조회 전"}</span>
           <h3 id="grounded-title">근거 기반 브리핑</h3>
+          {live && result.cache && <p className="field-help">{cacheLabel(result.cache)} 원래 조회 시각과 재사용 기한은 아래 근거에서 확인해 주세요.</p>}
           <p className="response-summary">{brief.summary}</p>
           <h4>{kosis ? "조회한 통계와 계산에서 확인된 내용" : live ? "조회한 공시와 계산에서 확인된 내용" : calculation ? "승인 조건과 가상 계산에서 확인된 내용" : "조건에서 확인된 내용"}</h4>
           <ul>{brief.verified_facts.map((item) => <li key={item}>{item}</li>)}</ul>

@@ -54,6 +54,7 @@ export function exampleResult(plan: PlanResponse, conditions: QueryConditions): 
     },
     general_response: { text: "미리 작성한 응답 예시입니다.", data_mode: "mock", generation_method: "scripted" },
     financial_calculation: null,
+    cache: null,
     calculation: employment ? {
       dataset_id: "synthetic-test", data_origin: "synthetic", start_year: 2020, end_year: 2024,
       input_unit: "%", result_unit: "%p", decimal_places: 2, ranking_method: "변화값 내림차순",

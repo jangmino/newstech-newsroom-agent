@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
@@ -25,10 +26,10 @@ from newsroom_agent.models import (
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
 from newsroom_agent.planning import InvalidPlannerOutput, create_plan
 from newsroom_agent.providers.kosis import KosisClient
-from newsroom_agent.providers.kosis_employment import KosisError
+from newsroom_agent.providers.kosis_employment import EmploymentSeries, KosisError
 from newsroom_agent.providers.mock_planner import MockQuestionPlanner
 from newsroom_agent.providers.opendart import OpenDartClient
-from newsroom_agent.providers.opendart_financials import OpenDartError
+from newsroom_agent.providers.opendart_financials import OpenDartError, RevenuePair
 from newsroom_agent.providers.planner import (
     PlannerConfigurationError,
     PlannerDisabled,
@@ -37,9 +38,27 @@ from newsroom_agent.providers.planner import (
     PlannerUnavailable,
     QuestionPlanner,
 )
+from newsroom_agent.public_data_cache import PublicDataCache
 
 settings = get_settings()
-app = FastAPI(title="NewsTech Newsroom Agent API", version="0.1.0")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.employment_cache = PublicDataCache[EmploymentSeries](
+        settings.cache_ttl_seconds, settings.cache_max_entries,
+    )
+    app.state.revenue_cache = PublicDataCache[RevenuePair](
+        settings.cache_ttl_seconds, settings.cache_max_entries,
+    )
+    try:
+        yield
+    finally:
+        await app.state.employment_cache.close()
+        await app.state.revenue_cache.close()
+
+
+app = FastAPI(title="NewsTech Newsroom Agent API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -200,7 +219,7 @@ def plan(
 
 
 @app.post("/api/v1/execute", response_model=ExecutionResponse)
-async def execute(request: ExecuteRequest) -> ExecutionResponse:
+async def execute(request: ExecuteRequest, http_request: Request) -> ExecutionResponse:
     try:
         if request.mode == "live":
             errors = validate_conditions(request.conditions, "live")
@@ -211,13 +230,14 @@ async def execute(request: ExecuteRequest) -> ExecutionResponse:
             if errors:
                 raise InvalidConditions(errors)
             require_live_source(request.conditions.selected_source)
+            caches = http_request.app.state if settings.public_data_cache_enabled else None
             if request.conditions.selected_source == "kosis":
                 return await execute_employment(request.question, request.conditions, lambda: (
                     KosisClient(settings.kosis_api_key, enabled=True)
-                ))
+                ), cache=caches.employment_cache if caches else None)
             return await execute_financials(request.question, request.conditions, lambda: (
                 OpenDartClient(settings.opendart_api_key, enabled=True)
-            ))
+            ), cache=caches.revenue_cache if caches else None)
         return MockOrchestrator().execute(request.question, request.conditions)
     except (OpenDartError, KosisError) as exc:
         provider = "kosis" if isinstance(exc, KosisError) else "opendart"
