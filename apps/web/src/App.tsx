@@ -3,6 +3,7 @@ import {
   conditionErrors, conditionLabels, conditionValue, editableConditions, sourceLabel, updateCondition,
 } from "./conditions";
 import { ResponseComparison } from "./ResponseComparison";
+import { CalculationTable } from "./CalculationTable";
 import type {
   ApiErrorDetail, ExecuteRequest, ExecutionResponse, PlanRequest, PlanResponse, QueryConditions,
 } from "./types";
@@ -223,7 +224,12 @@ function App() {
                     );
                   })}
                 </div>
-                <p id="period-help" className="field-help">시작 연도와 종료 연도의 연간 값을 비교합니다. 모의 실습은 1900~2100년 안의 서로 다른 두 연도를 입력받으며, 실제 자료의 제공 기간을 뜻하지 않습니다.</p>
+                <p id="period-help" className="field-help">
+                  {plan.available_years?.length
+                    ? `가상 수치 자료는 ${plan.available_years[0]}~${plan.available_years[plan.available_years.length - 1]}년을 지원합니다. 서로 다른 시작·종료 연도의 연간 값만 비교합니다.`
+                    : "시작 연도와 종료 연도의 연간 값을 비교합니다. 모의 실습은 1900~2100년 안의 서로 다른 두 연도를 입력받으며, 실제 자료의 제공 기간을 뜻하지 않습니다."}
+                </p>
+                {draft.selected_source === "kosis" && <p className="field-help synthetic-label">공식 통계가 아닌 가상 숫자로 계산합니다. ‘전국’은 가상 지역 A~D, ‘수도권’은 A·B, ‘비수도권’은 C·D를 고르는 실습 분류입니다.</p>}
                 {errors.length > 0 ? (
                   <div className="notice" role="status">
                     <strong>조회 전에 확인해 주세요.</strong>
@@ -254,13 +260,14 @@ function App() {
                   ))}
                 </dl>
                 <dl>
-                  <div><dt>단위</dt><dd>{result.evidence.unit}</dd></div>
-                  <div><dt>모의 자료 생성 시각</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
+                  <div><dt>단위</dt><dd>{result.calculation ? `입력 ${result.calculation.input_unit} · 결과 ${result.calculation.result_unit}` : result.evidence.unit}</dd></div>
+                  <div><dt>{result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
                   <div><dt>계산식</dt><dd>{result.evidence.formula}</dd></div>
                 </dl>
+                {result.calculation && <CalculationTable calculation={result.calculation} comparison={result.query_plan.comparison} />}
                 <h3>자료 이용 시 주의사항</h3>
                 <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
-                <span className="data-mode">모의 자료 · 실제 조회 전</span>
+                <span className="data-mode">{result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
               </section>
             </>
           )}

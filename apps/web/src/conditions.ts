@@ -51,6 +51,8 @@ export function conditionErrors(plan: PlanResponse, conditions: QueryConditions)
   const period = /^(\d{4})-(\d{4})$/.exec(conditions.period.trim());
   if (!period || !(1900 <= Number(period[1]) && Number(period[1]) < Number(period[2]) && Number(period[2]) <= 2100)) {
     errors.push("기간을 시작 연도-종료 연도로 입력해 주세요. 예: 2020-2024.");
+  } else if (plan.available_years?.length && (!plan.available_years.includes(Number(period[1])) || !plan.available_years.includes(Number(period[2])))) {
+    errors.push(`가상 청년 고용 자료는 ${plan.available_years[0]}~${plan.available_years[plan.available_years.length - 1]}년만 지원합니다. 기간을 수정해 주세요.`);
   }
   return errors;
 }

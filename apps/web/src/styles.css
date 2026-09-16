@@ -84,6 +84,15 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .comparison-guide thead { background: #f7f9fc; }
 .comparison-guide th:first-child { width: 22%; }
 .comparison-guide .field-help { margin: 16px 0 0; }
+.card .synthetic-label { color: #76530b; font-weight: 700; }
+.calculation-panel { margin-top: 28px; }
+.calculation-scroll { overflow-x: auto; margin: 16px 0; border: 1px solid #dce4ee; border-radius: 12px; }
+.calculation-scroll:focus-visible { outline: 3px solid rgba(39, 98, 217, 0.35); }
+.calculation-table { width: 100%; min-width: 690px; border-collapse: collapse; line-height: 1.6; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.calculation-table caption { text-align: left; padding: 14px; font-weight: 700; }
+.calculation-table thead { background: #f7f9fc; }
+.calculation-table th, .calculation-table td { padding: 12px; text-align: left; border-top: 1px solid #e7ecf3; vertical-align: top; }
+.calculation-table td:last-child { max-width: 240px; }
 
 @media (max-width: 760px) {
   .shell { width: min(100% - 20px, 680px); padding-top: 20px; }

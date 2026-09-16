@@ -14,6 +14,7 @@ from newsroom_agent.models import (
     QueryPlan,
     SourceName,
 )
+from newsroom_agent.providers.mock_employment import YEARS, calculate_employment
 
 KOSIS_HINTS = ("고용", "실업", "인구", "물가", "지역", "청년", "통계")
 OPENDART_HINTS = ("기업", "회사", "매출", "영업이익", "당기순이익", "공시", "실적", "삼성전자")
@@ -45,7 +46,10 @@ class MockOrchestrator:
     def plan(self, question: str) -> PlanResponse:
         source = self._route(question)
         reasons = {
-            "kosis": "지역·고용 통계는 KOSIS에서 확인합니다. 모의 실습은 청년 고용을 다룹니다.",
+            "kosis": (
+                "청년 고용 통계의 조회 대상으로 KOSIS를 선택했습니다. "
+                "이번 계산은 가상 자료를 사용합니다."
+            ),
             "opendart": "기업 실적은 OpenDART에서 확인합니다. 모의 실습은 삼성전자를 다룹니다.",
             "undetermined": "기업공시와 국가통계 중 적합한 자료원을 정하기 어렵습니다.",
         }
@@ -93,6 +97,7 @@ class MockOrchestrator:
             query_plan=query_plan,
             required_fields=list(errors),
             field_options=options,
+            available_years=list(YEARS) if source == "kosis" else [],
         )
 
     def execute(self, question: str, conditions: QueryConditions) -> ExecutionResponse:
@@ -116,7 +121,7 @@ class MockOrchestrator:
             "comparison": conditions.comparison,
             **{f"filters.{key}": value for key, value in conditions.filters.items()},
         }
-        return ExecutionResponse(
+        response = ExecutionResponse(
             request_id=str(uuid4()),
             question=question,
             query_plan=query_plan,
@@ -160,6 +165,71 @@ class MockOrchestrator:
                 ],
             ),
         )
+        if conditions.selected_source == "kosis":
+            self._add_employment_calculation(response, conditions)
+        return response
+
+    @staticmethod
+    def _add_employment_calculation(
+        response: ExecutionResponse,
+        conditions: QueryConditions,
+    ) -> None:
+        calculation = calculate_employment(conditions)
+        response.calculation = calculation
+        evidence = response.evidence
+        evidence.source_name = "워크숍 가상 자료 (KOSIS 연동 준비)"
+        evidence.table_or_report = (
+            f"가상 청년 고용 예제 · {calculation.dataset_id} · 공식 통계 아님"
+        )
+        evidence.raw_values = [
+            {
+                "region": row.region,
+                "year": year,
+                "value": value,
+                "metric": conditions.metric,
+                "age_range": conditions.filters["age_range"],
+                "unit": calculation.input_unit,
+            }
+            for row in calculation.rows
+            for year, value in (
+                (calculation.start_year, row.start_value),
+                (calculation.end_year, row.end_value),
+            )
+        ]
+        evidence.caveats = [
+            "지역과 숫자는 직접 만든 가상 자료입니다. KOSIS 공식 통계나 실제 지역 순위가 아닙니다.",
+            "전국은 가상 지역 A~D, 수도권은 A·B, 비수도권은 C·D를 선택하는 실습 분류입니다.",
+            "시작·종료 연도만 비교하며 중간 연도의 추세를 요약하지 않습니다.",
+            "표시값은 소수 둘째 자리로 반올림합니다. 순위는 반올림 전 값으로 정합니다.",
+            "시각은 가상 자료를 불러와 계산한 시각이며 공식 자료 조회 시각이 아닙니다.",
+            *calculation.warnings,
+        ]
+        winners = [row for row in calculation.rows if row.rank == 1]
+        valid_count = sum(row.status == "calculated" for row in calculation.rows)
+        if winners:
+            names = ", ".join(row.region for row in winners)
+            rank_label = "공동 1위" if len(winners) > 1 else "1위"
+            response.brief.summary = (
+                f"{conditions.entity} 실습 범위의 계산 가능한 가상 지역 "
+                f"{valid_count}곳 중 {names}: "
+                f"{conditions.metric} {conditions.comparison} {rank_label}입니다."
+            )
+            response.brief.verified_facts.extend(
+                f"가상 계산 · {row.region}: {row.start_value} → {row.end_value} "
+                f"{calculation.input_unit}, 변화 {row.change} {calculation.result_unit}"
+                for row in winners
+            )
+        else:
+            response.brief.summary = (
+                f"{conditions.entity} 실습 범위의 모든 가상 지역이 계산 불가하여 "
+                "순위를 제시할 수 없습니다."
+            )
+        response.brief.interpretation_limits = [
+            "가상 숫자의 계산 결과로 실제 지역의 고용 상황이나 정책 효과를 판단할 수 없습니다.",
+            "순위는 변화값의 내림차순이며, 1위라도 값이 감소했을 수 있습니다.",
+            "조건 승인과 계산 완료는 기사에 사용할 수 있다는 검증을 뜻하지 않습니다.",
+            *calculation.warnings,
+        ]
 
     def analyze(self, question: str) -> AnalysisResponse:
         source = self._route(question)

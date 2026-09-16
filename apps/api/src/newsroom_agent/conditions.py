@@ -3,6 +3,7 @@
 import re
 
 from newsroom_agent.models import QueryConditions
+from newsroom_agent.providers.mock_employment import YEARS
 
 FIELD_LABELS = {
     "entity": "대상",
@@ -48,9 +49,13 @@ def validate_conditions(conditions: QueryConditions) -> dict[str, str]:
         if value not in choices:
             errors[field] = f"{FIELD_LABELS[field]}을(를) 선택해 주세요: {', '.join(choices)}."
 
-    period = re.fullmatch(r"(\d{4})-(\d{4})", conditions.period)
+    period = re.fullmatch(r"([0-9]{4})-([0-9]{4})", conditions.period)
     if period is None or not 1900 <= int(period[1]) < int(period[2]) <= 2100:
         errors["period"] = "기간을 시작 연도-종료 연도로 입력해 주세요. 예: 2020-2024."
+    elif conditions.selected_source == "kosis" and any(
+        int(year) not in YEARS for year in period.groups()
+    ):
+        errors["period"] = "가상 청년 고용 자료는 2020~2024년만 지원합니다. 기간을 수정해 주세요."
 
     allowed_filters = {
         key.removeprefix("filters.") for key in options if key.startswith("filters.")

@@ -47,6 +47,7 @@ class PlanResponse(BaseModel):
     query_plan: QueryPlan
     required_fields: list[str]
     field_options: dict[str, list[str]]
+    available_years: list[int] = Field(default_factory=list)
 
 
 class ExecuteRequest(PlanRequest):
@@ -67,7 +68,7 @@ class Evidence(BaseModel):
     query_parameters: dict[str, str] = Field(default_factory=dict)
     retrieved_at: str
     unit: str
-    raw_values: list[dict[str, str | int | float]] = Field(default_factory=list)
+    raw_values: list[dict[str, str | int | float | None]] = Field(default_factory=list)
     formula: str
     caveats: list[str] = Field(default_factory=list)
     data_mode: DataMode
@@ -95,5 +96,29 @@ class GeneralResponseExample(BaseModel):
     generation_method: Literal["scripted"] = "scripted"
 
 
+class CalculationRow(BaseModel):
+    region: str
+    start_value: str | None
+    end_value: str | None
+    change: str | None = None
+    rank: int | None = None
+    status: Literal["calculated", "missing_value", "zero_baseline"]
+    reason: str | None = None
+
+
+class CalculationResult(BaseModel):
+    dataset_id: str
+    data_origin: Literal["synthetic"] = "synthetic"
+    start_year: int
+    end_year: int
+    input_unit: str
+    result_unit: str
+    decimal_places: Literal[2] = 2
+    ranking_method: str = "반올림 전 변화값 내림차순 · 동률은 공동 순위 (1, 1, 3)"
+    rows: list[CalculationRow]
+    warnings: list[str] = Field(default_factory=list)
+
+
 class ExecutionResponse(AnalysisResponse):
     general_response: GeneralResponseExample
+    calculation: CalculationResult | None = None

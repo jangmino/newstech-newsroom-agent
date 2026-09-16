@@ -32,6 +32,7 @@ export interface PlanResponse {
   query_plan: QueryPlan;
   required_fields: string[];
   field_options: Record<string, string[]>;
+  available_years: number[];
 }
 
 export interface ExecuteRequest extends PlanRequest {
@@ -40,7 +41,7 @@ export interface ExecuteRequest extends PlanRequest {
 }
 
 export interface ApiErrorDetail {
-  code: "invalid_request" | "invalid_conditions";
+  code: "invalid_request" | "invalid_conditions" | "invalid_mock_data";
   message: string;
   field_errors: Record<string, string>;
 }
@@ -51,7 +52,7 @@ export interface Evidence {
   query_parameters: Record<string, string>;
   retrieved_at: string;
   unit: string;
-  raw_values: Array<Record<string, string | number>>;
+  raw_values: Array<Record<string, string | number | null>>;
   formula: string;
   caveats: string[];
   data_mode: "mock" | "live" | "snapshot";
@@ -81,4 +82,28 @@ export interface GeneralResponseExample {
 
 export interface ExecutionResponse extends AnalysisResponse {
   general_response: GeneralResponseExample;
+  calculation: CalculationResult | null;
+}
+
+export interface CalculationRow {
+  region: string;
+  start_value: string | null;
+  end_value: string | null;
+  change: string | null;
+  rank: number | null;
+  status: "calculated" | "missing_value" | "zero_baseline";
+  reason: string | null;
+}
+
+export interface CalculationResult {
+  dataset_id: string;
+  data_origin: "synthetic";
+  start_year: number;
+  end_year: number;
+  input_unit: string;
+  result_unit: string;
+  decimal_places: 2;
+  ranking_method: string;
+  rows: CalculationRow[];
+  warnings: string[];
 }

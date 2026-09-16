@@ -1,13 +1,13 @@
 import type { ExecutionResponse } from "./types";
 
 export function ResponseComparison({ result }: { result: ExecutionResponse }) {
-  const { brief, evidence, general_response: general, question } = result;
+  const { brief, evidence, general_response: general, question, calculation } = result;
   const rows = [
     ["조회 조건", "구체적인 조회 조건을 제시하지 않음", "참가자가 수정·승인한 조건 표시"],
-    ["자료원", "직접 조회한 자료·출처 없음", `${evidence.source_name} 조회 계획 · 실제 조회 전`],
-    ["단위·계산식", "제시하지 않음", `${evidence.unit} · 조건에 맞는 계산식 설계 표시`],
-    ["조회 시각", "조회하지 않음", "모의 자료 생성 시각 표시 · 실제 조회 시각 아님"],
-    ["원자료·계산 결과", "없음", "없음 · 실제 조회·계산 전"],
+    ["자료원", "직접 조회한 자료·출처 없음", calculation ? "워크숍 가상 자료 · 공식 통계 아님" : `${evidence.source_name} 조회 계획 · 실제 조회 전`],
+    ["단위·계산식", "제시하지 않음", calculation ? `입력 ${calculation.input_unit} · 결과 ${calculation.result_unit} · 가상 값에 적용한 계산식 표시` : `${evidence.unit} · 조건에 맞는 계산식 설계 표시`],
+    ["조회 시각", "조회하지 않음", calculation ? "가상 자료 계산 시각 표시 · 공식 조회 시각 아님" : "모의 자료 생성 시각 표시 · 실제 조회 시각 아님"],
+    ["원자료·계산 결과", "없음", calculation ? "가상 입력값·변화값·순위·계산 불가 이유 표시" : "없음 · 실제 조회·계산 전"],
     ["사람의 검토", "설명에 필요한 근거를 추가로 확인", "승인 조건·계산식·해석 한계를 검토"],
   ];
 
@@ -37,10 +37,10 @@ export function ResponseComparison({ result }: { result: ExecutionResponse }) {
         </article>
 
         <article className="card response-card" aria-labelledby="grounded-title">
-          <span className="data-mode">모의 브리핑 · 실제 조회 전</span>
+          <span className="data-mode">{calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 브리핑 · 실제 조회 전"}</span>
           <h3 id="grounded-title">근거 기반 브리핑</h3>
           <p className="response-summary">{brief.summary}</p>
-          <h4>조건에서 확인된 내용</h4>
+          <h4>{calculation ? "승인 조건과 가상 계산에서 확인된 내용" : "조건에서 확인된 내용"}</h4>
           <ul>{brief.verified_facts.map((item) => <li key={item}>{item}</li>)}</ul>
           <h4>단정하기 어려운 부분</h4>
           <ul>{brief.interpretation_limits.map((item) => <li key={item}>{item}</li>)}</ul>
@@ -63,7 +63,7 @@ export function ResponseComparison({ result }: { result: ExecutionResponse }) {
             ))}
           </tbody>
         </table>
-        <p className="field-help">두 응답 모두 아직 원자료 숫자와 계산 결과가 없습니다. 실제 취재에 활용하기 전에는 원자료와 계산 결과를 별도로 검증해야 합니다.</p>
+        <p className="field-help">{calculation ? "근거 기반 브리핑은 직접 만든 가상 숫자를 계산했습니다. 실제 지역의 고용 상황이나 정책 효과를 설명하는 결과가 아닙니다." : "두 응답 모두 아직 원자료 숫자와 계산 결과가 없습니다. 실제 취재에 활용하기 전에는 원자료와 계산 결과를 별도로 검증해야 합니다."}</p>
       </div>
     </section>
   );

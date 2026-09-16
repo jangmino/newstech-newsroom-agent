@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from newsroom_agent.calculations import CalculationDataError
 from newsroom_agent.config import get_settings
 from newsroom_agent.models import (
     AnalysisRequest,
@@ -93,6 +94,15 @@ def execute(request: ExecuteRequest) -> ExecutionResponse:
                 "code": "invalid_conditions",
                 "message": str(exc),
                 "field_errors": exc.field_errors,
+            },
+        ) from exc
+    except CalculationDataError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "invalid_mock_data",
+                "message": "가상 자료의 숫자나 단위를 검증하지 못해 계산을 중단했습니다.",
+                "field_errors": {},
             },
         ) from exc
 
