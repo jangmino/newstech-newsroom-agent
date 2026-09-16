@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import App from "./App";
-import { postJson, WorkshopAccessError, type ApiPost } from "./api";
+import { postJson, withRequestReference, WorkshopAccessError, type ApiPost } from "./api";
 import type { WorkshopAccessStatus } from "./types";
 
 const unavailableMessage = "행사 입장 설정을 확인하고 있습니다. 운영자에게 문의해 주세요.";
@@ -37,17 +37,18 @@ export function WorkshopAccess() {
     const current = revision.current;
     const request = new AbortController();
     controller.current = request;
+    let response: Response | undefined;
     try {
-      const response = await fetch("/api/v1/access", {
+      response = await fetch("/api/v1/access", {
         cache: "no-store", credentials: "omit", redirect: "error", signal: request.signal,
       });
       const result: unknown = response.ok ? await response.json() : null;
       if (current !== revision.current) return;
       if (!validStatus(result)) throw new Error();
       setStatus(result);
-      if (!result.available) setError(unavailableMessage);
+      if (!result.available) setError(withRequestReference(unavailableMessage, response));
     } catch {
-      if (current === revision.current) setError("입장 상태를 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      if (current === revision.current) setError(withRequestReference("입장 상태를 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.", response));
     } finally {
       if (current === revision.current) setBusy(null);
     }
@@ -72,19 +73,20 @@ export function WorkshopAccess() {
     const request = new AbortController();
     controller.current = request;
     setBusy("entering");
+    let response: Response | undefined;
     try {
-      const response = await fetch("/api/v1/access", {
+      response = await fetch("/api/v1/access", {
         method: "POST", headers: { "X-Workshop-Code": submitted },
         cache: "no-store", credentials: "omit", redirect: "error", signal: request.signal,
       });
       if (current !== revision.current) return;
       if (response.status === 401) {
-        setError("접근코드가 일치하지 않습니다. 운영자가 안내한 코드로 다시 입력해 주세요.");
+        setError(withRequestReference("접근코드가 일치하지 않습니다. 운영자가 안내한 코드로 다시 입력해 주세요.", response));
         return;
       }
       if (response.status === 503) {
         setStatus({ required: true, available: false });
-        setError(unavailableMessage);
+        setError(withRequestReference(unavailableMessage, response));
         return;
       }
       const result: unknown = response.ok ? await response.json() : null;
@@ -93,7 +95,7 @@ export function WorkshopAccess() {
       setStatus(result);
       setCode(result.required ? submitted : null);
     } catch {
-      if (current === revision.current) setError("입장을 확인하지 못했습니다. 연결을 확인한 뒤 코드를 다시 입력해 주세요.");
+      if (current === revision.current) setError(withRequestReference("입장을 확인하지 못했습니다. 연결을 확인한 뒤 코드를 다시 입력해 주세요.", response));
     } finally {
       if (current === revision.current) setBusy(null);
     }

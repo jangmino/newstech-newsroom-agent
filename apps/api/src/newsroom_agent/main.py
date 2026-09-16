@@ -4,11 +4,12 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from newsroom_agent.calculations import CalculationDataError
 from newsroom_agent.conditions import route_question, validate_conditions
@@ -46,9 +47,15 @@ from newsroom_agent.public_data_limits import (
     PublicDataLimitError,
     PublicDataSource,
 )
+from newsroom_agent.request_logging import (
+    RequestLoggingMiddleware,
+    configure_request_logging,
+    record_error,
+)
 from newsroom_agent.workshop_access import WorkshopAccessMiddleware, access_status
 
 settings = get_settings()
+configure_request_logging()
 
 
 @asynccontextmanager
@@ -76,11 +83,21 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "X-Workshop-Code"],
+    expose_headers=["X-Request-ID"],
 )
+app.add_middleware(RequestLoggingMiddleware, allow_origins=settings.cors_origin_list)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    if isinstance(exc.detail, dict):
+        record_error(exc.detail.get("code"))
+    return await http_exception_handler(request, exc)
 
 
 @app.exception_handler(SnapshotError)
 async def snapshot_error(request: Request, exc: SnapshotError):
+    record_error(exc.code)
     return JSONResponse(status_code=409 if exc.code == "snapshot_changed" else 503,
                         headers={"Cache-Control": "no-store"}, content={"detail": {
                             "code": exc.code, "message": str(exc), "field_errors": {},
@@ -124,6 +141,7 @@ def analyze(request: AnalysisRequest) -> AnalysisResponse:
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
+    record_error("invalid_request")
     if request.url.path not in {"/api/v1/plan", "/api/v1/execute"}:
         return await request_validation_exception_handler(request, exc)
     messages = {
@@ -399,4 +417,4 @@ if static_dir.exists():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("newsroom_agent.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("newsroom_agent.main:app", host="0.0.0.0", port=8000, reload=True, access_log=False)

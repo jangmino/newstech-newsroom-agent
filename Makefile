@@ -8,7 +8,7 @@ setup:
 	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv sync --dev
 
 dev-api:
-	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv run uvicorn newsroom_agent.main:app --reload --host 0.0.0.0 --port 8000
+	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv run uvicorn newsroom_agent.main:app --reload --host 0.0.0.0 --port 8000 --no-access-log
 
 dev-web:
 	pnpm --dir apps/web dev

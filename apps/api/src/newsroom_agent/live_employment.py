@@ -1,7 +1,6 @@
 """Approved KOSIS workflow: one source, deterministic calculation, human review required."""
 
 from collections.abc import Callable
-from uuid import uuid4
 
 from newsroom_agent.calculations import ValuePair, rank_changes
 from newsroom_agent.conditions import (
@@ -26,6 +25,7 @@ from newsroom_agent.orchestrator import GENERAL_RESPONSE_EXAMPLES, InvalidCondit
 from newsroom_agent.providers.kosis import KosisClient
 from newsroom_agent.providers.kosis_employment import TABLE_NAME, EmploymentQuery, EmploymentSeries
 from newsroom_agent.public_data_cache import PublicDataCache
+from newsroom_agent.request_logging import request_id
 
 
 async def execute_employment(
@@ -105,7 +105,7 @@ def compose_employment(
         *warnings,
     ]
     return ExecutionResponse(
-        request_id=str(uuid4()), question=question,
+        request_id=request_id(), question=question,
         query_plan=QueryPlan(**conditions.model_dump(), selection_reason=(
             SNAPSHOT_REASONS["kosis"] if snapshot else KOSIS_LIVE_REASON
         )),

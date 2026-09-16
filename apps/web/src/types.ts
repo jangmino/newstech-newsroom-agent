@@ -63,7 +63,7 @@ export interface ApiErrorDetail {
     | "invalid_live_data" | "live_disabled" | `opendart_${string}` | `kosis_${string}`
     | "public_data_rate_limited" | "public_data_busy" | "snapshot_disabled"
     | "snapshot_changed" | "snapshot_unavailable" | "invalid_snapshot_data"
-    | "workshop_access_required" | "workshop_access_unavailable";
+    | "workshop_access_required" | "workshop_access_unavailable" | "internal_error";
   message: string;
   field_errors: Record<string, string>;
   source?: "kosis" | "opendart";

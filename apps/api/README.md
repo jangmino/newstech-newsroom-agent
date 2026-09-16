@@ -5,6 +5,13 @@ FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-ap
 키가 없는 테스트 설정을 주입하며 `.env`와 실제 자격증명을 읽지 않습니다.
 외부 네트워크 연결도 테스트에서 차단합니다.
 
+HTTP 응답에 서버가 생성한 `X-Request-ID`를 제공합니다. 기존 성공 본문의 `request_id`와
+같으며 오류 본문 필드는 유지합니다. 예상하지 못한 예외는 원문을 숨긴 500
+`internal_error`입니다. 같은 ID의 stdout JSON 로그에서 고정 경로 분류·상태·처리 시간·
+실패 코드를 확인할 수 있습니다. 질문·코드·헤더·URL 쿼리·예외 원문은 기록하지 않습니다.
+직접 Uvicorn을 실행할 때도 `--no-access-log`를 사용합니다.
+[요청 ID와 로그 계약](../../docs/REQUEST_LOGGING.md)을 참고하십시오.
+
 ## 참가자 흐름
 
 먼저 `GET /api/v1/access`로 `{required, available}`을 확인합니다. 코드가 필요하면

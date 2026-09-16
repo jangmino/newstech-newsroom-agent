@@ -11,6 +11,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from newsroom_agent.config import Settings
 from newsroom_agent.models import WorkshopAccessStatus
+from newsroom_agent.request_logging import record_error
 
 
 def access_status(settings: Settings) -> WorkshopAccessStatus:
@@ -62,6 +63,7 @@ class WorkshopAccessMiddleware:
                                "운영자가 안내한 코드로 다시 입장해 주세요.")
             if failure:
                 status_code, code, message = failure
+                record_error(code)
                 response = JSONResponse(status_code=status_code, content={"detail": {
                     "code": code, "message": message, "field_errors": {},
                 }}, headers={"WWW-Authenticate": "Workshop"} if status_code == 401 else None)

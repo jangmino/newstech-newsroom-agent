@@ -2,7 +2,6 @@
 
 import json
 from typing import Annotated, Literal
-from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,6 +20,7 @@ from newsroom_agent.conditions import (
 from newsroom_agent.models import PlanResponse, QueryConditions, QueryPlan, SourceName
 from newsroom_agent.providers.mock_employment import YEARS
 from newsroom_agent.providers.planner import QuestionPlanner
+from newsroom_agent.request_logging import request_id
 
 ConditionText = Annotated[str, Field(max_length=100)]
 ConditionField = Literal[
@@ -111,7 +111,7 @@ def plan_from_conditions(question: str, conditions: QueryConditions, mode: str) 
         if field != "selected_source":
             _clear_field(conditions, field)
     return PlanResponse(
-        request_id=str(uuid4()), question=question,
+        request_id=request_id(), question=question,
         query_plan=QueryPlan(
             **conditions.model_dump(), selection_reason=(
                 SNAPSHOT_REASONS[source] if mode == "snapshot" and source in SNAPSHOT_REASONS

@@ -135,6 +135,6 @@ JSON을 wheel/sdist에 포함하며 기존 Dockerfile의 `COPY apps/api/src`에�
   실제 `.env`는 변경하지 않았고 Git 제외 상태를 확인.
 
 후속 **행사용 접근코드**는 [접근 계약](WORKSHOP_ACCESS.md)으로 완료했습니다.
-저장 자료도 같은 요청별 코드 검사를 거칩니다. 다음 최소 기능은 요청 ID를 연결한
-구조화 로그입니다. 운영 상태, 기관 Secret Manager·
+저장 자료도 같은 요청별 코드 검사를 거칩니다. [요청 ID·구조화 로그](REQUEST_LOGGING.md)도
+완료했습니다. 다음 최소 기능은 읽기 전용 실습 운영 상태 화면입니다. 기관 Secret Manager·
 Cloud Run stage 배포, 분산 호출 정책, 30명 부하 시험과 실제 행사 장애 리허설은 남아 있습니다.

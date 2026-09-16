@@ -61,7 +61,7 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .modified { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 6px; color: #174eaf; background: #eaf1ff; font-size: 0.75rem; }
 .card .condition-status { color: #174eaf; }
 .card .field-help { margin: 2px 0 10px; font-size: 0.9rem; }
-.request-error { padding: 14px 18px; border-radius: 12px; background: #fde4e4; line-height: 1.6; }
+.request-error { padding: 14px 18px; border-radius: 12px; background: #fde4e4; line-height: 1.6; overflow-wrap: anywhere; }
 .evidence-card ul { padding-left: 20px; line-height: 1.7; }
 .evidence-card dl div { grid-template-columns: 140px 1fr; }
 .evidence-card dt { word-break: keep-all; }

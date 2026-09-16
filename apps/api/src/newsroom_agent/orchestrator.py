@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from uuid import uuid4
 
 from newsroom_agent.conditions import (
     KOSIS_HINTS,
@@ -24,6 +23,7 @@ from newsroom_agent.planning import create_plan
 from newsroom_agent.providers.mock_employment import calculate_employment
 from newsroom_agent.providers.mock_planner import MockQuestionPlanner
 from newsroom_agent.providers.planner import QuestionPlanner
+from newsroom_agent.request_logging import request_id
 
 # Authored workshop examples, not recorded model outputs or retrieved facts.
 GENERAL_RESPONSE_EXAMPLES = {
@@ -77,7 +77,7 @@ class MockOrchestrator:
             **{f"filters.{key}": value for key, value in conditions.filters.items()},
         }
         response = ExecutionResponse(
-            request_id=str(uuid4()),
+            request_id=request_id(),
             question=question,
             query_plan=query_plan,
             general_response=GeneralResponseExample(
@@ -210,7 +210,7 @@ class MockOrchestrator:
 
     def _kosis_response(self, question: str) -> AnalysisResponse:
         return AnalysisResponse(
-            request_id=str(uuid4()),
+            request_id=request_id(),
             question=question,
             query_plan=QueryPlan(
                 selected_source="kosis",
@@ -256,7 +256,7 @@ class MockOrchestrator:
 
     def _opendart_response(self, question: str) -> AnalysisResponse:
         return AnalysisResponse(
-            request_id=str(uuid4()),
+            request_id=request_id(),
             question=question,
             query_plan=QueryPlan(
                 selected_source="opendart",
@@ -304,7 +304,7 @@ class MockOrchestrator:
 
     def _undetermined_response(self, question: str) -> AnalysisResponse:
         return AnalysisResponse(
-            request_id=str(uuid4()),
+            request_id=request_id(),
             question=question,
             query_plan=QueryPlan(
                 selected_source="undetermined",

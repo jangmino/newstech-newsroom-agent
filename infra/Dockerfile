@@ -18,4 +18,4 @@ COPY apps/api/src ./src
 RUN uv sync --no-dev --no-editable
 COPY --from=web-build /workspace/apps/web/dist /app/static
 EXPOSE 8080
-CMD ["/app/.venv/bin/uvicorn", "newsroom_agent.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["/app/.venv/bin/uvicorn", "newsroom_agent.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]

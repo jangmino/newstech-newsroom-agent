@@ -8,6 +8,10 @@
 `WORKSHOP_ACCESS_CODE`를 기관 Secret Manager에서 주입해야 합니다. 미설정·잘못된 값은
 실습 API를 차단합니다. `/health`와 입장용 UI는 공개이며 HTTPS가 필요합니다.
 실제 Secret Manager 구성·Cloud Run 배포는 아직 실행하지 않았습니다.
+Docker 실행 명령은 원문 URL 쿼리를 남기는 Uvicorn access log를 끕니다.
+앱은 요청 ID·고정 경로 분류·상태·시간·실패 코드만 stdout JSON으로 출력합니다.
+플랫폼이 수집하는 별도 요청 로그·보관·IAM 정책은 stage에서 검증해야 합니다.
+[애플리케이션 로그 계약](../docs/REQUEST_LOGGING.md)을 참고하십시오.
 
 ## 권장 구성
 
