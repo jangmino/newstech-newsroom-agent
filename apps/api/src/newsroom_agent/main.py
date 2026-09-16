@@ -39,12 +39,18 @@ from newsroom_agent.providers.planner import (
     QuestionPlanner,
 )
 from newsroom_agent.public_data_cache import PublicDataCache
+from newsroom_agent.public_data_limits import (
+    PublicDataCallLimiter,
+    PublicDataLimitError,
+    PublicDataSource,
+)
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    get_public_data_limiter.cache_clear()
     app.state.employment_cache = PublicDataCache[EmploymentSeries](
         settings.cache_ttl_seconds, settings.cache_max_entries,
     )
@@ -56,6 +62,7 @@ async def lifespan(app: FastAPI):
     finally:
         await app.state.employment_cache.close()
         await app.state.revenue_cache.close()
+        get_public_data_limiter.cache_clear()
 
 
 app = FastAPI(title="NewsTech Newsroom Agent API", version="0.1.0", lifespan=lifespan)
@@ -118,6 +125,13 @@ async def validation_error(request: Request, exc: RequestValidationError):
             }
         },
     )
+
+
+@lru_cache
+def get_public_data_limiter(
+    source: PublicDataSource, requests_per_minute: int, max_concurrent: int,
+) -> PublicDataCallLimiter:
+    return PublicDataCallLimiter(source, requests_per_minute, max_concurrent)
 
 
 @lru_cache
@@ -231,14 +245,27 @@ async def execute(request: ExecuteRequest, http_request: Request) -> ExecutionRe
                 raise InvalidConditions(errors)
             require_live_source(request.conditions.selected_source)
             caches = http_request.app.state if settings.public_data_cache_enabled else None
+            limiter = get_public_data_limiter(
+                request.conditions.selected_source, settings.public_data_requests_per_minute,
+                settings.public_data_max_concurrent_requests,
+            )
             if request.conditions.selected_source == "kosis":
                 return await execute_employment(request.question, request.conditions, lambda: (
-                    KosisClient(settings.kosis_api_key, enabled=True)
+                    KosisClient(settings.kosis_api_key, enabled=True, limiter=limiter)
                 ), cache=caches.employment_cache if caches else None)
             return await execute_financials(request.question, request.conditions, lambda: (
-                OpenDartClient(settings.opendart_api_key, enabled=True)
+                OpenDartClient(settings.opendart_api_key, enabled=True, limiter=limiter)
             ), cache=caches.revenue_cache if caches else None)
         return MockOrchestrator().execute(request.question, request.conditions)
+    except PublicDataLimitError as exc:
+        headers = {"Cache-Control": "no-store"}
+        if exc.retry_after_seconds is not None:
+            headers["Retry-After"] = str(exc.retry_after_seconds)
+        raise HTTPException(status_code=429, headers=headers, detail={
+            "code": exc.code, "message": str(exc), "field_errors": {},
+            "source": exc.source, "scope": "process",
+            "retry_after_seconds": exc.retry_after_seconds,
+        }) from None
     except (OpenDartError, KosisError) as exc:
         provider = "kosis" if isinstance(exc, KosisError) else "opendart"
         raise HTTPException(

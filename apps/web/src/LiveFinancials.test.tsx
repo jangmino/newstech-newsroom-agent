@@ -69,6 +69,26 @@ async function approve() {
   return await screen.findByRole("region", { name: "이 결과의 실습 검토" });
 }
 
+test("OpenDART limit hides the whole pair and preserves conditions for manual approval", async () => {
+  const fetch = setup();
+  await plan();
+  const review = await approve();
+  fireEvent.click(within(review).getAllByRole("checkbox")[0]);
+  fetch.mockResolvedValueOnce(json({ detail: {
+    code: "public_data_rate_limited", message: "현재 서버의 OpenDART 조회 요청 한도에 도달했습니다.",
+    field_errors: {}, source: "opendart", scope: "process", retry_after_seconds: 15,
+  } }, 429));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("약 15초 뒤");
+  expect(screen.queryByRole("region", { name: "공시 원자료와 계산 결과" })).toBeNull();
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
+  expect(screen.getByRole<HTMLInputElement>("textbox", { name: "기간" }).value).toBe("2022-2024");
+  expect(fetch).toHaveBeenCalledTimes(3);
+  const retried = await approve();
+  expect(within(retried).getByRole("status").textContent).toContain("0/4");
+});
+
 test("live selection and planning never reveal evidence; approval uses edited conditions", async () => {
   const fetch = setup();
   expect(fetch).not.toHaveBeenCalled();

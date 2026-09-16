@@ -140,6 +140,24 @@ live 활성화를 대신하지 않으며 mock·Gemini 질문 분석에는 적용
 여러 워커·Cloud Run 인스턴스 사이에서는 공유하지 않습니다. 화면에는 재사용 여부·원래
 조회 시각·기한을 표시합니다. [자세한 계약](PUBLIC_DATA_CACHE.md)을 참고하십시오.
 
+## 공공자료 호출 제한
+
+```text
+PUBLIC_DATA_REQUESTS_PER_MINUTE=30
+PUBLIC_DATA_MAX_CONCURRENT_REQUESTS=2
+```
+
+항목이 없으면 위 기본값을 사용하며 변경 시 서버 재시작이 필요합니다. 이번 개발에서는
+`.env`나 기존 키를 변경하지 않았습니다. OpenDART/KOSIS 각각 독립적으로 최근 60초의
+HTTP 시작 30회·동시 2회를 허용합니다. 제공기관의 공식 한도가 아닌 앱의 보호 기본값입니다.
+OpenDART는 두 연도를 조회하므로 정상 완료를 위해 분당 한도를 최소 2회 이상으로 설정합니다.
+`REQUESTS_PER_MINUTE`·`MAX_CONCURRENT_REQUESTS`는 기존 Gemini 한도로 유지합니다.
+
+캐시 hit/공유 대기자는 추가 횟수를 쓰지 않고, 캐시를 꺼도 실제 요청 제한은 유지됩니다.
+초과 시 한국어 429 안내로 중단하며 자동 재시도·자료 대체를 하지 않습니다. 재시작 시
+초기화되고 여러 worker/Cloud Run 인스턴스에서 합산하지 않습니다. 행사 전체·일일 할당량은
+별도 정책과 부하 검증이 필요합니다. [자세한 계약](PUBLIC_DATA_LIMITS.md)을 참고하십시오.
+
 ## Stage
 
 목적은 실제 행사와 같은 조건의 리허설과 부하 시험입니다.

@@ -221,6 +221,26 @@ KOSIS는 조회 조건의 연간 자료 묶음, OpenDART는 두 연도 한 쌍�
 재시작 시 초기화되고 워커/인스턴스 간 공유는 없습니다. 상세 수명·취소·키·검증은
 [공공자료 캐시](../../docs/PUBLIC_DATA_CACHE.md)를 따릅니다.
 
+### 공공자료 호출·동시 실행 제한 계약
+
+실제 HTTP 직전에 자료원별 공유 한도를 적용합니다. 기본
+`PUBLIC_DATA_REQUESTS_PER_MINUTE=30`은 최근 60초 시작 횟수,
+`PUBLIC_DATA_MAX_CONCURRENT_REQUESTS=2`는 응답을 읽고 닫을 때까지의 동시 요청 수입니다.
+OpenDART 두 연도는 각각 1회입니다. 캐시 적중·동일 요청 공유는 추가 한도를 쓰지 않으며,
+캐시 비활성도 실제 HTTP 제한을 우회하지 않습니다. Gemini와 mock은 이 한도와 분리합니다.
+
+`/execute` 오류는 HTTP 429와 기존 `detail.code/message/field_errors`에
+`source: kosis|opendart`, `scope: process`, `retry_after_seconds: number|null`을 추가합니다.
+횟수 제한은 `public_data_rate_limited`와 예상 대기 정수 1~60초, `Retry-After` 헤더를 반환합니다.
+동시 실행 제한은 `public_data_busy`, 예상 초는 null이며 `Retry-After`가 없습니다.
+두 오류 모두 `Cache-Control: no-store`이며 근거·브리핑은 반환하지 않습니다.
+공급기관 자체의 한도는 기존 `opendart_rate_limited|kosis_rate_limited`로 구분합니다.
+
+실패·시간 초과·취소도 시작 횟수에는 포함하며 동시 실행 자리는 반환합니다. OpenDART
+두 번째 호출이 거절되면 부분 결과를 버립니다. 자동 재시도·대기열·자료 대체는 없습니다.
+한도는 재시작 시 초기화되고 프로세스 간 공유하지 않습니다.
+[전체 계약·검증](../../docs/PUBLIC_DATA_LIMITS.md)을 따릅니다. 기존 성공 응답과 `/analyze`는 유지합니다.
+
 ### 가상 계산 계약
 
 청년 고용의 `calculation`은 다음 구조입니다. 기업 실적에서는 `null`입니다.

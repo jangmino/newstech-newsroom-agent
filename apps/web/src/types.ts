@@ -51,9 +51,13 @@ export interface ExecuteRequest {
 export interface ApiErrorDetail {
   code: "invalid_request" | "invalid_conditions" | "invalid_mock_data" | "invalid_planner_output" | "planner_unavailable"
     | "planner_disabled" | "planner_configuration_error" | "planner_timeout" | "planner_rate_limited"
-    | "invalid_live_data" | "live_disabled" | `opendart_${string}` | `kosis_${string}`;
+    | "invalid_live_data" | "live_disabled" | `opendart_${string}` | `kosis_${string}`
+    | "public_data_rate_limited" | "public_data_busy";
   message: string;
   field_errors: Record<string, string>;
+  source?: "kosis" | "opendart";
+  scope?: "process";
+  retry_after_seconds?: number | null;
 }
 
 export interface Evidence {

@@ -6,7 +6,7 @@ import logging
 import math
 import re
 from collections.abc import AsyncIterator, Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
@@ -20,6 +20,7 @@ from newsroom_agent.providers.opendart_financials import (
     RevenuePair,
     normalize_revenue,
 )
+from newsroom_agent.public_data_limits import PublicDataCallLimiter, PublicDataLimitError
 
 _sensitive_request: ContextVar[bool] = ContextVar("opendart_sensitive_request", default=False)
 
@@ -62,12 +63,14 @@ class OpenDartClient:
         self, api_key: str, transport: httpx.AsyncBaseTransport | None = None, *,
         enabled: bool = False, timeout_seconds: float = 20,
         clock: Callable[[], datetime] = _utc_now,
+        limiter: PublicDataCallLimiter | None = None,
     ) -> None:
         self._api_key = api_key
         self._transport = transport
         self._enabled = enabled
         self._timeout = timeout_seconds
         self._clock = clock
+        self._limiter = limiter
 
     @asynccontextmanager
     async def _session(self) -> AsyncIterator[httpx.AsyncClient]:
@@ -86,7 +89,7 @@ class OpenDartClient:
                 transport=self._transport or httpx.AsyncHTTPTransport(retries=0),
             ) as client:
                 yield client
-        except OpenDartError:
+        except (OpenDartError, PublicDataLimitError):
             raise
         except (httpx.TimeoutException, TimeoutError):
             raise OpenDartError("timeout") from None
@@ -97,22 +100,23 @@ class OpenDartClient:
             _sensitive_request.reset(token)
 
     async def _request_json(self, client: httpx.AsyncClient, endpoint: str, params: dict) -> dict:
-        async with asyncio.timeout(self._timeout):
-            async with client.stream(
-                "GET", f"{self.base_url}/{endpoint}",
-                params={**params, "crtfc_key": self._api_key},
-            ) as response:
-                if response.status_code != 200:
-                    code = {
-                        400: "invalid_request", 401: "authentication", 403: "authentication",
-                        408: "timeout", 429: "rate_limited", 504: "timeout",
-                    }.get(response.status_code, "unavailable")
-                    raise OpenDartError(code)
-                body = bytearray()
-                async for chunk in response.aiter_bytes(chunk_size=65_536):
-                    body.extend(chunk)
-                    if len(body) > 2_000_000:
-                        raise OpenDartError("invalid_response")
+        with self._limiter.slot() if self._limiter else nullcontext():
+            async with asyncio.timeout(self._timeout):
+                async with client.stream(
+                    "GET", f"{self.base_url}/{endpoint}",
+                    params={**params, "crtfc_key": self._api_key},
+                ) as response:
+                    if response.status_code != 200:
+                        code = {
+                            400: "invalid_request", 401: "authentication", 403: "authentication",
+                            408: "timeout", 429: "rate_limited", 504: "timeout",
+                        }.get(response.status_code, "unavailable")
+                        raise OpenDartError(code)
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes(chunk_size=65_536):
+                        body.extend(chunk)
+                        if len(body) > 2_000_000:
+                            raise OpenDartError("invalid_response")
         try:
             payload = json.loads(
                 body, object_pairs_hook=_unique_object, parse_constant=_reject_constant,

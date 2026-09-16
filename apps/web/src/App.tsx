@@ -35,7 +35,12 @@ async function post<T>(path: string, body: PlanRequest | ExecuteRequest, signal:
     const payload = await response.json().catch(() => null) as { detail?: ApiErrorDetail } | null;
     const detail = payload?.detail;
     if (detail?.message && detail.field_errors) {
-      throw new Error([detail.message, ...Object.values(detail.field_errors)].join(" "));
+      const seconds = detail.retry_after_seconds;
+      const waitHint = detail.code === "public_data_rate_limited"
+        && typeof seconds === "number" && Number.isInteger(seconds) && seconds >= 1 && seconds <= 60
+        ? `다시 조회할 수 있는 예상 시간은 약 ${seconds}초 뒤입니다. 다른 요청에 따라 달라질 수 있습니다.`
+        : "";
+      throw new Error([detail.message, ...Object.values(detail.field_errors), waitHint].filter(Boolean).join(" "));
     }
     throw new Error("요청을 처리하지 못했습니다. 입력한 내용은 유지됩니다. 다시 시도해 주세요.");
   }

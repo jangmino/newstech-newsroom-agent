@@ -242,10 +242,24 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 브리핑·요청 ID를 새로 만들고 검토를 초기화합니다. [계약·검증](PUBLIC_DATA_CACHE.md)과
 [ADR 0009](decisions/0009-process-public-data-cache.md)를 참고합니다.
 
+## M3 공공자료 호출 제한
+
+`public_data_limits.py`의 자료원별 공유 제한기를 OpenDART/KOSIS 어댑터에 주입합니다.
+승인·조건·활성화 검증과 캐시 확인 뒤 실제 HTTP 경계에서만 횟수와 동시 실행 수를 검사합니다.
+기본값은 자료원마다 최근 60초 시작 30회·동시 2회이며 캐시 hit/공유 대기자는 추가로 세지 않습니다.
+OpenDART는 연도별 두 호출을 별도로 셉니다. 실패·취소도 시작 횟수에 포함하고 동시 실행
+자리는 반환합니다. 부분 결과는 저장하지 않고 대기열·자동 재시도·자동 fallback은 없습니다.
+
+429 `public_data_rate_limited|public_data_busy`는 한국어 메시지·자료원·`scope=process`를
+포함하며 횟수 제한에만 예상 초와 `Retry-After`를 제공합니다. 참가자는 조건을 유지하고
+직접 재승인하며 오류 시 이전 결과·검토 상태를 숨깁니다. Gemini의 기존 한도는 독립적입니다.
+프로세스 재시작 시 초기화되며 worker/인스턴스 간 공유하지 않습니다.
+[ADR 0010](decisions/0010-process-public-data-limits.md), [설정·오류 계약](PUBLIC_DATA_LIMITS.md)을 참고합니다.
+
 ## 추후 추가할 운영 장치
 
-- 프로세스 내부 동시 실행 제한
 - 여러 인스턴스의 호출 한도·캐시 정책
+- 명시적 snapshot fallback과 접근코드
 - 실행 ID를 포함한 구조화 로그
 - API별 타임아웃·제한적 재시도
 - 민감정보 제거

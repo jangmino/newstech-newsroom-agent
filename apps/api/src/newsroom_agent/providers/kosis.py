@@ -5,6 +5,7 @@ import json
 import logging
 import math
 from collections.abc import Callable
+from contextlib import nullcontext
 from contextvars import ContextVar
 from datetime import UTC, datetime
 
@@ -16,6 +17,7 @@ from newsroom_agent.providers.kosis_employment import (
     KosisError,
     normalize_employment,
 )
+from newsroom_agent.public_data_limits import PublicDataCallLimiter, PublicDataLimitError
 
 _sensitive_request: ContextVar[bool] = ContextVar("kosis_sensitive_request", default=False)
 
@@ -58,12 +60,14 @@ class KosisClient:
         self, api_key: str, transport: httpx.AsyncBaseTransport | None = None, *,
         enabled: bool = False, timeout_seconds: float = 20,
         clock: Callable[[], datetime] = _utc_now,
+        limiter: PublicDataCallLimiter | None = None,
     ) -> None:
         self._api_key = api_key
         self._transport = transport
         self._enabled = enabled
         self._timeout = timeout_seconds
         self._clock = clock
+        self._limiter = limiter
 
     async def fetch_employment(self, query: EmploymentQuery) -> EmploymentSeries:
         if self._enabled is not True:
@@ -82,22 +86,24 @@ class KosisClient:
                 timeout=self._timeout, follow_redirects=False, trust_env=False,
                 transport=self._transport or httpx.AsyncHTTPTransport(retries=0),
             ) as client:
-                async with asyncio.timeout(self._timeout):
-                    async with client.stream(
-                        "GET", self.data_url, params={**query.parameters, "apiKey": self._api_key},
-                    ) as response:
-                        if response.status_code != 200:
-                            code = {
-                                400: "invalid_request", 401: "authentication",
-                                403: "authentication",
-                                408: "timeout", 429: "rate_limited", 504: "timeout",
-                            }.get(response.status_code, "unavailable")
-                            raise KosisError(code)
-                        body = bytearray()
-                        async for chunk in response.aiter_bytes(chunk_size=65_536):
-                            body.extend(chunk)
-                            if len(body) > 2_000_000:
-                                raise KosisError("invalid_response")
+                with self._limiter.slot() if self._limiter else nullcontext():
+                    async with asyncio.timeout(self._timeout):
+                        async with client.stream(
+                            "GET", self.data_url,
+                            params={**query.parameters, "apiKey": self._api_key},
+                        ) as response:
+                            if response.status_code != 200:
+                                code = {
+                                    400: "invalid_request", 401: "authentication",
+                                    403: "authentication",
+                                    408: "timeout", 429: "rate_limited", 504: "timeout",
+                                }.get(response.status_code, "unavailable")
+                                raise KosisError(code)
+                            body = bytearray()
+                            async for chunk in response.aiter_bytes(chunk_size=65_536):
+                                body.extend(chunk)
+                                if len(body) > 2_000_000:
+                                    raise KosisError("invalid_response")
             try:
                 payload = json.loads(
                     body, object_pairs_hook=_unique_object, parse_constant=_reject_constant,
@@ -119,7 +125,7 @@ class KosisClient:
                 }[str(err)]
                 raise KosisError(code)
             return normalize_employment(payload, query, self._clock())
-        except KosisError:
+        except (KosisError, PublicDataLimitError):
             raise
         except (httpx.TimeoutException, TimeoutError):
             raise KosisError("timeout") from None

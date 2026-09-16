@@ -280,3 +280,75 @@ test("cached reapproval recalculates, compares acquisition status, and resets re
   expect(screen.queryByLabelText("공식 자료 재사용 안내")).toBeNull();
   expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
 });
+
+test.each([
+  ["public_data_rate_limited", 23, "현재 서버의 KOSIS 조회 요청 한도에 도달했습니다."],
+  ["public_data_busy", null, "현재 서버에서 KOSIS 자료를 조회하는 요청이 많습니다."],
+] as const)("%s retains edits, hides results, and requires explicit reapproval", async (code, seconds, message) => {
+  const fetch = setup();
+  await plan();
+  const firstReview = await approve();
+  fireEvent.click(within(firstReview).getAllByRole("checkbox")[0]);
+  fireEvent.change(screen.getByRole("combobox", { name: "비교 기준" }), { target: { value: "증감률" } });
+  fetch.mockResolvedValueOnce(json({ detail: {
+    code, message: `${message} 입력한 조건은 유지됩니다. 자동으로 다시 조회하지 않습니다. 잠시 후 ‘이 조건으로 조회’를 다시 눌러 주세요.`,
+    field_errors: {}, source: "kosis", scope: "process", retry_after_seconds: seconds,
+  } }, 429));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(message);
+  expect(alert.textContent).toContain("자동으로 다시 조회하지 않습니다");
+  if (seconds) {
+    expect(alert.textContent).toContain("약 23초 뒤");
+    expect(alert.textContent).toContain("다른 요청에 따라 달라질 수 있습니다");
+  } else {
+    expect(alert.textContent).not.toContain("초 뒤");
+  }
+  expect(screen.getByRole<HTMLSelectElement>("combobox", { name: "비교 기준" }).value).toBe("증감률");
+  expect(screen.getByRole<HTMLInputElement>("textbox", { name: "기간" }).value).toBe("2020-2024");
+  expect(screen.getByText("참가자가 조건을 수정했습니다.", { exact: false })).toBeTruthy();
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
+  expect(screen.queryByRole("article", { name: "이전 승인 결과" })).toBeNull();
+  expect(screen.queryByLabelText("공식 자료 재사용 안내")).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(3);
+  // Advance beyond the suggested wait: no timer submits an approval on the participant's behalf.
+  vi.useFakeTimers();
+  try {
+    await act(async () => vi.advanceTimersByTimeAsync(61_000));
+    expect(fetch).toHaveBeenCalledTimes(3);
+  } finally {
+    vi.useRealTimers();
+  }
+  const review = await approve();
+  expect(fetch).toHaveBeenCalledTimes(4);
+  expect(within(review).getByRole("status").textContent).toContain("0/4");
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+test.each([0, -1, 1.5, 61, "30", null])("invalid wait hint %s is not displayed", async (seconds) => {
+  const fetch = setup();
+  await plan();
+  fetch.mockResolvedValueOnce(json({ detail: {
+    code: "public_data_rate_limited", message: "잠시 후 다시 조회해 주세요.",
+    field_errors: {}, retry_after_seconds: seconds,
+  } }, 429));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  expect((await screen.findByRole("alert")).textContent).toBe("잠시 후 다시 조회해 주세요.");
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+test("editing a condition ignores a late limit error and does not start another request", async () => {
+  const fetch = setup();
+  await plan();
+  let finish!: (response: Response) => void;
+  fetch.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "기간" }), { target: { value: "2021-2024" } });
+  await act(async () => finish(json({ detail: {
+    code: "public_data_busy", message: "잠시 후 다시 조회해 주세요.", field_errors: {},
+  } }, 429)));
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
