@@ -177,3 +177,121 @@ test("remounting the app loses review state instead of restoring it from storage
   await planQuestion();
   expectEmptyReview(await approve());
 });
+
+function comparisonRow(label: string) {
+  const table = screen.getByRole("table", { name: "승인 조건 비교" });
+  const header = within(table).getByRole("rowheader", { name: new RegExp(`^${label}`) });
+  return header.closest("tr")!;
+}
+
+function changePeriod(value: string) {
+  fireEvent.change(screen.getByRole("textbox", { name: "기간" }), { target: { value } });
+}
+
+test("only two successful approvals with changed conditions show a comparison and fresh review", async () => {
+  const { panel, fetch } = await approvedResult();
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+  checkAll(panel);
+  changePeriod("2021-2024");
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+  expect(screen.queryByRole("article", { name: "이전 승인 결과" })).toBeNull();
+  const newReview = await approve();
+  expectEmptyReview(newReview);
+  expect(screen.getByRole("region", { name: "조건 변경 전후 비교" })).toBeTruthy();
+  expect(within(comparisonRow("기간")).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2020-2024", "2021-2024"]);
+  expect(within(comparisonRow("기간")).getByText("변경")).toBeTruthy();
+  expect(within(comparisonRow("지표")).queryByText("변경")).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+test.each([
+  ["대상", "수도권 시·도"], ["지표", "취업자 수"], ["비교 기준", "증감률"],
+  ["청년 연령 범위", "15-34세"],
+])("the comparison includes changes to %s", async (label, value) => {
+  await approvedResult();
+  fireEvent.change(screen.getByRole("combobox", { name: label }), { target: { value } });
+  await approve();
+  expect(within(comparisonRow(label)).getByText("변경")).toBeTruthy();
+  expect(within(comparisonRow(label)).getAllByRole("cell")[1].textContent).toBe(value);
+});
+
+test("a third successful query compares the immediately previous success, not the first result", async () => {
+  await approvedResult();
+  changePeriod("2021-2024");
+  await approve();
+  changePeriod("2022-2024");
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+  await approve();
+  expect(within(comparisonRow("기간")).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2021-2024", "2022-2024"]);
+});
+
+test("same conditions and edit-then-revert do not fabricate a condition difference", async () => {
+  await approvedResult();
+  changePeriod("2021-2024");
+  changePeriod("2020-2024");
+  await approve();
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+  changePeriod("2021-2024");
+  await approve();
+  expect(screen.getByRole("region", { name: "조건 변경 전후 비교" })).toBeTruthy();
+  await approve();
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+});
+
+test("failure keeps the last successful comparison baseline hidden until retry succeeds", async () => {
+  const { fetch } = await approvedResult();
+  changePeriod("2021-2024");
+  fetch.mockResolvedValueOnce(json({ detail: { code: "invalid_mock_data", message: "계산을 중단했습니다.", field_errors: {} } }, 503));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+  expect(screen.queryByRole("article", { name: "이전 승인 결과" })).toBeNull();
+  changePeriod("2022-2024");
+  expectEmptyReview(await approve());
+  expect(within(comparisonRow("기간")).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2020-2024", "2022-2024"]);
+});
+
+test("a late response cannot replace the comparison baseline or current comparison", async () => {
+  const { fetch } = await approvedResult();
+  changePeriod("2021-2024");
+  let finish!: (response: Response) => void;
+  fetch.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+  const staleRequest = JSON.parse(String(fetch.mock.calls.at(-1)?.[1]?.body)) as ExecuteRequest;
+  changePeriod("2022-2024");
+  await approve();
+  await act(async () => { finish(json(exampleResult(examplePlan(), staleRequest.conditions))); });
+  expect(within(comparisonRow("기간")).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2020-2024", "2022-2024"]);
+  changePeriod("2023-2024");
+  await approve();
+  expect(within(comparisonRow("기간")).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2022-2024", "2023-2024"]);
+});
+
+test.each(["edit", "sample", "reanalyze", "remount"])("%s clears the comparison baseline even when the next query has different conditions", async (action) => {
+  const { unmount } = await approvedResult();
+  changePeriod("2021-2024");
+  await approve();
+  if (action === "edit") {
+    fireEvent.change(screen.getByLabelText("질문 입력"), { target: { value: "새로운 청년 고용 질문" } });
+  } else if (action === "sample") {
+    fireEvent.click(screen.getByRole("button", { name: "최근 5년 동안 청년 고용이 가장 좋아진 지역은 어디인가?" }));
+  } else if (action === "remount") {
+    unmount();
+    render(<App />);
+  }
+  await planQuestion();
+  changePeriod("2022-2024");
+  await approve();
+  expect(screen.queryByRole("region", { name: "조건 변경 전후 비교" })).toBeNull();
+});
+
+test("OpenDART compares changed statement basis without claiming numeric results", async () => {
+  await approvedResult("opendart");
+  fireEvent.change(screen.getByRole("combobox", { name: "재무제표 기준" }), { target: { value: "별도" } });
+  await approve();
+  expect(within(comparisonRow("재무제표 기준")).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["연결", "별도"]);
+  const comparison = screen.getByRole("region", { name: "조건 변경 전후 비교" });
+  expect(comparison.textContent).toContain("원자료 숫자와 계산 결과가 없어 수치 변화는 비교하지 않습니다.");
+  expect(within(comparison).queryByRole("table", { name: /가상 지역별/ })).toBeNull();
+});

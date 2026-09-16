@@ -4,6 +4,8 @@ import {
 } from "./conditions";
 import { ReviewSession } from "./ReviewSession";
 import { CalculationTable } from "./CalculationTable";
+import { ConditionComparison } from "./ConditionComparison";
+import { canCompareResults } from "./resultComparison";
 import type {
   ApiErrorDetail, ExecuteRequest, ExecutionResponse, PlanRequest, PlanResponse, QueryConditions,
 } from "./types";
@@ -43,6 +45,9 @@ function App() {
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [draft, setDraft] = useState<QueryConditions | null>(null);
   const [result, setResult] = useState<ExecutionResponse | null>(null);
+  const [previousResult, setPreviousResult] = useState<ExecutionResponse | null>(null);
+  // Retain one success for comparison, hidden until a new approval succeeds.
+  const lastSuccessfulResult = useRef<ExecutionResponse | null>(null);
   const [busy, setBusy] = useState<"plan" | "execute" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const revision = useRef(0);
@@ -57,12 +62,14 @@ function App() {
     revision.current += 1;
     controller.current?.abort();
     setResult(null);
+    setPreviousResult(null);
     setBusy(null);
     setError(null);
   }
 
   function changeQuestion(value: string) {
     invalidate();
+    lastSuccessfulResult.current = null;
     setQuestion(value);
     setPlan(null);
     setDraft(null);
@@ -77,6 +84,7 @@ function App() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     invalidate();
+    lastSuccessfulResult.current = null;
     setPlan(null);
     setDraft(null);
     if (question.trim().length < 3 || question.trim().length > 1000) {
@@ -127,6 +135,9 @@ function App() {
         throw new Error("응답 비교를 준비하지 못했습니다. 잠시 후 다시 조회해 주세요.");
       }
       setDraft(conditions);
+      const previous = lastSuccessfulResult.current;
+      setPreviousResult(previous && canCompareResults(previous, response) ? previous : null);
+      lastSuccessfulResult.current = response;
       setResult(response);
     } catch (caught) {
       if (current === revision.current) {
@@ -241,34 +252,37 @@ function App() {
                 <button className="primary" type="submit" disabled={busy !== null || errors.length > 0}>
                   {busy === "execute" ? "모의 자료를 준비하는 중…" : "이 조건으로 조회"}
                 </button>
-                <p className="field-help">조건을 수정하면 이전 승인과 결과가 해제됩니다. 조건 승인 후에도 결과는 사람의 검토가 필요합니다.</p>
+                <p className="field-help">조건을 수정하면 결과와 검토 표시가 숨겨집니다. 바꾼 조건을 다시 승인하면 직전 결과와 비교할 수 있습니다. 질문을 바꾸거나 다시 분석하면 비교도 초기화됩니다.</p>
               </form>
             )}
           </section>
 
           {result && (
-            <ReviewSession key={result.request_id} result={result}>
-              <section className="card evidence-card" aria-labelledby="evidence-title">
-                <p className="step">04 · 자료와 계산 근거</p>
-                <h2 id="evidence-title">{result.evidence.source_name}</h2>
-                <p>{result.evidence.table_or_report}</p>
-                <h3>승인된 조회 조건</h3>
-                <dl className="approved-conditions">
-                  {Object.entries(result.evidence.query_parameters).map(([field, value]) => (
-                    <div key={field}><dt>{conditionLabels[field] ?? field}</dt><dd>{field === "selected_source" ? sourceLabel(result.query_plan.selected_source) : value}</dd></div>
-                  ))}
-                </dl>
-                <dl>
-                  <div><dt>단위</dt><dd>{result.calculation ? `입력 ${result.calculation.input_unit} · 결과 ${result.calculation.result_unit}` : result.evidence.unit}</dd></div>
-                  <div><dt>{result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
-                  <div><dt>계산식</dt><dd>{result.evidence.formula}</dd></div>
-                </dl>
-                {result.calculation && <CalculationTable calculation={result.calculation} comparison={result.query_plan.comparison} />}
-                <h3>자료 이용 시 주의사항</h3>
-                <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
-                <span className="data-mode">{result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
-              </section>
-            </ReviewSession>
+            <>
+              {previousResult && <ConditionComparison previous={previousResult} current={result} />}
+              <ReviewSession key={result.request_id} result={result}>
+                <section className="card evidence-card" aria-labelledby="evidence-title">
+                  <p className="step">04 · 자료와 계산 근거</p>
+                  <h2 id="evidence-title">{result.evidence.source_name}</h2>
+                  <p>{result.evidence.table_or_report}</p>
+                  <h3>승인된 조회 조건</h3>
+                  <dl className="approved-conditions">
+                    {Object.entries(result.evidence.query_parameters).map(([field, value]) => (
+                      <div key={field}><dt>{conditionLabels[field] ?? field}</dt><dd>{field === "selected_source" ? sourceLabel(result.query_plan.selected_source) : value}</dd></div>
+                    ))}
+                  </dl>
+                  <dl>
+                    <div><dt>단위</dt><dd>{result.calculation ? `입력 ${result.calculation.input_unit} · 결과 ${result.calculation.result_unit}` : result.evidence.unit}</dd></div>
+                    <div><dt>{result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
+                    <div><dt>계산식</dt><dd>{result.evidence.formula}</dd></div>
+                  </dl>
+                  {result.calculation && <CalculationTable calculation={result.calculation} comparison={result.query_plan.comparison} />}
+                  <h3>자료 이용 시 주의사항</h3>
+                  <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
+                  <span className="data-mode">{result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
+                </section>
+              </ReviewSession>
+            </>
           )}
         </div>
       )}

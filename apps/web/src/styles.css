@@ -105,6 +105,25 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .review-item span span { display: block; margin-top: 4px; color: #506077; font-weight: 400; }
 .human-review .notice { color: #674d00; }
 
+.condition-comparison { grid-column: 1 / -1; }
+.comparison-scroll { overflow-x: auto; margin: 18px 0; border: 1px solid #dce4ee; border-radius: 12px; }
+.comparison-scroll:focus-visible { outline: 3px solid rgba(39, 98, 217, 0.35); }
+.condition-comparison-table { width: 100%; min-width: 600px; table-layout: fixed; border-collapse: collapse; line-height: 1.6; }
+.condition-comparison-table caption { text-align: left; padding: 14px; font-weight: 750; }
+.condition-comparison-table th, .condition-comparison-table td { text-align: left; vertical-align: top; padding: 12px; border-top: 1px solid #e7ecf3; overflow-wrap: anywhere; }
+.condition-comparison-table thead { background: #f7f9fc; }
+.condition-comparison-table th:first-child { width: 24%; }
+.changed-condition { background: #f1f6ff; }
+.condition-result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.condition-result { min-width: 0; border: 1px solid #dce4ee; border-radius: 12px; padding: 18px; }
+.condition-result h3 { margin: 0; }
+.condition-result .result-summary { color: #152239; font-weight: 700; }
+.condition-result dl div { grid-template-columns: 100px minmax(0, 1fr); }
+.condition-result details { margin-top: 18px; line-height: 1.7; }
+.condition-result summary { color: #174eaf; cursor: pointer; font-weight: 700; }
+.condition-comparison ul { padding-left: 20px; line-height: 1.7; }
+.region-inputs { display: block; margin-top: 6px; color: #506077; font-size: 0.9rem; }
+
 @media (max-width: 760px) {
   .shell { width: min(100% - 20px, 680px); padding-top: 20px; }
   .topbar { align-items: flex-start; flex-direction: column; }
@@ -113,6 +132,7 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
   .condition-fields { grid-template-columns: 1fr; }
   .evidence-card dl div { grid-template-columns: 100px minmax(0, 1fr); }
   .comparison-grid { grid-template-columns: 1fr; }
+  .condition-result-grid { grid-template-columns: 1fr; }
   .comparison-guide th, .comparison-guide td { padding: 10px 6px; font-size: 0.85rem; }
   .primary { justify-self: stretch; }
 }
