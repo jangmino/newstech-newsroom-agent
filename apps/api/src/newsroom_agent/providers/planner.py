@@ -11,3 +11,19 @@ class QuestionPlanner(Protocol):
 
 class PlannerUnavailable(Exception):
     """An adapter could not return an interpretation; never expose its details."""
+
+
+class PlannerDisabled(PlannerUnavailable):
+    """Live planning has not been explicitly enabled by the server operator."""
+
+
+class PlannerConfigurationError(PlannerUnavailable):
+    """Required backend configuration is absent or unsupported."""
+
+
+class PlannerRateLimited(PlannerUnavailable):
+    """Local call budget or provider quota prevented this request."""
+
+
+class PlannerTimedOut(PlannerUnavailable):
+    """The provider did not respond within the HTTP timeout."""

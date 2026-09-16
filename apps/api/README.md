@@ -12,8 +12,9 @@ FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-ap
      → ‘이 조건으로 조회’ → POST /api/v1/execute → 일반 응답 예시·근거 기반 브리핑 비교
 ```
 
-새 API는 `mock`만 받습니다. `LIVE_API_ENABLED` 설정과 관계없이 `live`, `snapshot`은 422입니다.
-Gemini·OpenDART·KOSIS 공급자를 호출하지 않으며, 데이터나 승인 이력을 저장하지 않습니다.
+새 API의 자료 모드 `mode`는 `mock`만 받습니다. `LIVE_API_ENABLED` 설정과 관계없이
+`live`, `snapshot`은 422입니다. 별도 해석 방식 선택으로 Gemini만 연결할 수 있으며,
+OpenDART·KOSIS를 호출하거나 데이터·승인 이력을 저장하지 않습니다.
 
 ### POST /api/v1/plan
 
@@ -24,18 +25,20 @@ Gemini·OpenDART·KOSIS 공급자를 호출하지 않으며, 데이터나 승인
 ```
 
 응답은 `request_id`, `question`, `query_plan`, `required_fields`, `field_options`, `available_years`,
-`interpretation_method`입니다.
+`interpretation_method`, `interpretation_model`입니다.
 `evidence`, `brief`, `general_response`, `calculation`은 포함하지 않고, 모의 결과도 생성하지 않습니다.
 
 - `query_plan`: 기존 계획 구조. 질문에서 명확하게 찾은 조건만 채웁니다.
-- `interpretation_method`: 현재 `mock_rules`만 반환합니다. Gemini 호출은 없습니다.
+- `interpretation_method`: `mock_rules` 또는 `gemini`. 요청에서 생략하면 `mock_rules`입니다.
+- `interpretation_model`: mock은 `null`, Gemini는 서버에서 설정한 모델명입니다.
 - `required_fields`: 해결할 조건의 경로. 예: `metric`, `period`, `filters.age_range`.
 - `field_options`: 자료원별 지원 선택값. 프런트엔드는 이 목록으로 입력란을 구성합니다.
 - `available_years`: KOSIS 가상 자료의 지원 연도 `[2020, 2021, 2022, 2023, 2024]`.
   다른 자료원은 빈 배열이며 기존 기간 형식 검증을 사용합니다.
 - `clarification_required`와 `clarification_questions`: 계획 당시의 미해결 조건과 한국어 안내.
 - 자료원이 `undetermined`이면 질문을 구체화해야 합니다.
-- 키워드와 명시적인 조건 문자열만 해석하는 mock입니다. 자연어 전체를 이해하지 않습니다.
+- 모의 규칙은 키워드와 명시적인 조건 문자열만 해석합니다. Gemini도 기존 자료원 범위
+  검사와 지원 조건 검증을 통과해야 하며, 자유 질의 전체를 지원하지 않습니다.
 - ‘최근 5년’, ‘실적 악화’, 복수 지표·기간 등은 임의로 하나를 정하지 않습니다.
 - 기업공시·국가통계 단서가 함께 있으면 키워드 개수로 한쪽을 선택하지 않고 질문을
   나누도록 안내합니다. 지원하지 않는 조건 값과 불확실한 값은 비워 반환합니다.
@@ -45,6 +48,13 @@ Gemini·OpenDART·KOSIS 공급자를 호출하지 않으며, 데이터나 승인
 내부 해석기는 JSON 문자열만 반환하고, 서버가 형식·자료원·지원 조건을 검증한 뒤
 선택 이유·확인 안내·필수 항목을 만듭니다. 공개 응답에 원래 해석기 출력이나 공급자
 오류를 넣지 않습니다. [내부 계약](../../docs/QUESTION_PLANNING.md)을 참고하십시오.
+
+Gemini 요청 예시는 `{"question":"청년 고용률 비교","mode":"mock","interpretation_method":"gemini"}`입니다.
+서버의 `GEMINI_PLANNER_ENABLED=true`, `LIVE_API_ENABLED=true`와 백엔드 인증 설정이
+필요합니다. 모델·키·HTTP 옵션을 요청으로 받을 수 없습니다. 조건 승인 후 실행에서는
+해석기를 호출하지 않으며 `/execute`에 `interpretation_method`를 넣으면 422입니다.
+기존 요청은 기본 mock으로 계속 작동합니다. `/health`의 `gemini_planner_enabled`는
+두 설정의 활성화 여부만 나타내며 인증·실제 모델 접근 성공을 보증하지 않습니다.
 
 ### POST /api/v1/execute
 
@@ -156,6 +166,19 @@ API의 `brief.verification_status=review_required`와 구분하고 이 값을 �
 `detail` 구조를 사용하며 한국어 재시도 안내와 `field_errors={}`를 제공합니다.
 이때 계획·근거·브리핑은 반환하지 않고 다른 해석기로 자동 대체하지 않습니다.
 
+Gemini 전용 오류도 같은 `detail` 구조와 빈 `field_errors`를 사용합니다.
+
+| HTTP | code | 의미 |
+|---|---|---|
+| 503 | `planner_disabled` | 서버에서 실제 해석을 활성화하지 않음 |
+| 503 | `planner_configuration_error` | 인증 방식·필수 설정·모델명 형식 확인 필요 |
+| 503 | `planner_timeout` | HTTP 타임아웃 또는 공급자의 시간 초과 |
+| 429 | `planner_rate_limited` | 프로세스의 분당/동시 한도 또는 공급자 429 |
+
+권한·모델 접근·기타 공급자 장애는 안전한 `planner_unavailable`로 반환합니다.
+차단·중단·빈 응답·도구 출력은 `invalid_planner_output`입니다. 자동 재시도는 없고
+참가자가 직접 재시도해야 합니다. 승인 실패나 질문 변경 때 기존 결과를 다시 표시하지 않습니다.
+
 새 API의 입력 오류는 422와 다음 구조를 반환합니다. 형식 오류는 `invalid_request`,
 조건 검증 오류는 `invalid_conditions`입니다. 원래 입력값이나 내부 예외는 반환하지 않습니다.
 
@@ -222,3 +245,6 @@ API의 `brief.verification_status=review_required`와 구분하고 이 값을 �
 23. 질문 해석의 ‘모의 규칙’ 표시와 접을 수 있는 최초 확인 안내를 확인합니다.
 24. 지원 범위 밖 기간을 질문에 직접 넣으면 입력란이 비고 최초 안내에 이유가 남는지 확인합니다.
 25. 해석 실패는 질문을 보존하며 이전 결과를 숨기고, 재분석 뒤에도 별도 승인이 필요한지 확인합니다.
+26. 해석 방식 선택만으로 요청하지 않고 Gemini 선택 시 질문 전송 안내가 표시되는지 확인합니다.
+27. Gemini 비활성·오류 시 모의 규칙으로 자동 전환하지 않으며, 방식 변경 시 조건·비교·검토가 초기화되는지 확인합니다.
+28. Gemini 성공 화면은 해석 모델과 mock 자료를 구분하며, 승인 전에는 근거·브리핑이 없는지 확인합니다.

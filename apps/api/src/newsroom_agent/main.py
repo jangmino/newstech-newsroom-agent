@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
@@ -21,7 +22,14 @@ from newsroom_agent.models import (
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
 from newsroom_agent.planning import InvalidPlannerOutput
 from newsroom_agent.providers.mock_planner import MockQuestionPlanner
-from newsroom_agent.providers.planner import PlannerUnavailable, QuestionPlanner
+from newsroom_agent.providers.planner import (
+    PlannerConfigurationError,
+    PlannerDisabled,
+    PlannerRateLimited,
+    PlannerTimedOut,
+    PlannerUnavailable,
+    QuestionPlanner,
+)
 
 settings = get_settings()
 app = FastAPI(title="NewsTech Newsroom Agent API", version="0.1.0")
@@ -41,6 +49,7 @@ def health() -> dict[str, str | bool]:
         "environment": settings.app_env,
         "public_data_mode": settings.public_data_mode,
         "live_api_enabled": settings.live_api_enabled,
+        "gemini_planner_enabled": settings.gemini_planner_enabled and settings.live_api_enabled,
     }
 
 
@@ -63,6 +72,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
         "question": "질문을 3자 이상 1,000자 이하로 입력해 주세요.",
         "mode": "이번 실습에서는 모의 자료 모드만 사용할 수 있습니다.",
         "approved": "조건을 확인한 뒤 ‘이 조건으로 조회’를 눌러 주세요.",
+        "interpretation_method": "모의 규칙 또는 Gemini 중 질문 해석 방식을 선택해 주세요.",
     }
     errors = {}
     for error in exc.errors():
@@ -82,9 +92,45 @@ async def validation_error(request: Request, exc: RequestValidationError):
     )
 
 
-def get_question_planner() -> QuestionPlanner:
-    # Deliberately independent of credentials and live settings in this slice.
-    return MockQuestionPlanner()
+@lru_cache
+def get_gemini_limiter(requests_per_minute: int, max_concurrent: int):
+    from newsroom_agent.providers.gemini_planner import GeminiCallLimiter
+
+    return GeminiCallLimiter(requests_per_minute, max_concurrent)
+
+
+def get_question_planner(request: PlanRequest) -> QuestionPlanner:
+    if request.interpretation_method == "mock_rules":
+        return MockQuestionPlanner()
+    from google.genai import types
+
+    from newsroom_agent.providers.gemini import GeminiProvider
+    from newsroom_agent.providers.gemini_planner import GeminiQuestionPlanner
+
+    def make_client():
+        return GeminiProvider(
+            auth_mode=settings.gemini_auth_mode, api_key=settings.gemini_api_key,
+            project=settings.google_cloud_project, location=settings.google_cloud_location,
+            http_options=types.HttpOptions(
+                timeout=settings.gemini_timeout_ms,
+                retry_options=types.HttpRetryOptions(attempts=1),
+            ),
+        ).client
+
+    configured = (
+        settings.gemini_auth_mode == "api_key" and bool(settings.gemini_api_key.strip())
+    ) or (
+        settings.gemini_auth_mode == "vertex_ai"
+        and bool(settings.google_cloud_project.strip())
+        and bool(settings.google_cloud_location.strip())
+    )
+    return GeminiQuestionPlanner(
+        client_factory=make_client, model=settings.gemini_model,
+        enabled=settings.gemini_planner_enabled and settings.live_api_enabled,
+        configured=configured,
+        limiter=get_gemini_limiter(settings.requests_per_minute, settings.max_concurrent_requests),
+        max_output_tokens=settings.gemini_max_output_tokens,
+    )
 
 
 @app.post("/api/v1/plan", response_model=PlanResponse)
@@ -92,7 +138,12 @@ def plan(
     request: PlanRequest, planner: Annotated[QuestionPlanner, Depends(get_question_planner)],
 ) -> PlanResponse:
     try:
-        return MockOrchestrator(planner).plan(request.question)
+        result = MockOrchestrator(planner).plan(request.question)
+        result.interpretation_method = request.interpretation_method
+        result.interpretation_model = (
+            settings.gemini_model if request.interpretation_method == "gemini" else None
+        )
+        return result
     except InvalidPlannerOutput:
         raise HTTPException(
             status_code=503,
@@ -105,13 +156,34 @@ def plan(
                 "field_errors": {},
             },
         ) from None
-    except PlannerUnavailable:
+    except PlannerUnavailable as exc:
+        code, message, status = {
+            PlannerDisabled: (
+                "planner_disabled",
+                "현재 Gemini 질문 해석이 꺼져 있습니다. "
+                "모의 규칙을 선택하거나 운영자에게 문의해 주세요.",
+                503,
+            ),
+            PlannerConfigurationError: (
+                "planner_configuration_error",
+                "Gemini 연결 설정을 확인해야 합니다. 운영자에게 문의해 주세요.", 503,
+            ),
+            PlannerRateLimited: (
+                "planner_rate_limited",
+                "Gemini 요청이 몰리거나 사용 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.", 429,
+            ),
+            PlannerTimedOut: (
+                "planner_timeout",
+                "Gemini 응답을 기다리는 시간이 초과됐습니다. 잠시 후 다시 분석해 주세요.", 503,
+            ),
+        }.get(type(exc), (
+            "planner_unavailable",
+            "질문을 해석하지 못했습니다. 잠시 후 ‘질문 분석’을 다시 눌러 주세요.", 503,
+        ))
         raise HTTPException(
-            status_code=503,
+            status_code=status,
             detail={
-                "code": "planner_unavailable",
-                "message": "질문을 해석하지 못했습니다. 잠시 후 ‘질문 분석’을 다시 눌러 주세요.",
-                "field_errors": {},
+                "code": code, "message": message, "field_errors": {},
             },
         ) from None
 

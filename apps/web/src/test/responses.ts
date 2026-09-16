@@ -6,6 +6,7 @@ export function examplePlan(source: "kosis" | "opendart" = "kosis"): PlanRespons
   return {
     request_id: "plan-example",
     interpretation_method: "mock_rules",
+    interpretation_model: null,
     question: employment ? "전국 청년 고용률 비교" : "삼성전자 매출액 비교",
     query_plan: {
       selected_source: source, selection_reason: "실습용 자료원 선택",

@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 
 SourceName = Literal["opendart", "kosis", "undetermined"]
 DataMode = Literal["mock", "live", "snapshot"]
+InterpretationMethod = Literal["mock_rules", "gemini"]
 
 
 class AnalysisRequest(BaseModel):
@@ -23,11 +24,15 @@ class QueryPlan(BaseModel):
     clarification_questions: list[str] = Field(default_factory=list)
 
 
-class PlanRequest(BaseModel):
+class QuestionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     question: str = Field(min_length=3, max_length=1000)
     mode: Literal["mock"] = "mock"
+
+
+class PlanRequest(QuestionRequest):
+    interpretation_method: InterpretationMethod = "mock_rules"
 
 
 class QueryConditions(BaseModel):
@@ -48,10 +53,11 @@ class PlanResponse(BaseModel):
     required_fields: list[str]
     field_options: dict[str, list[str]]
     available_years: list[int] = Field(default_factory=list)
-    interpretation_method: Literal["mock_rules"] = "mock_rules"
+    interpretation_method: InterpretationMethod = "mock_rules"
+    interpretation_model: str | None = None
 
 
-class ExecuteRequest(PlanRequest):
+class ExecuteRequest(QuestionRequest):
     approved: StrictBool
     conditions: QueryConditions
 

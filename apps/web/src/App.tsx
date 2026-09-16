@@ -9,7 +9,8 @@ import { canCompareResults } from "./resultComparison";
 import { WorkshopGuide } from "./WorkshopGuide";
 import { workshopQuestion, type WorkshopScenarioId } from "./workshopScenarios";
 import type {
-  ApiErrorDetail, ExecuteRequest, ExecutionResponse, PlanRequest, PlanResponse, QueryConditions,
+  ApiErrorDetail, ExecuteRequest, ExecutionResponse, InterpretationMethod, PlanRequest, PlanResponse,
+  QueryConditions,
 } from "./types";
 
 const samples = [
@@ -53,6 +54,7 @@ function App() {
   const [busy, setBusy] = useState<"plan" | "execute" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guide, setGuide] = useState<WorkshopScenarioId | null>(null);
+  const [interpretationMethod, setInterpretationMethod] = useState<InterpretationMethod>("mock_rules");
   const revision = useRef(0);
   const controller = useRef<AbortController | null>(null);
 
@@ -84,6 +86,14 @@ function App() {
     setGuide(id);
   }
 
+  function changeInterpretationMethod(value: InterpretationMethod) {
+    invalidate();
+    lastSuccessfulResult.current = null;
+    setPlan(null);
+    setDraft(null);
+    setInterpretationMethod(value);
+  }
+
   function applyGuideConditions(conditions: QueryConditions) {
     if (!guide || busy || plan?.query_plan.selected_source !== "kosis" || !draft) return;
     invalidate();
@@ -112,7 +122,7 @@ function App() {
     setBusy("plan");
     try {
       const response = await post<PlanResponse>("/api/v1/plan", {
-        question: question.trim(), mode: "mock",
+        question: question.trim(), mode: "mock", interpretation_method: interpretationMethod,
       }, request.signal);
       if (current !== revision.current) return;
       setPlan(response);
@@ -193,6 +203,17 @@ function App() {
             <button key={sample} type="button" onClick={() => changeQuestion(sample)}>{sample}</button>
           ))}
         </div>
+        <div className="interpretation-choice">
+          <label htmlFor="interpretation-method">질문 해석 방식</label>
+          <select id="interpretation-method" value={interpretationMethod} aria-describedby="interpretation-help"
+            onChange={(event) => changeInterpretationMethod(event.target.value as InterpretationMethod)}>
+            <option value="mock_rules">모의 규칙 · 외부 전송 없음</option>
+            <option value="gemini">Gemini · 실제 모델</option>
+          </select>
+          <p id="interpretation-help" className="field-help">{interpretationMethod === "gemini"
+            ? "‘질문 분석’을 누르면 입력한 질문을 Google의 Gemini로 보냅니다. 조회 자료와 브리핑은 계속 모의 자료이며, 실제 취재 근거로 사용할 수 없습니다."
+            : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 조회 자료와 브리핑도 모의 자료입니다."}</p>
+        </div>
         <form onSubmit={submit}>
           <label htmlFor="question">질문 입력</label>
           <textarea id="question" value={question} onChange={(event) => changeQuestion(event.target.value)} rows={3} maxLength={1000} />
@@ -216,6 +237,7 @@ function App() {
             <p className="step">02 · 질문 해석과 조건 확인</p>
             <h2 id="conditions-title">{sourceLabel(plan.query_plan.selected_source)}</h2>
             {plan.interpretation_method === "mock_rules" && <p className="field-help">질문 해석: 모의 규칙 · Gemini를 호출하지 않았습니다.</p>}
+            {plan.interpretation_method === "gemini" && <p className="field-help">질문 해석: Gemini ({plan.interpretation_model}) · 자료 조회와 브리핑은 모의 자료입니다.</p>}
             <p>{plan.query_plan.selection_reason}</p>
             {draft.selected_source !== "undetermined" && plan.query_plan.clarification_questions.length > 0 && <details className="planning-notes">
               <summary>처음 질문을 해석할 때 확인이 필요했던 내용</summary>

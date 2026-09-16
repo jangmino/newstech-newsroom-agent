@@ -11,6 +11,46 @@
 - OpenDART/KOSIS: 개인 키로 필요한 최소 호출만 수행
 - 과금 경고와 사용량 제한을 개인 프로젝트에서 설정
 
+## Gemini 질문 해석 활성화
+
+기본값은 계속 모의 규칙입니다. 실제 연결 코드는 모의 HTTP 전송으로 검증했으며,
+계정·모델 접근과 실제 출력 품질은 별도 수동 확인이 필요합니다.
+활성화는 운영자가 백엔드 환경에서 설정하고 서버를 다시 시작합니다.
+키를 채팅·브라우저·프론트엔드 변수·Git에 넣지 않습니다.
+
+```text
+PUBLIC_DATA_MODE=mock
+LIVE_API_ENABLED=true
+GEMINI_PLANNER_ENABLED=true
+GEMINI_AUTH_MODE=api_key
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_TIMEOUT_MS=20000
+GEMINI_MAX_OUTPUT_TOKENS=2048
+REQUESTS_PER_MINUTE=30
+MAX_CONCURRENT_REQUESTS=8
+```
+
+`GEMINI_API_KEY`는 기존 백엔드 비밀 설정에만 보관합니다. Vertex AI 방식은 기존
+`GEMINI_AUTH_MODE=vertex_ai`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`과
+실행 환경의 ADC를 사용합니다. stage/event는 기관 자격증명을 사용하며 이번 단위에서는
+실제 Vertex 인증·리전·모델 접근을 검증하지 않았습니다.
+
+화면의 기본값은 여전히 ‘모의 규칙’입니다. 참가자가 ‘Gemini · 실제 모델’을 선택하면
+질문의 외부 전송을 안내하고 ‘질문 분석’을 누를 때만 요청합니다. 데이터와 브리핑은
+mock이며 OpenDART·KOSIS는 호출하지 않습니다. 다시 분석할 때마다 모델 요청이 한 번
+추가되고, 조건 편집·조회 승인은 Gemini를 호출하지 않습니다. 기본 한도는 프로세스당
+분당 30회·동시 8회이며 서버 재시작 시 초기화됩니다. 별도의 인증 요청은 SDK 인증 방식에
+따라 발생할 수 있습니다. 브라우저에서 요청을 취소해도 이미 보낸 모델 요청의 비용을
+되돌리지 못하며 서버의 HTTP 타임아웃·호출 한도는 계속 적용됩니다.
+
+실제 확인은 공개 예시 두 질문과 명확한 조건을 쓴 변형을 합쳐 최대 4회부터 시작합니다.
+모델이 모호한 기간·연령·지표를 추측하지 않는지, 수정·승인 조건이 최종 결과와 같은지
+확인합니다. 오류가 나면 자동 반복하지 않고 설정·접근·응답 형태를 먼저 점검합니다.
+이 확인에서도 기사에 사용할 실제 자료는 얻을 수 없습니다.
+
+개발 기본값으로 돌아갈 때는 `GEMINI_PLANNER_ENABLED=false`, `LIVE_API_ENABLED=false`로
+바꾸고 서버를 다시 시작합니다. 이 문서의 값은 활성화 안내이며 저장소가 자동 적용하지 않습니다.
+
 ## Stage
 
 목적은 실제 행사와 같은 조건의 리허설과 부하 시험입니다.

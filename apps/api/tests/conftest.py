@@ -15,6 +15,11 @@ def pytest_configure() -> None:
         app_env="test",
         public_data_mode="mock",
         live_api_enabled=False,
+        gemini_planner_enabled=False,
+        gemini_auth_mode="api_key", gemini_api_key="", gemini_model="gemini-3.8-flash",
+        gemini_timeout_ms=20_000, gemini_max_output_tokens=2048,
+        google_cloud_project="", google_cloud_location="asia-northeast3",
+        requests_per_minute=30, max_concurrent_requests=8,
         cors_origin_list=["http://localhost:5173"],
     )
     _patch.setattr(config, "get_settings", lambda: settings)

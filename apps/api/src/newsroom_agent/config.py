@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,16 +21,19 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     gemini_auth_mode: str = "api_key"
-    gemini_api_key: str = ""
+    gemini_api_key: str = Field(default="", repr=False)
     gemini_model: str = "gemini-3.8-flash"
+    gemini_planner_enabled: bool = False
+    gemini_timeout_ms: int = Field(default=20_000, ge=1000, le=60_000)
+    gemini_max_output_tokens: int = Field(default=2048, ge=256, le=4096)
     google_cloud_project: str = ""
     google_cloud_location: str = "asia-northeast3"
 
     opendart_api_key: str = ""
     kosis_api_key: str = ""
 
-    requests_per_minute: int = 30
-    max_concurrent_requests: int = 8
+    requests_per_minute: int = Field(default=30, ge=1, le=300)
+    max_concurrent_requests: int = Field(default=8, ge=1, le=30)
     cache_ttl_seconds: int = 3600
 
     @property
