@@ -197,6 +197,18 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 [조회 계약](OPENDART_REVENUE.md), [ADR 0006](decisions/0006-opendart-approved-live-flow.md),
 [원문 대조 기록](OPENDART_SMOKE_TEST.md)을 참고합니다.
 
+## M2 KOSIS 자료 계약 준비
+
+`providers/kosis_employment.py`는 네트워크·설정 접근 없이 15~29세 고용률의 공식 표·분류·
+단위와 17개 시도·2020~2024년 범위를 검사합니다. 요청 연간 코드 `Y`와 실제 응답의 `A`를
+구분하고, 명시한 지역·연도별 셀의 중복·누락·비수치·단위 불일치를 중단합니다.
+공개 API 발췌는 오프라인 회귀 테스트에서만 읽습니다. 원래 값·최종수정일·조회 시각을 구분합니다.
+
+아직 오케스트레이터나 공개 API에 연결하지 않았으므로 화면·프론트엔드 타입·mock 계약은
+그대로입니다. 다음 단계에서 기존 검색 골격의 전송을 보강하고 승인 후 실제 조회·계산·
+브리핑·검토를 연결합니다. [자료 계약](KOSIS_EMPLOYMENT.md)과
+[ADR 0007](decisions/0007-kosis-youth-employment-contract.md)을 참고합니다.
+
 ## 추후 추가할 운영 장치
 
 - 프로세스 내부 동시 실행 제한

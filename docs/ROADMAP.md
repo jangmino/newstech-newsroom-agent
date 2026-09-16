@@ -30,14 +30,16 @@
 - [x] OpenDART 삼성전자 연간 연결 매출액 어댑터·정규화·모의 전송 검증
 - [x] OpenDART 두 연도 실제 응답과 공시 원문 대조
 - [x] OpenDART 기업·재무 시나리오 (삼성전자 2022·2024 연결 매출액·증감 폭/률)
+- [x] KOSIS 공식 통계표·차원·단위 계약 (15~29세 고용률, 17개 시도, 2020~2024년)
 - [ ] KOSIS 청년고용 시나리오
-- [ ] 실제 공급자 자료의 정규화·단위·누락값 검증 (OpenDART 완료, KOSIS 남음)
-- [ ] 검증된 fixture (OpenDART 정규화 공개 발췌 완료, KOSIS 남음)
+- [x] 실제 공급자 자료의 정규화·단위·누락값 검증 (KOSIS는 순수 모듈·오프라인 검사, 실행 경로 연결 전)
+- [x] 검증된 fixture (OpenDART 원문 대조, KOSIS API 메타데이터·85개 셀 대조; 사람 검토 별도)
 
-현재 위치는 **M1 완료 + M2 Gemini 실제 확인·OpenDART 승인 조회 완성**입니다.
+현재 위치는 **M1 완료 + M2 Gemini 실제 확인·OpenDART 승인 조회 완성·KOSIS 자료 계약 확인**입니다.
 OpenDART는 참가자가 실제 자료를 선택하고 조건을 승인한 뒤 조회합니다. 자동 테스트는
 계속 모의 전송만 사용하며 KOSIS는 mock입니다. [실제 확인 기록](OPENDART_SMOKE_TEST.md)과
-[조회 범위](OPENDART_REVENUE.md)를 참고하십시오. 다음은 KOSIS 통계표·차원·단위 계약 확인이며,
+[조회 범위](OPENDART_REVENUE.md)를 참고하십시오. 다음은 [확인한 KOSIS 범위](KOSIS_EMPLOYMENT.md)의
+안전한 어댑터·승인 후 실제 조회·계산·근거·검토 화면 연결이며,
 행사 운영 준비와 넓은 모델 품질 검증은 남아 있습니다.
 
 ## M3 — Event readiness
