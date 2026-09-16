@@ -14,7 +14,7 @@ dev-web:
 	pnpm --dir apps/web dev
 
 lint:
-	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv run ruff check .
+	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv run ruff check --config pyproject.toml . ../../scripts
 
 test:
 	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv run pytest

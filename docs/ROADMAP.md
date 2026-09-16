@@ -48,7 +48,8 @@ OpenDART와 KOSIS 모두 실제 자료 선택·조건 승인 뒤에만 조회합
 요청 ID와 허용 필드만 기록하는 [구조화 로그](REQUEST_LOGGING.md)도 완료했습니다.
 [읽기 전용 실습 운영 상태 화면](OPERATIONS_STATUS.md)도 완료했습니다.
 기관 계정이 준비되기 전 사용자 승인으로 [개인 임시 stage 배포](STAGE_SMOKE_TEST.md)를
-완료했습니다. 다음 최소 단위는 이 stage의 30명 동시 사용 시험(mock/저장 자료)입니다.
+완료했습니다. [30명 단기 API 부하 시험](STAGE_LOAD_TEST.md)도 mock/저장 자료로 통과했습니다.
+다음 최소 단위는 장애·공식 저장 자료 전환 리허설입니다.
 
 ## M3 — Event readiness
 
@@ -61,7 +62,8 @@ OpenDART와 KOSIS 모두 실제 자료 선택·조건 승인 뒤에만 조회합
 - [x] 개인 임시 stage 배포 (전용 프로젝트·Secret Manager·비용 알림·mock/저장 자료)
 - [ ] 기관 stage로 재배포·기관 키 전환
 - [ ] stage 실제 공급자 Secret 연결·소규모 live 확인
-- [ ] 30명 부하 시험
+- [x] 30명 단기 API 부하 시험 (mock/저장 자료, 766회 요청)
+- [ ] 행사 조건의 부하 확인 (live·지속 사용·동시 최초 입장·행사장 브라우저)
 - [ ] 장애·snapshot fallback 리허설
 - [ ] 운영자 가이드
 

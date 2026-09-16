@@ -12,6 +12,7 @@
 실습 API를 차단합니다. `/health`와 입장용 UI는 공개이며 HTTPS가 필요합니다.
 첫 개인 stage는 공급자 키 없이 mock·공식 저장 자료로 검증합니다.
 2026-09-17 배포와 소규모 확인을 마쳤습니다. [검증 기록](../docs/STAGE_SMOKE_TEST.md)을 참고합니다.
+[30명 단기 API 부하 시험](../docs/STAGE_LOAD_TEST.md)도 같은 배포에서 완료했습니다.
 Docker 실행 명령은 원문 URL 쿼리를 남기는 Uvicorn access log를 끕니다.
 앱은 요청 ID·고정 경로 분류·상태·시간·실패 코드만 stdout JSON으로 출력합니다.
 플랫폼이 수집하는 별도 요청 로그·보관·IAM 정책은 stage에서 검증해야 합니다.
