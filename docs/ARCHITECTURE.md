@@ -169,6 +169,7 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 프로세스 내부 호출 제한과 HTTP 타임아웃을 적용하고, 오류 시 한국어 안내로 중단합니다.
 해석 방식 변경은 조건·결과·비교·검토를 초기화하며 늦은 응답도 무시합니다.
 설정·요청량·실제 호출 미검증 범위는 [ADR 0004](decisions/0004-gemini-planning-with-mock-evidence.md)를 따릅니다.
+후속 로컬 실제 호출 네 건의 결과와 남은 검증 범위는 [확인 기록](GEMINI_SMOKE_TEST.md)에 있습니다.
 
 ## 추후 추가할 운영 장치
 
