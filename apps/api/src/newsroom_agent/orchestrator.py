@@ -7,6 +7,8 @@ from newsroom_agent.models import (
     AnalysisResponse,
     Brief,
     Evidence,
+    ExecutionResponse,
+    GeneralResponseExample,
     PlanResponse,
     QueryConditions,
     QueryPlan,
@@ -15,6 +17,20 @@ from newsroom_agent.models import (
 
 KOSIS_HINTS = ("고용", "실업", "인구", "물가", "지역", "청년", "통계")
 OPENDART_HINTS = ("기업", "회사", "매출", "영업이익", "당기순이익", "공시", "실적", "삼성전자")
+
+# Authored workshop examples, not recorded model outputs or retrieved facts.
+GENERAL_RESPONSE_EXAMPLES = {
+    "kosis": (
+        "청년 고용이 좋아진 지역을 살펴보려면 고용률과 취업자 수의 변화를 함께 볼 수 있습니다. "
+        "지역별 산업구조와 청년 인구 변화도 해석에 영향을 줄 수 있습니다. "
+        "어느 지역의 개선 폭이 가장 큰지는 같은 기간과 기준으로 자료를 비교해야 알 수 있습니다."
+    ),
+    "opendart": (
+        "기업 실적을 판단하려면 매출과 영업이익의 흐름을 함께 살펴볼 수 있습니다. "
+        "매출이 늘어도 비용이 더 크게 늘면 이익은 줄어들 수 있습니다. "
+        "실적 악화 여부를 판단하려면 비교 기간과 재무제표 기준을 맞춰 확인해야 합니다."
+    ),
+}
 
 
 class InvalidConditions(ValueError):
@@ -79,7 +95,7 @@ class MockOrchestrator:
             field_options=options,
         )
 
-    def execute(self, question: str, conditions: QueryConditions) -> AnalysisResponse:
+    def execute(self, question: str, conditions: QueryConditions) -> ExecutionResponse:
         plan = self.plan(question)
         errors = validate_conditions(conditions)
         if conditions.selected_source != plan.query_plan.selected_source:
@@ -100,10 +116,13 @@ class MockOrchestrator:
             "comparison": conditions.comparison,
             **{f"filters.{key}": value for key, value in conditions.filters.items()},
         }
-        return AnalysisResponse(
+        return ExecutionResponse(
             request_id=str(uuid4()),
             question=question,
             query_plan=query_plan,
+            general_response=GeneralResponseExample(
+                text=GENERAL_RESPONSE_EXAMPLES[conditions.selected_source]
+            ),
             evidence=Evidence(
                 source_name="KOSIS" if conditions.selected_source == "kosis" else "OpenDART",
                 table_or_report="승인 조건에 따른 모의 자료 — 실제 연결 전",

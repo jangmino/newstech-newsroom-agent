@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from newsroom_agent.main import app
@@ -85,6 +86,7 @@ def test_plan_only_interprets_without_generating_results(monkeypatch):
         assert "metric" in payload["required_fields"]
         assert "period" in payload["required_fields"]
         assert "evidence" not in payload and "brief" not in payload
+        assert "general_response" not in payload
 
 
 def test_undetermined_plan_explains_how_to_clarify():
@@ -298,3 +300,64 @@ def test_new_execution_is_stateless_and_uses_new_conditions_each_time():
     assert first["query_plan"]["metric"] == "매출액"
     assert second["query_plan"]["metric"] == "영업이익"
     assert second["evidence"]["query_parameters"]["filters.statement_basis"] == "별도"
+
+
+@pytest.mark.parametrize("source", ["kosis", "opendart"])
+def test_approved_comparison_shares_question_and_labels_scripted_mock(source):
+    body = approved_request(source)
+    response = client.post("/api/v1/execute", json=body)
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["question"] == body["question"]
+    assert payload["general_response"]["text"]
+    assert payload["general_response"]["data_mode"] == "mock"
+    assert payload["general_response"]["generation_method"] == "scripted"
+    assert payload["evidence"]["data_mode"] == "mock"
+    assert payload["evidence"]["raw_values"] == []
+    assert payload["brief"]["verification_status"] == "review_required"
+
+
+@pytest.mark.parametrize("source", ["kosis", "opendart"])
+def test_reapproval_changes_grounded_conditions_but_keeps_authored_example(source):
+    body = approved_request(source)
+    first = client.post("/api/v1/execute", json=body).json()
+    body["conditions"].update(
+        {
+            "period": "2021-2023",
+            "metric": "취업자 수" if source == "kosis" else "영업이익",
+            "comparison": "증감률",
+        }
+    )
+    second = client.post("/api/v1/execute", json=body).json()
+    assert first["question"] == second["question"]
+    assert first["general_response"] == second["general_response"]
+    assert first["brief"] != second["brief"]
+    for field in ("period", "metric", "comparison"):
+        assert second["query_plan"][field] == body["conditions"][field]
+        assert second["evidence"]["query_parameters"][field] == body["conditions"][field]
+
+
+def test_workshop_question_types_have_distinct_general_examples():
+    employment = client.post("/api/v1/execute", json=approved_request()).json()
+    financial = client.post("/api/v1/execute", json=approved_request("opendart")).json()
+    assert employment["general_response"]["text"] != financial["general_response"]["text"]
+    assert "고용" in employment["general_response"]["text"]
+    assert "실적" in financial["general_response"]["text"]
+
+
+def test_comparison_not_returned_for_unapproved_or_unresolved_conditions():
+    unapproved = approved_request()
+    unapproved["approved"] = False
+    unresolved = approved_request()
+    unresolved["conditions"]["metric"] = ""
+    for body in (unapproved, unresolved):
+        response = client.post("/api/v1/execute", json=body)
+        assert response.status_code == 422
+        assert set(response.json()) == {"detail"}
+
+
+def test_legacy_analysis_response_keeps_its_original_fields():
+    for question in (KOSIS_QUESTION, OPENDART_QUESTION, "무엇을 조사할까요?"):
+        response = client.post("/api/v1/analyze", json={"question": question, "mode": "mock"})
+        assert response.status_code == 200
+        assert set(response.json()) == {"request_id", "question", "query_plan", "evidence", "brief"}

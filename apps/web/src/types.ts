@@ -72,3 +72,13 @@ export interface AnalysisResponse {
   evidence: Evidence;
   brief: Brief;
 }
+
+export interface GeneralResponseExample {
+  text: string;
+  data_mode: "mock";
+  generation_method: "scripted";
+}
+
+export interface ExecutionResponse extends AnalysisResponse {
+  general_response: GeneralResponseExample;
+}

@@ -87,3 +87,13 @@ class AnalysisResponse(BaseModel):
     query_plan: QueryPlan
     evidence: Evidence
     brief: Brief
+
+
+class GeneralResponseExample(BaseModel):
+    text: str
+    data_mode: Literal["mock"] = "mock"
+    generation_method: Literal["scripted"] = "scripted"
+
+
+class ExecutionResponse(AnalysisResponse):
+    general_response: GeneralResponseExample

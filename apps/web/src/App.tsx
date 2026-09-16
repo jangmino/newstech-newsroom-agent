@@ -2,8 +2,9 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   conditionErrors, conditionLabels, conditionValue, editableConditions, sourceLabel, updateCondition,
 } from "./conditions";
+import { ResponseComparison } from "./ResponseComparison";
 import type {
-  AnalysisResponse, ApiErrorDetail, ExecuteRequest, PlanRequest, PlanResponse, QueryConditions,
+  ApiErrorDetail, ExecuteRequest, ExecutionResponse, PlanRequest, PlanResponse, QueryConditions,
 } from "./types";
 
 const samples = [
@@ -40,7 +41,7 @@ function App() {
   const [question, setQuestion] = useState(samples[0]);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [draft, setDraft] = useState<QueryConditions | null>(null);
-  const [result, setResult] = useState<AnalysisResponse | null>(null);
+  const [result, setResult] = useState<ExecutionResponse | null>(null);
   const [busy, setBusy] = useState<"plan" | "execute" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const revision = useRef(0);
@@ -116,10 +117,14 @@ function App() {
     setBusy("execute");
     const conditions = { ...draft, period: draft.period.trim(), filters: { ...draft.filters } };
     try {
-      const response = await post<AnalysisResponse>("/api/v1/execute", {
+      const response = await post<ExecutionResponse>("/api/v1/execute", {
         question: plan.question, mode: "mock", approved: true, conditions,
       }, request.signal);
       if (current !== revision.current) return;
+      if (!response.general_response?.text || response.general_response.data_mode !== "mock"
+        || response.general_response.generation_method !== "scripted") {
+        throw new Error("응답 비교를 준비하지 못했습니다. 잠시 후 다시 조회해 주세요.");
+      }
       setDraft(conditions);
       setResult(response);
     } catch (caught) {
@@ -174,7 +179,7 @@ function App() {
       {!plan || !draft ? (
         <section className="empty-state" role="status">
           <strong>{busy === "plan" ? "질문에서 조회 조건을 찾고 있습니다." : "먼저 질문을 분석해 주세요."}</strong>
-          <p>자료원과 조건을 확인하고 ‘이 조건으로 조회’를 누르면 모의 자료와 브리핑이 나타납니다.</p>
+          <p>자료원과 조건을 확인하고 ‘이 조건으로 조회’를 누르면 두 응답과 모의 자료를 비교할 수 있습니다.</p>
         </section>
       ) : (
         <div className="result-grid">
@@ -225,7 +230,7 @@ function App() {
                     <ul>{errors.map((message) => <li key={message}>{message}</li>)}</ul>
                   </div>
                 ) : (
-                  <p className="field-help" role="status">{result ? "승인한 조회 조건과 모의 결과를 아래에서 확인해 주세요." : "조건이 모두 입력됐습니다. 승인하면 아래에 모의 자료와 브리핑이 표시됩니다."}</p>
+                  <p className="field-help" role="status">{result ? "승인한 조회 조건과 두 응답을 아래에서 비교해 주세요." : "조건이 모두 입력됐습니다. 승인하면 일반 응답 예시와 근거 기반 브리핑이 함께 표시됩니다."}</p>
                 )}
                 <button className="primary" type="submit" disabled={busy !== null || errors.length > 0}>
                   {busy === "execute" ? "모의 자료를 준비하는 중…" : "이 조건으로 조회"}
@@ -237,8 +242,9 @@ function App() {
 
           {result && (
             <>
+              <ResponseComparison result={result} />
               <section className="card evidence-card" aria-labelledby="evidence-title">
-                <p className="step">03 · 자료와 계산 근거</p>
+                <p className="step">04 · 자료와 계산 근거</p>
                 <h2 id="evidence-title">{result.evidence.source_name}</h2>
                 <p>{result.evidence.table_or_report}</p>
                 <h3>승인된 조회 조건</h3>
@@ -255,17 +261,6 @@ function App() {
                 <h3>자료 이용 시 주의사항</h3>
                 <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
                 <span className="data-mode">모의 자료 · 실제 조회 전</span>
-              </section>
-              <section className="card brief-card" aria-labelledby="brief-title">
-                <p className="step">04 · 검토용 브리핑</p>
-                <h2 id="brief-title">{result.brief.summary}</h2>
-                <h3>조건에서 확인된 내용</h3>
-                <ul>{result.brief.verified_facts.map((item) => <li key={item}>{item}</li>)}</ul>
-                <h3>단정하기 어려운 부분</h3>
-                <ul>{result.brief.interpretation_limits.map((item) => <li key={item}>{item}</li>)}</ul>
-                <h3>추가 취재 질문</h3>
-                <ul>{result.brief.follow_up_questions.map((item) => <li key={item}>{item}</li>)}</ul>
-                <span className="review-status">사람 검토 필요</span>
               </section>
             </>
           )}

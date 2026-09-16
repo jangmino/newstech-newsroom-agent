@@ -12,6 +12,7 @@ from newsroom_agent.models import (
     AnalysisRequest,
     AnalysisResponse,
     ExecuteRequest,
+    ExecutionResponse,
     PlanRequest,
     PlanResponse,
 )
@@ -81,8 +82,8 @@ def plan(request: PlanRequest) -> PlanResponse:
     return MockOrchestrator().plan(request.question)
 
 
-@app.post("/api/v1/execute", response_model=AnalysisResponse)
-def execute(request: ExecuteRequest) -> AnalysisResponse:
+@app.post("/api/v1/execute", response_model=ExecutionResponse)
+def execute(request: ExecuteRequest) -> ExecutionResponse:
     try:
         return MockOrchestrator().execute(request.question, request.conditions)
     except InvalidConditions as exc:
