@@ -25,6 +25,7 @@ from newsroom_agent.models import (
     PlanResponse,
     WorkshopAccessStatus,
 )
+from newsroom_agent.operations import OperationsStatus, operations_status
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
 from newsroom_agent.planning import InvalidPlannerOutput, create_plan, plan_from_conditions
 from newsroom_agent.providers.kosis import KosisClient
@@ -113,6 +114,11 @@ def require_snapshot() -> None:
 @app.post("/api/v1/access", response_model=WorkshopAccessStatus)
 def workshop_access() -> WorkshopAccessStatus:
     return access_status(settings)
+
+
+@app.get("/api/v1/operations", response_model=OperationsStatus)
+def workshop_operations() -> OperationsStatus:
+    return operations_status(settings)
 
 
 @app.get("/health")

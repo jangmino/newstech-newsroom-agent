@@ -39,6 +39,18 @@ textarea:focus { outline: 3px solid rgba(39, 98, 217, 0.16); border-color: #2762
 .access-session button, .access-shell .card > button { border: 1px solid #cbd6e5; border-radius: 10px; padding: 9px 14px; color: #28415f; background: #f7f9fc; cursor: pointer; }
 .error { color: #a52626; font-weight: 650; }
 
+.operations { margin-bottom: 20px; }
+.operations button { border: 1px solid #cbd6e5; border-radius: 10px; padding: 9px 14px; color: #28415f; background: #f7f9fc; cursor: pointer; }
+.operations button:focus-visible { outline: 3px solid rgba(39, 98, 217, 0.35); outline-offset: 3px; }
+.operations button:disabled { opacity: 0.55; cursor: wait; }
+.operations > .card { margin-top: 12px; }
+.operations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 24px; }
+.operations-grid h3 { margin-bottom: 12px; }
+.operations-grid dl { margin-top: 0; }
+.operations-grid dl div { grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr); }
+.operations-grid dd p { margin: 8px 0; font-weight: 400; font-size: 0.9rem; }
+.operations .operations-grid .field-help { margin-top: 14px; }
+
 .empty-state { margin-top: 18px; padding: 40px; border-radius: 18px; text-align: center; border-style: dashed; }
 .result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 .card { min-width: 0; padding: 24px; border-radius: 18px; }

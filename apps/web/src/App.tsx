@@ -12,7 +12,8 @@ import { ConditionComparison } from "./ConditionComparison";
 import { canCompareResults } from "./resultComparison";
 import { WorkshopGuide } from "./WorkshopGuide";
 import { workshopQuestion, type WorkshopScenarioId } from "./workshopScenarios";
-import { postJson, type ApiPost } from "./api";
+import { getJson, postJson, type ApiGet, type ApiPost } from "./api";
+import { OperationsPanel } from "./OperationsPanel";
 import type {
   ExecutionResponse, InterpretationMethod, PlanResponse,
   QueryConditions, QueryMode,
@@ -23,7 +24,7 @@ const samples = [
   "삼성전자의 최근 실적은 악화됐는가?",
 ];
 
-function App({ post = postJson }: { post?: ApiPost }) {
+function App({ post = postJson, get = getJson }: { post?: ApiPost; get?: ApiGet }) {
   const [question, setQuestion] = useState(samples[0]);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [draft, setDraft] = useState<QueryConditions | null>(null);
@@ -238,6 +239,8 @@ function App({ post = postJson }: { post?: ApiPost }) {
         </div>
         <span className="mode">{dataMode === "snapshot" ? "공식 저장 자료" : dataMode === "live" ? "공식 실제 자료" : "모의 자료 모드"}</span>
       </header>
+
+      <OperationsPanel get={get} />
 
       <section className="question-panel" aria-labelledby="question-title" aria-busy={busy === "plan"}>
         <div className="section-heading">

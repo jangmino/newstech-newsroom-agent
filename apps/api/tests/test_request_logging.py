@@ -88,6 +88,18 @@ def test_legacy_fields_remain_compatible_and_correlated(logs):
     assert_record(response, logs()[0], "/api/v1/analyze")
 
 
+def test_operations_logs_only_request_metadata(monkeypatch, logs):
+    monkeypatch.setattr(main.settings, "gemini_api_key", "synthetic-secret-not-for-logs")
+    response = client.get("/api/v1/operations?private-query-marker=x")
+    assert response.status_code == 200
+    assert len(logs()) == 1
+    assert_record(response, logs()[0], "/api/v1/operations")
+    assert logs()[0]["method"] == "GET"
+    assert "private-query-marker" not in json.dumps(logs())
+    assert "synthetic-secret-not-for-logs" not in json.dumps(logs())
+    assert "providers" not in json.dumps(logs())
+
+
 @pytest.mark.parametrize("path", ["plan", "execute", "analyze"])
 def test_validation_failures_have_id_without_logging_inputs(path, logs):
     response = client.post(f"/api/v1/{path}", json={"question": {"private-question-marker": "x"}})

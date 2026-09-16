@@ -122,5 +122,6 @@ Git 대상 파일 116개의 비밀정보 검사를 통과했으며 `.env`는 변
 [공공자료의 호출·동시 실행 제한](PUBLIC_DATA_LIMITS.md)과 [명시적 snapshot](SNAPSHOT_FALLBACK.md)도
 적용했습니다. [행사용 접근코드](WORKSHOP_ACCESS.md)도 완료했으며 캐시 재사용 전에 검사합니다.
 [요청 ID·구조화 로그](REQUEST_LOGGING.md)도 완료했습니다. 자료를 공유해도 HTTP ID는 별도입니다.
-다음 최소 단위는 읽기 전용 실습 운영 상태 화면입니다.
+[읽기 전용 실습 운영 상태 화면](OPERATIONS_STATUS.md)에서 캐시 설정과 프로세스 범위를
+확인할 수 있습니다. 현재 저장 건수는 제공하지 않습니다. 다음은 기관 stage 배포 준비입니다.
 기관 Secret Manager·Cloud Run stage 배포·리허설은 남아 있습니다.

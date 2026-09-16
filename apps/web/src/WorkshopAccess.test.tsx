@@ -3,6 +3,7 @@ import { expect, test, vi } from "vitest";
 import { WorkshopAccess } from "./WorkshopAccess";
 import { postJson } from "./api";
 import { examplePlan, exampleResult } from "./test/responses";
+import { exampleOperations } from "./test/operationsResponse";
 import type { ExecuteRequest } from "./types";
 
 // Synthetic fixture, never a local or event credential.
@@ -17,6 +18,7 @@ function setup(required = true) {
       return json({ required, available: true });
     }
     expect(new Headers(init?.headers).get("X-Workshop-Code")).toBe(required ? code : null);
+    if (path === "/api/v1/operations") return json(exampleOperations());
     if (path === "/api/v1/plan") return json(examplePlan());
     expect(path).toBe("/api/v1/execute");
     const body = JSON.parse(String(init?.body)) as ExecuteRequest;
@@ -235,4 +237,44 @@ test("ordinary provider failure keeps admission and requires manual retry", asyn
   expect(screen.getByRole<HTMLInputElement>("textbox", { name: "기간" }).value).toBe("2020-2024");
   expect(fetch).toHaveBeenCalledTimes(4);
   await approve();
+});
+
+test.each([401, 503])("status GET carries admission and %s access rejection resets results and review", async (status) => {
+  const { fetch } = setup();
+  await enter();
+  await plan();
+  const review = await approve();
+  fireEvent.click(within(review).getAllByRole("checkbox")[0]);
+  fireEvent.click(screen.getByRole("button", { name: "실습 운영 상태 보기" }));
+  await screen.findByText("설정상 허용 · 실제 연결 미확인");
+  expect(new Headers(fetch.mock.lastCall?.[1]?.headers).get("X-Workshop-Code")).toBe(code);
+  fetch.mockResolvedValueOnce(json({ detail: { code: status === 503 ? "workshop_access_unavailable" : "workshop_access_required" } }, status));
+  fireEvent.click(screen.getByRole("button", { name: "상태 다시 확인" }));
+  await screen.findByRole("heading", { name: "행사 접근코드 확인" });
+  expect(screen.queryByRole("region", { name: "실습 운영 상태" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expect(document.body.textContent).not.toContain(code);
+  const count = fetch.mock.calls.length;
+  if (status === 401) {
+    await enter();
+    expect(fetch).toHaveBeenCalledTimes(count + 1);
+    expect(screen.queryByRole("region", { name: "실습 운영 상태" })).toBeNull();
+  }
+});
+
+test("leaving aborts the status GET; a late rejection cannot lock a new admission", async () => {
+  const { fetch } = setup();
+  await enter();
+  let finish!: (value: Response) => void;
+  fetch.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  fireEvent.click(screen.getByRole("button", { name: "실습 운영 상태 보기" }));
+  const signal = fetch.mock.lastCall?.[1]?.signal;
+  fireEvent.click(screen.getByRole("button", { name: "실습 나가기" }));
+  expect(signal?.aborted).toBe(true);
+  await enter();
+  await act(async () => finish(json({}, 401)));
+  expect(screen.getByRole("button", { name: "질문 분석" })).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByRole("region", { name: "실습 운영 상태" })).toBeNull();
 });

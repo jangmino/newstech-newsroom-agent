@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import App from "./App";
-import { postJson, withRequestReference, WorkshopAccessError, type ApiPost } from "./api";
+import { getJson, postJson, withRequestReference, WorkshopAccessError, type ApiGet, type ApiPost } from "./api";
 import type { WorkshopAccessStatus } from "./types";
 
 const unavailableMessage = "행사 입장 설정을 확인하고 있습니다. 운영자에게 문의해 주세요.";
@@ -102,15 +102,27 @@ export function WorkshopAccess() {
   }
 
   const current = revision.current;
+  function handleAccessError(caught: unknown, signal: AbortSignal) {
+    if (current === revision.current && !signal.aborted && caught instanceof WorkshopAccessError) {
+      invalidate();
+      setStatus({ required: true, available: !caught.unavailable });
+      setError(caught.message);
+    }
+  }
+
   const post: ApiPost = async (path, body, signal) => {
     try {
       return await postJson(path, body, signal, code ?? undefined);
     } catch (caught) {
-      if (current === revision.current && !signal.aborted && caught instanceof WorkshopAccessError) {
-        invalidate();
-        setStatus({ required: true, available: !caught.unavailable });
-        setError(caught.message);
-      }
+      handleAccessError(caught, signal);
+      throw caught;
+    }
+  };
+  const get: ApiGet = async (path, signal) => {
+    try {
+      return await getJson(path, signal, code ?? undefined);
+    } catch (caught) {
+      handleAccessError(caught, signal);
       throw caught;
     }
   };
@@ -121,7 +133,7 @@ export function WorkshopAccess() {
         <span>행사 입장 확인 · 현재 탭에서만 유지됩니다.</span>
         <button type="button" onClick={() => { invalidate(); setError(null); }}>실습 나가기</button>
       </div>}
-      <App post={post} />
+      <App post={post} get={get} />
     </>;
   }
 

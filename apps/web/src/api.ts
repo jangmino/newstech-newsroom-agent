@@ -24,6 +24,24 @@ export async function postJson<T>(path: string, body: PlanRequest | ExecuteReque
   } catch {
     throw new Error("요청을 보내지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
   }
+  return readJson<T>(response);
+}
+
+export async function getJson<T>(path: string, signal: AbortSignal, code?: string): Promise<T> {
+  if (path !== "/api/v1/operations") throw new Error("지원하지 않는 요청입니다.");
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method: "GET", headers: code ? { "X-Workshop-Code": code } : {},
+      cache: "no-store", credentials: "omit", redirect: "error", signal,
+    });
+  } catch {
+    throw new Error("상태를 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
+  }
+  return readJson<T>(response);
+}
+
+async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { detail?: ApiErrorDetail } | null;
     const detail = payload?.detail;
@@ -47,3 +65,4 @@ export async function postJson<T>(path: string, body: PlanRequest | ExecuteReque
 }
 
 export type ApiPost = <T>(path: string, body: PlanRequest | ExecuteRequest, signal: AbortSignal) => Promise<T>;
+export type ApiGet = <T>(path: string, signal: AbortSignal) => Promise<T>;

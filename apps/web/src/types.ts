@@ -169,3 +169,29 @@ export interface CalculationResult {
   rows: CalculationRow[];
   warnings: string[];
 }
+
+export type ProviderState = "disabled" | "missing_configuration" | "configured";
+
+export interface SnapshotStatus {
+  status: "disabled" | "unavailable" | "available";
+  metadata: SnapshotMetadata | null;
+}
+
+export interface CallLimitSettings {
+  requests_per_minute: number;
+  max_concurrent_requests: number;
+}
+
+export interface OperationsStatus {
+  checked_at: string;
+  external_calls_made: false;
+  providers: Record<"gemini" | "opendart" | "kosis", ProviderState>;
+  snapshots: Record<"opendart" | "kosis", SnapshotStatus>;
+  cache: { scope: "process"; enabled: boolean; ttl_seconds: number; max_entries_per_source: number };
+  limits: {
+    scope: "process";
+    window_seconds: 60;
+    gemini: CallLimitSettings;
+    public_data_per_source: CallLimitSettings;
+  };
+}

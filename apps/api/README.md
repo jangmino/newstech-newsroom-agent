@@ -20,7 +20,7 @@ HTTP 응답에 서버가 생성한 `X-Request-ID`를 제공합니다. 기존 성
 `workshop_access_required`, 서버 설정 오류면 503 `workshop_access_unavailable`입니다.
 두 오류는 기존 `detail.code/message/field_errors` 구조이며 코드를 노출하지 않습니다.
 `/analyze`·OpenAPI 문서도 같은 검사 대상이고 기존 성공 응답 본문은 유지합니다.
-`/health`·정적 UI·공개 GET 상태는 코드가 필요 없습니다.
+`/health`·정적 UI·`GET /api/v1/access`는 코드가 필요 없습니다.
 [환경별 설정·정확한 계약](../../docs/WORKSHOP_ACCESS.md)을 참고하십시오.
 
 ```text
@@ -35,6 +35,17 @@ OpenDART는 `OPENDART_ENABLED=true`, KOSIS는 `KOSIS_ENABLED=true`를 각각 검
 자료·승인 이력을 새로 저장하지 않습니다. 질문 해석 방식은 자료 모드와
 독립적입니다. [OpenDART 계약](../../docs/OPENDART_REVENUE.md)과
 [KOSIS 계약](../../docs/KOSIS_EMPLOYMENT.md)의 확인된 범위만 지원합니다.
+
+### GET /api/v1/operations
+
+기존 접근코드가 필요한 읽기 전용 상태 API입니다. 본문 없이 호출하며 외부 공급자는
+호출하지 않습니다. `checked_at`, `external_calls_made=false`, `providers`, `snapshots`,
+`cache`, `limits`만 반환합니다. 자료원은 `disabled|missing_configuration|configured`,
+저장 자료는 `disabled|unavailable|available`과 출처 메타데이터만 반환합니다.
+캐시는 TTL·자료원별 최대 건수, 한도는 Gemini·공공자료별 분당/동시 설정이며 `scope=process`입니다.
+실제 연결 성공·잔여 사용량·기사 사용 승인을 뜻하지 않습니다. 비밀 값·설정 원문·수치·
+근거·브리핑은 없습니다. no-store·접근 검사·요청 ID·로그 정책은 다른 API와 같습니다.
+[필드별 계약·설정 판정·화면 검증](../../docs/OPERATIONS_STATUS.md)을 참고하십시오.
 
 ### POST /api/v1/plan
 

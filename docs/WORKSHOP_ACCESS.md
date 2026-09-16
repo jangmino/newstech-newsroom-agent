@@ -49,11 +49,12 @@
 |---|---|---|
 | `GET /api/v1/access` | 공개, 코드 전송 불필요 | `{ "required": boolean, "available": boolean }` |
 | `POST /api/v1/access` | `X-Workshop-Code`로 확인, 본문 없음 | 같은 상태 객체, 토큰·코드·세션 없음 |
+| `GET /api/v1/operations` | 같은 코드 보호 적용 | 공개 설정·저장 파일·프로세스 한도만 확인, 외부 호출 없음 |
 | `/api/*` | 코드가 설정되면 모든 메서드·자료 모드에 필요 | 기존 성공 본문·승인 계약 유지 |
 | `/docs`, `/docs/*`, `/redoc`, `/openapi.json` | 같은 보호 적용 | 코드 없이는 문서도 401 |
 | `/health`, UI/정적 파일 | 공개 | 기존 상태·입장 UI |
 
-공개 GET 상태만 코드 검사에서 제외합니다. 허용 출처의 CORS 사전 요청은 기존 미들웨어가
+API 중 공개 `GET /api/v1/access`만 코드 검사에서 제외합니다. 허용 출처의 CORS 사전 요청은 기존 미들웨어가
 처리합니다. CORS는 인증을 대체하지 않으며, 성공한 입장 요청 뒤에도 매 요청에 코드가
 필요합니다. `/analyze`도 동일한 검사 대상이지만 mock 성공 응답의 기존 필드는 유지합니다.
 
@@ -91,7 +92,8 @@ stage/event 코드는 기관 또는 주최 측 Secret Manager에서 `WORKSHOP_AC
 
 **요청 ID를 연결한 구조화 로그**는 [로그 계약](REQUEST_LOGGING.md)으로 완료했습니다.
 접근 거절·설정 오류도 문의 번호로 확인하며 코드·키·질문 원문은 기록하지 않습니다.
-다음 최소 기능은 읽기 전용 실습 운영 상태 화면입니다. 이후
+[읽기 전용 실습 운영 상태 화면](OPERATIONS_STATUS.md)도 같은 접근 검사와 오류 초기화를
+사용합니다. 다음 최소 기능은 기관 stage 배포 준비입니다. 이후
 기관 Secret Manager·Cloud Run stage 배포, 30명 부하 시험·장애 리허설을 진행합니다.
 
 ## 검증
