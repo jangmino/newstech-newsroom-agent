@@ -12,10 +12,11 @@ FastAPI 백엔드입니다. 로컬 서버는 저장소 루트에서 `make dev-ap
      → ‘이 조건으로 조회’ → POST /api/v1/execute → 일반 응답 예시·근거 기반 브리핑 비교
 ```
 
-새 API는 기본 `mode=mock`, 선택형 `live`를 받습니다. live는 서버의 전역 live와
+새 API는 기본 `mode=mock`, 선택형 `live|snapshot`을 받습니다. live는 서버의 전역 live와
 `PUBLIC_DATA_MODE=live` 외에 질문에 맞는 공급자의 활성화·키 설정이 필요합니다.
 OpenDART는 `OPENDART_ENABLED=true`, KOSIS는 `KOSIS_ENABLED=true`를 각각 검사합니다.
-`snapshot`은 422이며 자료·승인 이력을 저장하지 않습니다. 질문 해석 방식은 자료 모드와
+`snapshot`은 `FALLBACK_SNAPSHOT_ENABLED` 허용 아래 고정 저장 자료를 사용합니다.
+자료·승인 이력을 새로 저장하지 않습니다. 질문 해석 방식은 자료 모드와
 독립적입니다. [OpenDART 계약](../../docs/OPENDART_REVENUE.md)과
 [KOSIS 계약](../../docs/KOSIS_EMPLOYMENT.md)의 확인된 범위만 지원합니다.
 
@@ -28,7 +29,7 @@ OpenDART는 `OPENDART_ENABLED=true`, KOSIS는 `KOSIS_ENABLED=true`를 각각 검
 ```
 
 응답은 `request_id`, `question`, `query_plan`, `required_fields`, `field_options`, `available_years`,
-`interpretation_method`, `interpretation_model`, `data_mode`입니다.
+`interpretation_method`, `interpretation_model`, `data_mode`, `snapshot`, `conditions_preserved`입니다.
 `evidence`, `brief`, `general_response`, `calculation`, `financial_calculation`은 포함하지 않고, 모의 결과도 생성하지 않습니다.
 
 - `query_plan`: 기존 계획 구조. 질문에서 명확하게 찾은 조건만 채웁니다.
@@ -240,6 +241,29 @@ OpenDART 두 연도는 각각 1회입니다. 캐시 적중·동일 요청 공유
 두 번째 호출이 거절되면 부분 결과를 버립니다. 자동 재시도·대기열·자료 대체는 없습니다.
 한도는 재시작 시 초기화되고 프로세스 간 공유하지 않습니다.
 [전체 계약·검증](../../docs/PUBLIC_DATA_LIMITS.md)을 따릅니다. 기존 성공 응답과 `/analyze`는 유지합니다.
+
+### 공식 저장 자료 계약
+
+`/plan`의 `mode=snapshot`은 지원 조건과 `snapshot` 메타데이터만 반환합니다.
+`snapshot_id/source/title/captured_at/coverage/unit/source_urls/caveats`에 저장 자료의
+버전·공식 출처·원래 조회 시각·지원 범위·검증 한계를 담으며 숫자·근거·브리핑은 없습니다.
+자료원 미정은 snapshot null, mock/live도 null입니다. 기본 `conditions_preserved=false`입니다.
+
+실제 조회 오류 뒤 기존 편집 조건을 보존하려면 `/plan`에 `conditions`를 추가합니다.
+`mode=snapshot`, `interpretation_method=mock_rules`에서만 허용하고 다른 조합은 422입니다.
+외부 재해석 없이 지원 범위를 검사하여 `conditions_preserved=true`로 반환합니다.
+미지원 값은 비우고 한국어 안내를 제공하며 질문과 자료원이 다르면 422입니다.
+
+`/execute`는 snapshot일 때 확인한 `snapshot_id`와 `approved=true`를 요구합니다.
+snapshot_id 누락 또는 mock/live에서의 지정은 422, 버전 불일치는 409 `snapshot_changed`,
+비활성은 503 `snapshot_disabled`, 파일 누락·무결성·정규화 실패는 503 `snapshot_unavailable`입니다.
+전용 오류는 기존 한국어 `detail` 계약과 `Cache-Control: no-store`를 사용합니다.
+
+실행 응답에는 계획과 같은 `snapshot`, `cache=null`, `evidence.data_mode=snapshot`,
+원래 조회 시각을 반환합니다. 계산 출처는 `kosis|opendart`이며 결과·요청 ID는 승인마다 새로
+만듭니다. 최신 자료·기사 사용 승인을 뜻하지 않습니다. live 설정·키·캐시·호출 한도는
+사용하지 않습니다. 기존 live 실패를 자동으로 성공 응답으로 바꾸지 않습니다.
+[저장 자료 전체 계약](../../docs/SNAPSHOT_FALLBACK.md)을 따릅니다.
 
 ### 가상 계산 계약
 

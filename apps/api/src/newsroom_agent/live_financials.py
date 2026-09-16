@@ -6,17 +6,20 @@ from uuid import uuid4
 from newsroom_agent.calculations import ValuePair, financial_change
 from newsroom_agent.conditions import (
     OPENDART_LIVE_REASON,
+    SNAPSHOT_REASONS,
     calculation_metadata,
     route_question,
     validate_conditions,
 )
 from newsroom_agent.models import (
     Brief,
+    CacheMetadata,
     Evidence,
     ExecutionResponse,
     GeneralResponseExample,
     QueryConditions,
     QueryPlan,
+    SnapshotMetadata,
 )
 from newsroom_agent.orchestrator import GENERAL_RESPONSE_EXAMPLES, InvalidConditions
 from newsroom_agent.providers.opendart import OpenDartClient
@@ -51,12 +54,21 @@ async def execute_financials(
             ("reprt_code", ANNUAL_REPORT_CODE), ("fs_div", "CFS"),
             ("start_year", str(start_year)), ("end_year", str(end_year)),
         ), fetch)
+    return compose_financials(question, conditions, pair, cache=cache_metadata)
+
+
+def compose_financials(
+    question: str, conditions: QueryConditions, pair: RevenuePair, *,
+    cache: CacheMetadata | None = None, snapshot: SnapshotMetadata | None = None,
+) -> ExecutionResponse:
+    start_year, end_year = map(int, conditions.period.split("-"))
     calculation = financial_change(ValuePair(
         region=conditions.entity, start_value=pair.start.amount, end_value=pair.end.amount,
         start_unit=pair.start.unit, end_unit=pair.end.unit,
     ), start_year, end_year, conditions.comparison)
     unit, formula = calculation_metadata(conditions)
     caveats = [
+        *(snapshot.caveats if snapshot else []),
         *pair.caveats,
         "시작·종료 연도만 비교합니다. 중간 연도 추세나 기업 실적 전반을 판단할 수 없습니다.",
         "금액과 증감 폭은 원 단위 정수입니다. 증감률만 소수 둘째 자리까지 반올림해 표시합니다.",
@@ -70,10 +82,12 @@ async def execute_financials(
     )
     return ExecutionResponse(
         request_id=str(uuid4()), question=question,
-        query_plan=QueryPlan(**conditions.model_dump(), selection_reason=OPENDART_LIVE_REASON),
+        query_plan=QueryPlan(**conditions.model_dump(), selection_reason=(
+            SNAPSHOT_REASONS["opendart"] if snapshot else OPENDART_LIVE_REASON
+        )),
         general_response=GeneralResponseExample(text=GENERAL_RESPONSE_EXAMPLES["opendart"]),
         financial_calculation=calculation,
-        cache=cache_metadata,
+        cache=cache, snapshot=snapshot,
         evidence=Evidence(
             source_name="OpenDART · 금융감독원 전자공시",
             table_or_report=(f"삼성전자 {start_year}·{end_year}년 사업보고서 "
@@ -92,10 +106,11 @@ async def execute_financials(
                 "receipt_no": row.receipt_no, "source_url": row.source_url,
                 "retrieved_at": row.retrieved_at.isoformat(), **row.query_parameters,
             } for row in (pair.start, pair.end)],
-            caveats=caveats, data_mode="live",
+            caveats=caveats, data_mode="snapshot" if snapshot else "live",
         ),
         brief=Brief(
-            summary=f"삼성전자 {start_year}→{end_year}년 연결 매출액의 {conditions.comparison}은 "
+            summary=("저장 자료 기준: " if snapshot else "")
+                    + f"삼성전자 {start_year}→{end_year}년 연결 매출액의 {conditions.comparison}은 "
                     + change_text,
             verified_facts=[
                 f"{row.year}년 사업보고서 당기 매출액: {int(row.amount):,} 원 "

@@ -40,10 +40,16 @@ KOSIS_LIVE_REASON = (
     "청년 고용의 시도별 변화를 확인하기 위해 KOSIS 경제활동인구조사를 선택했습니다. "
     "실제 자료는 15~29세·연간 고용률만 지원합니다. 조건 승인 후 조회합니다."
 )
+SNAPSHOT_REASONS = {
+    "kosis": "KOSIS의 저장된 공식 고용률 자료를 선택했습니다. 원래 조회 시각과 지원 범위를 "
+             "확인해 주세요. 조건을 다시 승인하면 저장된 값으로 계산합니다.",
+    "opendart": "OpenDART의 저장된 공식 매출액 자료를 선택했습니다. 원래 조회 시각과 "
+                "지원 범위를 확인해 주세요. 조건을 다시 승인하면 저장된 값으로 계산합니다.",
+}
 
 
 def field_options(source: SourceName, mode: str = "mock") -> dict[str, list[str]]:
-    if mode == "live":
+    if mode in ("live", "snapshot"):
         if source == "kosis":
             return {
                 **FIELD_OPTIONS["kosis"], "metric": ["고용률"],
@@ -102,14 +108,17 @@ def validate_conditions(conditions: QueryConditions, mode: str = "mock") -> dict
     if period is None or not 1900 <= int(period[1]) < int(period[2]) <= 2100:
         errors["period"] = "기간을 시작 연도-종료 연도로 입력해 주세요. 예: 2020-2024."
     elif conditions.selected_source == "kosis" and any(
-        int(year) not in (KOSIS_LIVE_YEARS if mode == "live" else YEARS) for year in period.groups()
+        int(year) not in (KOSIS_LIVE_YEARS if mode != "mock" else YEARS) for year in period.groups()
     ):
-        errors["period"] = ("실제" if mode == "live" else "가상") + (
+        label = "저장된" if mode == "snapshot" else "실제" if mode == "live" else "가상"
+        errors["period"] = label + (
             " 청년 고용 자료는 2020~2024년만 지원합니다. 기간을 수정해 주세요."
         )
-    elif (mode == "live" and conditions.selected_source == "opendart"
+    elif (mode in ("live", "snapshot") and conditions.selected_source == "opendart"
           and tuple(map(int, period.groups())) != OPENDART_LIVE_YEARS):
-        errors["period"] = "실제 매출액 실습은 원문을 대조한 2022-2024년 비교만 지원합니다."
+        errors["period"] = ("저장된" if mode == "snapshot" else "실제") + (
+            " 매출액 실습은 원문을 대조한 2022-2024년 비교만 지원합니다."
+        )
 
     allowed_filters = {
         key.removeprefix("filters.") for key in options if key.startswith("filters.")

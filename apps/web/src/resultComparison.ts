@@ -19,6 +19,8 @@ export function comparisonConditions(previous: QueryPlan, current: QueryPlan) {
 export function canCompareResults(previous: ExecutionResponse, current: ExecutionResponse) {
   return previous.question === current.question
     && previous.evidence.data_mode === current.evidence.data_mode
+    && (current.evidence.data_mode !== "snapshot"
+      || (!!current.snapshot?.snapshot_id && previous.snapshot?.snapshot_id === current.snapshot.snapshot_id))
     && previous.query_plan.selected_source === current.query_plan.selected_source
     && comparisonConditions(previous.query_plan, current.query_plan).some((row) => row.changed);
 }

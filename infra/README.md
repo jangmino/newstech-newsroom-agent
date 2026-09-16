@@ -1,6 +1,9 @@
 # GCP staging 준비
 
 현재 파일은 배포 준비용이며 자동 배포를 실행하지 않습니다.
+공식 저장 자료 JSON은 백엔드 패키지 안에 포함되어 기존 Dockerfile의 `COPY apps/api/src`와
+패키지 설치로 제공됩니다. 별도 파일 서버·볼륨·DB는 필요하지 않습니다.
+사용은 `FALLBACK_SNAPSHOT_ENABLED`와 참가자의 명시적 선택·재승인을 따릅니다.
 
 ## 권장 구성
 

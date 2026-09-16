@@ -202,7 +202,8 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 `providers/kosis_employment.py`는 네트워크·설정 접근 없이 15~29세 고용률의 공식 표·분류·
 단위와 17개 시도·2020~2024년 범위를 검사합니다. 요청 연간 코드 `Y`와 실제 응답의 `A`를
 구분하고, 명시한 지역·연도별 셀의 중복·누락·비수치·단위 불일치를 중단합니다.
-공개 API 발췌는 오프라인 회귀 테스트에서만 읽습니다. 원래 값·최종수정일·조회 시각을 구분합니다.
+공개 API 발췌의 사용 범위는 아래 M3 snapshot에서 명시적으로 확장했습니다.
+원래 값·최종수정일·조회 시각을 구분합니다.
 
 `providers/kosis.py`는 고정된 자료 API에 한 번 요청합니다. 전역 live와 공공자료 live 허용,
 `KOSIS_ENABLED`·키 설정을 검사하며 OpenDART 설정에 의존하지 않습니다. `/plan`에는
@@ -256,10 +257,29 @@ OpenDART는 연도별 두 호출을 별도로 셉니다. 실패·취소도 시�
 프로세스 재시작 시 초기화되며 worker/인스턴스 간 공유하지 않습니다.
 [ADR 0010](decisions/0010-process-public-data-limits.md), [설정·오류 계약](PUBLIC_DATA_LIMITS.md)을 참고합니다.
 
+## M3 공식 저장 자료
+
+`providers/snapshot.py`는 패키지 안의 고정 JSON·버전·SHA-256을 확인하고 기존 순수
+정규화 함수를 사용합니다. KOSIS 전체 85개 셀 또는 OpenDART 두 연도를 검증한 뒤 조건의
+부분 자료만 사용합니다. `compose_employment/compose_financials`의 결정론적 계산과 브리핑
+구성을 live와 공유합니다. 네트워크·키·live 캐시·호출 한도·런타임 파일 쓰기는 없습니다.
+
+`/plan`의 `mode=snapshot`은 조건과 저장 자료 메타데이터만 반환합니다. 선택적으로 기존
+`conditions`를 받아 외부 재해석 없이 지원 범위를 확인합니다. `/execute`는 엄격한 승인과
+`snapshot_id`를 받아 설정·조건·자료원·버전을 다시 검사합니다. `FALLBACK_SNAPSHOT_ENABLED`는
+live 설정과 독립적입니다. 결과의 `evidence.data_mode=snapshot`, `snapshot`과 원래 시각으로
+저장 자료를 구분하며 `cache=null`입니다. 이전 `/analyze`의 mock 계약을 유지합니다.
+
+`SnapshotNotice`는 승인 전에 출처·원래 확보 시각·범위를, 승인 후에는 저장 자료 사용을
+표시합니다. 실제 조회 오류는 그대로 반환하며 참가자의 전환·재승인 없이는 실행하지 않습니다.
+자료 모드가 바뀌면 비교·검토를 초기화하고 다른 저장 자료 버전끼리도 비교하지 않습니다.
+미지원 범위·자료 누락·무결성 오류는 대체 자료 없이 중단합니다.
+[ADR 0011](decisions/0011-explicit-public-data-snapshot.md), [계약·검증](SNAPSHOT_FALLBACK.md)을 참고합니다.
+
 ## 추후 추가할 운영 장치
 
 - 여러 인스턴스의 호출 한도·캐시 정책
-- 명시적 snapshot fallback과 접근코드
+- 행사용 접근코드
 - 실행 ID를 포함한 구조화 로그
 - API별 타임아웃·제한적 재시도
 - 민감정보 제거

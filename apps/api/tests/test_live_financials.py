@@ -13,7 +13,7 @@ from newsroom_agent.calculations import CalculationDataError, ValuePair, financi
 from newsroom_agent.providers.opendart import OpenDartClient
 from newsroom_agent.providers.opendart_financials import ERROR_MESSAGES
 
-FIXTURE = json.loads((Path(__file__).parents[3] / "fixtures/public-data/"
+FIXTURE = json.loads((Path(__file__).parents[1] / "src/newsroom_agent/snapshot_data/"
                      "opendart-samsung-revenue-2022-2024.json").read_text())
 QUESTION = "삼성전자 2022-2024년 연결 연간 매출액 증감률 비교"
 CONDITIONS = {

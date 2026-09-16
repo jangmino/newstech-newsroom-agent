@@ -13,7 +13,7 @@ import pytest
 from newsroom_agent.providers.kosis import KosisClient
 from newsroom_agent.providers.kosis_employment import EmploymentQuery, KosisError
 
-FIXTURE = json.loads((Path(__file__).parents[3] / "fixtures/public-data/"
+FIXTURE = json.loads((Path(__file__).parents[1] / "src/newsroom_agent/snapshot_data/"
                      "kosis-youth-employment-2020-2024.json").read_text())
 NOW = datetime(2026, 9, 16, 13, 0, tzinfo=UTC)
 FAKE_KEY = "offline-only-kosis-credential"

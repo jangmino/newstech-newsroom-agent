@@ -47,7 +47,7 @@ Chrome의 로컬 Vite → FastAPI 경로에서 다음을 확인했습니다.
 
 ## 공개 fixture와 한계
 
-[정규화 발췌](../fixtures/public-data/opendart-samsung-revenue-2022-2024.json)는 두 연도의
+[정규화 발췌](../apps/api/src/newsroom_agent/snapshot_data/opendart-samsung-revenue-2022-2024.json)는 두 연도의
 숫자와 공개 식별자·조회 시각·원문 대조 경로만 보관합니다. 전체 API 응답이나 공시 본문
 복제본이 아닙니다. 테스트는 이를 API 형태의 선택 행으로 재구성하여 모의 전송합니다.
 [OpenDART 이용약관](https://opendart.fss.or.kr/intro/terms.do)의 이용·저작권 조건을 확인했으며
@@ -57,7 +57,9 @@ Chrome의 로컬 Vite → FastAPI 경로에서 다음을 확인했습니다.
 이 확인은 두 보고서의 매출액 대조이며 사람의 최종 사실 검증이나 기사 사용 승인이
 아닙니다. 정정 공시와 최신 보고서의 비교기간 재작성은 후속 검토가 필요합니다.
 다른 연도·회사·계정·별도·분기·KOSIS는 실제 검증 범위 밖입니다. fixture는 오프라인
-회귀 테스트용이며 장애 시 앱에서 live 자료로 대신 표시하지 않습니다.
+회귀 테스트용으로 확보했으며 장애 시 앱에서 live 자료로 대신 표시하지 않습니다.
+후속 M3의 [ADR 0011](decisions/0011-explicit-public-data-snapshot.md)에 따라 참가자가 명시적으로
+선택·재승인하는 snapshot에도 사용합니다. 수치·출처·원래 시각은 유지하고 패키지로 옮겼습니다.
 
 자동 검증은 환경 파일·실제 네트워크 접근을 차단한 상태에서 수행합니다.
 `make check`: 백엔드 287개, 프론트엔드 68개 테스트, lint·타입·빌드 통과.

@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
 
 SourceName = Literal["opendart", "kosis", "undetermined"]
 DataMode = Literal["mock", "live", "snapshot"]
@@ -28,11 +28,7 @@ class QuestionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     question: str = Field(min_length=3, max_length=1000)
-    mode: Literal["mock", "live"] = "mock"
-
-
-class PlanRequest(QuestionRequest):
-    interpretation_method: InterpretationMethod = "mock_rules"
+    mode: DataMode = "mock"
 
 
 class QueryConditions(BaseModel):
@@ -46,6 +42,30 @@ class QueryConditions(BaseModel):
     filters: dict[str, str] = Field(default_factory=dict, max_length=10)
 
 
+class PlanRequest(QuestionRequest):
+    interpretation_method: InterpretationMethod = "mock_rules"
+    conditions: QueryConditions | None = None
+
+    @model_validator(mode="after")
+    def preserved_conditions_are_snapshot_only(self) -> Self:
+        if self.conditions is not None and (
+            self.mode != "snapshot" or self.interpretation_method != "mock_rules"
+        ):
+            raise ValueError("입력 조건 유지는 저장 자료의 모의 규칙 방식에서만 지원합니다.")
+        return self
+
+
+class SnapshotMetadata(BaseModel):
+    snapshot_id: str
+    source: Literal["kosis", "opendart"]
+    title: str
+    captured_at: str
+    coverage: str
+    unit: str
+    source_urls: list[str]
+    caveats: list[str]
+
+
 class PlanResponse(BaseModel):
     request_id: str
     question: str
@@ -55,12 +75,21 @@ class PlanResponse(BaseModel):
     available_years: list[int] = Field(default_factory=list)
     interpretation_method: InterpretationMethod = "mock_rules"
     interpretation_model: str | None = None
-    data_mode: Literal["mock", "live"] = "mock"
+    data_mode: DataMode = "mock"
+    snapshot: SnapshotMetadata | None = None
+    conditions_preserved: bool = False
 
 
 class ExecuteRequest(QuestionRequest):
     approved: StrictBool
     conditions: QueryConditions
+    snapshot_id: str | None = Field(default=None, min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def snapshot_requires_version(self) -> Self:
+        if (self.mode == "snapshot") != (self.snapshot_id is not None):
+            raise ValueError("저장 자료를 확인한 뒤 해당 버전의 조건을 승인해 주세요.")
+        return self
 
     @field_validator("approved")
     @classmethod
@@ -155,3 +184,4 @@ class ExecutionResponse(AnalysisResponse):
     calculation: CalculationResult | None = None
     financial_calculation: FinancialCalculation | None = None
     cache: CacheMetadata | None = None
+    snapshot: SnapshotMetadata | None = None

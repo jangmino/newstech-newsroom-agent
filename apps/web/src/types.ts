@@ -1,6 +1,6 @@
 export type SourceName = "opendart" | "kosis" | "undetermined";
 export type InterpretationMethod = "mock_rules" | "gemini";
-export type QueryMode = "mock" | "live";
+export type QueryMode = "mock" | "live" | "snapshot";
 
 export interface QueryPlan {
   selected_source: SourceName;
@@ -18,6 +18,7 @@ export interface PlanRequest {
   question: string;
   mode: QueryMode;
   interpretation_method?: InterpretationMethod;
+  conditions?: QueryConditions;
 }
 
 export interface QueryConditions {
@@ -39,6 +40,8 @@ export interface PlanResponse {
   interpretation_method: InterpretationMethod;
   interpretation_model: string | null;
   data_mode: QueryMode;
+  snapshot: SnapshotMetadata | null;
+  conditions_preserved: boolean;
 }
 
 export interface ExecuteRequest {
@@ -46,13 +49,15 @@ export interface ExecuteRequest {
   mode: QueryMode;
   approved: true;
   conditions: QueryConditions;
+  snapshot_id?: string;
 }
 
 export interface ApiErrorDetail {
   code: "invalid_request" | "invalid_conditions" | "invalid_mock_data" | "invalid_planner_output" | "planner_unavailable"
     | "planner_disabled" | "planner_configuration_error" | "planner_timeout" | "planner_rate_limited"
     | "invalid_live_data" | "live_disabled" | `opendart_${string}` | `kosis_${string}`
-    | "public_data_rate_limited" | "public_data_busy";
+    | "public_data_rate_limited" | "public_data_busy" | "snapshot_disabled"
+    | "snapshot_changed" | "snapshot_unavailable" | "invalid_snapshot_data";
   message: string;
   field_errors: Record<string, string>;
   source?: "kosis" | "opendart";
@@ -108,6 +113,18 @@ export interface ExecutionResponse extends AnalysisResponse {
   calculation: CalculationResult | null;
   financial_calculation: FinancialCalculation | null;
   cache: CacheMetadata | null;
+  snapshot: SnapshotMetadata | null;
+}
+
+export interface SnapshotMetadata {
+  snapshot_id: string;
+  source: "kosis" | "opendart";
+  title: string;
+  captured_at: string;
+  coverage: string;
+  unit: string;
+  source_urls: string[];
+  caveats: string[];
 }
 
 export interface FinancialCalculation {

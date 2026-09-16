@@ -6,18 +6,21 @@ from uuid import uuid4
 from newsroom_agent.calculations import ValuePair, rank_changes
 from newsroom_agent.conditions import (
     KOSIS_LIVE_REASON,
+    SNAPSHOT_REASONS,
     calculation_metadata,
     route_question,
     validate_conditions,
 )
 from newsroom_agent.models import (
     Brief,
+    CacheMetadata,
     CalculationResult,
     Evidence,
     ExecutionResponse,
     GeneralResponseExample,
     QueryConditions,
     QueryPlan,
+    SnapshotMetadata,
 )
 from newsroom_agent.orchestrator import GENERAL_RESPONSE_EXAMPLES, InvalidConditions
 from newsroom_agent.providers.kosis import KosisClient
@@ -51,6 +54,15 @@ async def execute_employment(
         series, cache_metadata = await cache.get(
             (("contract", "kosis-employment-v1"), *sorted(query.parameters.items())), fetch,
         )
+    return compose_employment(question, conditions, series, cache=cache_metadata)
+
+
+def compose_employment(
+    question: str, conditions: QueryConditions, series: EmploymentSeries, *,
+    cache: CacheMetadata | None = None, snapshot: SnapshotMetadata | None = None,
+) -> ExecutionResponse:
+    start_year, end_year = map(int, conditions.period.split("-"))
+    query = series.query
     by_cell = {(row.region_code, row.year): row for row in series.observations}
     rows, warnings = rank_changes([
         ValuePair(
@@ -81,6 +93,7 @@ async def execute_employment(
     else:
         summary += "계산 가능한 시도가 없어 순위를 매기지 않았습니다."
     caveats = [
+        *(snapshot.caveats if snapshot else []),
         *series.caveats,
         "순위는 고용률 수준이 아니라 승인한 시작·종료 연도의 변화값을 비교한 결과입니다.",
         "연간 값의 비교입니다. 중간 연도 값은 근거에 남기지만 "
@@ -93,10 +106,12 @@ async def execute_employment(
     ]
     return ExecutionResponse(
         request_id=str(uuid4()), question=question,
-        query_plan=QueryPlan(**conditions.model_dump(), selection_reason=KOSIS_LIVE_REASON),
+        query_plan=QueryPlan(**conditions.model_dump(), selection_reason=(
+            SNAPSHOT_REASONS["kosis"] if snapshot else KOSIS_LIVE_REASON
+        )),
         general_response=GeneralResponseExample(text=GENERAL_RESPONSE_EXAMPLES["kosis"]),
         calculation=calculation,
-        cache=cache_metadata,
+        cache=cache, snapshot=snapshot,
         evidence=Evidence(
             source_name="KOSIS · 국가데이터처 경제활동인구조사",
             table_or_report=f"{TABLE_NAME} · 15~29세 연간 고용률",
@@ -115,13 +130,14 @@ async def execute_employment(
                 "org_id": series.org_id, "table_id": series.table_id, "item_id": series.item_id,
                 "age_code": series.age_code, "period_code": row.period_code,
             } for row in series.observations],
-            caveats=caveats, data_mode="live",
+            caveats=caveats, data_mode="snapshot" if snapshot else "live",
         ),
         brief=Brief(
-            summary=summary,
+            summary=("저장 자료 기준: " if snapshot else "") + summary,
             verified_facts=[
-                f"{conditions.entity} {len(rows)}개 시도의 15~29세 연간 고용률(%)을 조회했습니다.",
-                f"조회한 {len(series.observations)}개 셀의 "
+                f"{conditions.entity} {len(rows)}개 시도의 15~29세 연간 고용률(%)을 "
+                + ("저장 자료에서 확인했습니다." if snapshot else "조회했습니다."),
+                f"{len(series.observations)}개 셀의 "
                 "표·연령·단위·연도·중복·누락을 검사했습니다.",
                 f"비교 기간은 {start_year}~{end_year}년, "
                 f"승인한 비교 기준은 {conditions.comparison}입니다.",

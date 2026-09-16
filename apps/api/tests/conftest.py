@@ -15,6 +15,7 @@ def pytest_configure() -> None:
         app_env="test",
         public_data_mode="mock",
         live_api_enabled=False,
+        fallback_snapshot_enabled=True,
         opendart_enabled=False, opendart_api_key="",
         kosis_enabled=False, kosis_api_key="",
         gemini_planner_enabled=False,

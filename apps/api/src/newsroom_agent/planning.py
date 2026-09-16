@@ -13,6 +13,7 @@ from newsroom_agent.conditions import (
     OPENDART_LIVE_REASON,
     OPENDART_LIVE_YEARS,
     SELECTION_REASONS,
+    SNAPSHOT_REASONS,
     field_options,
     route_question,
     validate_conditions,
@@ -98,6 +99,12 @@ def create_plan(question: str, planner: QuestionPlanner, mode: str = "mock") -> 
         # Uncertainty overrides even a syntactically valid, supported value.
         for field in candidate.uncertain_fields:
             _clear_field(conditions, field)
+    return plan_from_conditions(question, conditions, mode)
+
+
+def plan_from_conditions(question: str, conditions: QueryConditions, mode: str) -> PlanResponse:
+    conditions = conditions.model_copy(deep=True)
+    source = conditions.selected_source
     errors = validate_conditions(conditions, mode)
     # Never prefill unsupported values as if they were accepted conditions.
     for field in errors:
@@ -107,22 +114,25 @@ def create_plan(question: str, planner: QuestionPlanner, mode: str = "mock") -> 
         request_id=str(uuid4()), question=question,
         query_plan=QueryPlan(
             **conditions.model_dump(), selection_reason=(
-                OPENDART_LIVE_REASON if mode == "live" and source == "opendart"
+                SNAPSHOT_REASONS[source] if mode == "snapshot" and source in SNAPSHOT_REASONS
+                else OPENDART_LIVE_REASON if mode == "live" and source == "opendart"
                 else KOSIS_LIVE_REASON if mode == "live" and source == "kosis"
                 else SELECTION_REASONS[source]
             ),
             clarification_required=bool(errors), clarification_questions=list(errors.values()),
         ),
         required_fields=list(errors), field_options=field_options(source, mode),
-        available_years=(list(KOSIS_LIVE_YEARS) if mode == "live" and source == "kosis"
-                         else list(OPENDART_LIVE_YEARS) if mode == "live" and source == "opendart"
+        available_years=(list(KOSIS_LIVE_YEARS) if mode != "mock" and source == "kosis"
+                         else list(OPENDART_LIVE_YEARS) if mode != "mock" and source == "opendart"
                          else list(YEARS) if source == "kosis" else []),
         data_mode=mode,
     )
 
 
 def _clear_field(conditions: QueryConditions, field: str) -> None:
-    if field.startswith("filters."):
+    if field == "filters":
+        conditions.filters = {}
+    elif field.startswith("filters."):
         conditions.filters[field[8:]] = ""
     else:
         setattr(conditions, field, "")

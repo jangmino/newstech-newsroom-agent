@@ -16,7 +16,7 @@ from newsroom_agent.providers.kosis import KosisClient
 from newsroom_agent.providers.opendart import OpenDartClient
 from newsroom_agent.public_data_cache import PublicDataCache
 
-ROOT = Path(__file__).parents[3] / "fixtures/public-data"
+ROOT = Path(__file__).parents[1] / "src/newsroom_agent/snapshot_data"
 EMPLOYMENT = json.loads((ROOT / "kosis-youth-employment-2020-2024.json").read_text())["rows"]
 REVENUE = json.loads((ROOT / "opendart-samsung-revenue-2022-2024.json").read_text())["observations"]
 BODY = {

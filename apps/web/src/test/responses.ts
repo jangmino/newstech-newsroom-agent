@@ -8,6 +8,7 @@ export function examplePlan(source: "kosis" | "opendart" = "kosis"): PlanRespons
     interpretation_method: "mock_rules",
     interpretation_model: null,
     data_mode: "mock",
+    snapshot: null, conditions_preserved: false,
     question: employment ? "전국 청년 고용률 비교" : "삼성전자 매출액 비교",
     query_plan: {
       selected_source: source, selection_reason: "실습용 자료원 선택",
@@ -55,6 +56,7 @@ export function exampleResult(plan: PlanResponse, conditions: QueryConditions): 
     general_response: { text: "미리 작성한 응답 예시입니다.", data_mode: "mock", generation_method: "scripted" },
     financial_calculation: null,
     cache: null,
+    snapshot: null,
     calculation: employment ? {
       dataset_id: "synthetic-test", data_origin: "synthetic", start_year: 2020, end_year: 2024,
       input_unit: "%", result_unit: "%p", decimal_places: 2, ranking_method: "변화값 내림차순",

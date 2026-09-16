@@ -14,7 +14,7 @@ from newsroom_agent.providers.kosis_employment import (
     normalize_employment,
 )
 
-FIXTURE = json.loads((Path(__file__).parents[3] / "fixtures/public-data/"
+FIXTURE = json.loads((Path(__file__).parents[1] / "src/newsroom_agent/snapshot_data/"
                      "kosis-youth-employment-2020-2024.json").read_text())
 CAPTURED = datetime.fromisoformat(FIXTURE["retrieved_at"])
 

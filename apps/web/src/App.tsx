@@ -6,6 +6,7 @@ import { ReviewSession } from "./ReviewSession";
 import { FinancialEvidence } from "./FinancialEvidence";
 import { KosisEvidence } from "./KosisEvidence";
 import { CacheNotice, cacheLabel } from "./CacheNotice";
+import { SnapshotNotice, validSnapshot } from "./SnapshotNotice";
 import { CalculationTable } from "./CalculationTable";
 import { ConditionComparison } from "./ConditionComparison";
 import { canCompareResults } from "./resultComparison";
@@ -61,6 +62,7 @@ function App() {
   const lastSuccessfulResult = useRef<ExecutionResponse | null>(null);
   const [busy, setBusy] = useState<"plan" | "execute" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [guide, setGuide] = useState<WorkshopScenarioId | null>(null);
   const [interpretationMethod, setInterpretationMethod] = useState<InterpretationMethod>("mock_rules");
   const [dataMode, setDataMode] = useState<QueryMode>("mock");
@@ -83,6 +85,7 @@ function App() {
 
   function changeQuestion(value: string) {
     invalidate();
+    setFallbackReason(null);
     lastSuccessfulResult.current = null;
     setQuestion(value);
     setPlan(null);
@@ -103,6 +106,7 @@ function App() {
 
   function changeInterpretationMethod(value: InterpretationMethod) {
     invalidate();
+    setFallbackReason(null);
     lastSuccessfulResult.current = null;
     setPlan(null);
     setDraft(null);
@@ -124,6 +128,7 @@ function App() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     invalidate();
+    setFallbackReason(null);
     lastSuccessfulResult.current = null;
     setPlan(null);
     setDraft(null);
@@ -141,12 +146,51 @@ function App() {
       }, request.signal);
       if (current !== revision.current) return;
       if (response.data_mode !== dataMode) throw new Error("조회 자료 모드가 일치하지 않습니다. 다시 분석해 주세요.");
+      if (dataMode === "snapshot" && response.query_plan.selected_source !== "undetermined"
+        && !validSnapshot(response.snapshot, response.query_plan.selected_source)) {
+        throw new Error("저장 자료의 출처와 시각을 확인하지 못했습니다. 다시 분석해 주세요.");
+      }
       setPlan(response);
       setDraft(editableConditions(response.query_plan));
     } catch (caught) {
       if (current === revision.current) {
         setError(caught instanceof Error ? caught.message : "질문을 다시 해석해 주세요.");
       }
+    } finally {
+      if (current === revision.current) setBusy(null);
+    }
+  }
+
+  async function prepareSnapshot() {
+    if (!plan || !draft || !error || busy || plan.data_mode !== "live") return;
+    const conditions = { ...draft, filters: { ...draft.filters } };
+    const originalQuestion = plan.question;
+    setFallbackReason(error);
+    invalidate();
+    lastSuccessfulResult.current = null;
+    setPlan(null);
+    setDraft(null);
+    setGuide(null);
+    setDataMode("snapshot");
+    setInterpretationMethod("mock_rules");
+    const current = revision.current;
+    const request = new AbortController();
+    controller.current = request;
+    setBusy("plan");
+    try {
+      const response = await post<PlanResponse>("/api/v1/plan", {
+        question: originalQuestion, mode: "snapshot", interpretation_method: "mock_rules", conditions,
+      }, request.signal);
+      if (current !== revision.current) return;
+      if (response.data_mode !== "snapshot" || !response.conditions_preserved
+        || !validSnapshot(response.snapshot, conditions.selected_source)
+        || response.query_plan.selected_source !== conditions.selected_source) {
+        throw new Error("저장 자료의 조건과 출처를 확인하지 못했습니다. 다시 분석해 주세요.");
+      }
+      setPlan(response);
+      setDraft(editableConditions(response.query_plan));
+    } catch (caught) {
+      if (current === revision.current) setError(caught instanceof Error ? caught.message : "저장 자료 안내를 확인하지 못했습니다.");
     } finally {
       if (current === revision.current) setBusy(null);
     }
@@ -167,8 +211,12 @@ function App() {
     setBusy("execute");
     const conditions = { ...draft, period: draft.period.trim(), filters: { ...draft.filters } };
     try {
+      if (plan.data_mode === "snapshot" && !validSnapshot(plan.snapshot, conditions.selected_source)) {
+        throw new Error("저장 자료 안내를 다시 확인한 뒤 승인해 주세요.");
+      }
       const response = await post<ExecutionResponse>("/api/v1/execute", {
         question: plan.question, mode: plan.data_mode, approved: true, conditions,
+        ...(plan.data_mode === "snapshot" ? { snapshot_id: plan.snapshot!.snapshot_id } : {}),
       }, request.signal);
       if (current !== revision.current) return;
       if (!response.general_response?.text || response.general_response.data_mode !== "mock"
@@ -177,10 +225,17 @@ function App() {
       }
       if (response.evidence.data_mode !== plan.data_mode
         || response.query_plan.selected_source !== conditions.selected_source
-        || (plan.data_mode === "live" && (conditions.selected_source === "kosis"
+        || (plan.data_mode !== "mock" && (conditions.selected_source === "kosis"
           ? response.calculation?.data_origin !== "kosis" || response.financial_calculation !== null
           : !response.financial_calculation || response.financial_calculation.data_origin !== "opendart"))) {
         throw new Error("조회 자료 모드를 확인하지 못했습니다. 다시 조회해 주세요.");
+      }
+      if (plan.data_mode === "snapshot" && (!validSnapshot(response.snapshot, conditions.selected_source)
+        || response.snapshot.snapshot_id !== plan.snapshot?.snapshot_id
+        || response.snapshot.captured_at !== plan.snapshot.captured_at
+        || Date.parse(response.evidence.retrieved_at) !== Date.parse(response.snapshot.captured_at)
+        || response.cache !== null)) {
+        throw new Error("승인한 저장 자료의 버전과 시각이 일치하지 않습니다. 다시 분석해 주세요.");
       }
       setDraft(conditions);
       const previous = lastSuccessfulResult.current;
@@ -210,7 +265,7 @@ function App() {
           <p className="eyebrow">NewsTech Initiatives 2026 · 실습용 프로토타입</p>
           <h1>뉴스룸 데이터 에이전트</h1>
         </div>
-        <span className="mode">{dataMode === "live" ? "공식 실제 자료" : "모의 자료 모드"}</span>
+        <span className="mode">{dataMode === "snapshot" ? "공식 저장 자료" : dataMode === "live" ? "공식 실제 자료" : "모의 자료 모드"}</span>
       </header>
 
       <section className="question-panel" aria-labelledby="question-title" aria-busy={busy === "plan"}>
@@ -232,8 +287,11 @@ function App() {
             onChange={(event) => changeDataMode(event.target.value as QueryMode)}>
             <option value="mock">모의 자료 · 두 실습 질문</option>
             <option value="live">공식 실제 자료 · OpenDART / KOSIS</option>
+            <option value="snapshot">공식 저장 자료 · 확보 시점 기준</option>
           </select>
-          <p id="data-mode-help" className="field-help">{dataMode === "live"
+          <p id="data-mode-help" className="field-help">{dataMode === "snapshot"
+            ? "미리 확보한 공식 자료를 사용합니다. 외부 자료를 새로 조회하지 않으며 확보 이후 개정·정정은 반영하지 않습니다. 저장 시점과 지원 범위를 확인하고 조건을 승인해 주세요."
+            : dataMode === "live"
             ? "KOSIS는 15~29세 고용률의 시도별 연간 값(2020~2024년), OpenDART는 삼성전자 연간 연결 매출액(2022·2024년)을 지원합니다. 승인 후 자료를 확인하며, 같은 자료는 재사용 기한 안에서 다시 사용할 수 있습니다."
             : "실제 공공데이터를 조회하지 않는 실습 자료입니다."}</p>
         </div>
@@ -244,7 +302,11 @@ function App() {
             <option value="mock_rules">모의 규칙 · 외부 전송 없음</option>
             <option value="gemini">Gemini · 실제 모델</option>
           </select>
-          <p id="interpretation-help" className="field-help">{dataMode === "live"
+          <p id="interpretation-help" className="field-help">{dataMode === "snapshot"
+            ? (interpretationMethod === "gemini"
+              ? "‘질문 분석’을 누르면 질문을 Gemini로 보냅니다. 공식 저장 자료의 값과 계산은 조건 승인 후 확인합니다."
+              : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 공식 저장 자료의 값과 계산은 조건 승인 후 확인합니다.")
+            : dataMode === "live"
             ? (interpretationMethod === "gemini"
               ? "‘질문 분석’을 누르면 질문을 Gemini로 보냅니다. 공식 자료 조회와 계산은 조건 승인 후 별도로 실행합니다."
               : "질문을 외부로 보내지 않고 모의 규칙으로 해석합니다. 공식 자료 조회와 계산은 조건 승인 후 별도로 실행합니다.")
@@ -263,6 +325,11 @@ function App() {
       <WorkshopGuide selected={guide} plan={plan} draft={draft} result={result} busy={busy} error={error}
         onStart={startGuide} onClose={() => setGuide(null)} onApply={applyGuideConditions} />
       {error && <p className="error request-error" role="alert">{error}</p>}
+      {error && plan?.data_mode === "live" && draft && <section className="card">
+        <p>실제 조회 결과를 표시하지 않았습니다. 미리 확보한 공식 저장 자료를 사용할 수도 있습니다. 저장 시점과 지원 조건을 확인하고 다시 승인해야 합니다.</p>
+        <button type="button" onClick={prepareSnapshot} disabled={busy !== null}>저장 자료로 조건 다시 확인</button>
+      </section>}
+      {fallbackReason && <p className="notice">저장 자료로 전환하기 전 실제 조회 안내: {fallbackReason}</p>}
       {!plan || !draft ? (
         <section className="empty-state" role="status">
           <strong>{busy === "plan" ? "질문에서 조회 조건을 찾고 있습니다." : "먼저 질문을 분석해 주세요."}</strong>
@@ -273,17 +340,19 @@ function App() {
           <section className="card conditions-card" aria-labelledby="conditions-title" aria-busy={busy === "execute"}>
             <p className="step">02 · 질문 해석과 조건 확인</p>
             <h2 id="conditions-title">{sourceLabel(plan.query_plan.selected_source)}</h2>
-            {plan.interpretation_method === "mock_rules" && <p className="field-help">질문 해석: 모의 규칙 · Gemini를 호출하지 않았습니다.</p>}
-            {plan.interpretation_method === "gemini" && <p className="field-help">질문 해석: Gemini ({plan.interpretation_model}) · {plan.data_mode === "live" ? "공식 자료는 조건 승인 후 조회합니다." : "자료 조회와 브리핑은 모의 자료입니다."}</p>}
+            {plan.conditions_preserved ? <p className="field-help">기존 입력 조건을 유지했습니다. 외부 질문 해석을 다시 하지 않았습니다.</p>
+              : plan.interpretation_method === "mock_rules" && <p className="field-help">질문 해석: 모의 규칙 · Gemini를 호출하지 않았습니다.</p>}
+            {plan.interpretation_method === "gemini" && <p className="field-help">질문 해석: Gemini ({plan.interpretation_model}) · {plan.data_mode === "snapshot" ? "공식 저장 자료는 조건 승인 후 사용합니다." : plan.data_mode === "live" ? "공식 자료는 조건 승인 후 조회합니다." : "자료 조회와 브리핑은 모의 자료입니다."}</p>}
             <p>{plan.query_plan.selection_reason}</p>
+            {!result && plan.data_mode === "snapshot" && plan.snapshot && <SnapshotNotice snapshot={plan.snapshot} preview />}
             {draft.selected_source !== "undetermined" && plan.query_plan.clarification_questions.length > 0 && <details className="planning-notes">
               <summary>처음 질문을 해석할 때 확인이 필요했던 내용</summary>
               <ul>{plan.query_plan.clarification_questions.map((message, index) => <li key={index}>{message}</li>)}</ul>
               <p className="field-help">아래에서 조건을 수정할 수 있습니다. 현재 조회 가능 여부는 입력란 아래의 안내를 확인해 주세요.</p>
             </details>}
             <p className="condition-status" role="status">
-              {modifiedFields.length > 0 ? "참가자가 조건을 수정했습니다." : "에이전트가 제시한 조건입니다."}
-              {result ? (result.evidence.data_mode === "live" ? (result.cache ? ` ${cacheLabel(result.cache)}` : " 승인한 조건으로 실제 조회했습니다.") : " 승인한 조건으로 모의 조회했습니다.") : " 조건을 확인한 뒤 승인해 주세요."}
+              {modifiedFields.length > 0 ? "참가자가 조건을 수정했습니다." : plan.conditions_preserved ? "이전에 입력한 조건입니다." : "에이전트가 제시한 조건입니다."}
+              {result ? (result.evidence.data_mode === "snapshot" ? " 승인한 조건으로 공식 저장 자료를 사용했습니다." : result.evidence.data_mode === "live" ? (result.cache ? ` ${cacheLabel(result.cache)}` : " 승인한 조건으로 실제 조회했습니다.") : " 승인한 조건으로 모의 조회했습니다.") : " 조건을 확인한 뒤 승인해 주세요."}
             </p>
             {draft.selected_source === "undetermined" ? (
               <div className="notice" role="status">
@@ -318,15 +387,15 @@ function App() {
                   })}
                 </div>
                 <p id="period-help" className="field-help">
-                  {plan.data_mode === "live" && draft.selected_source === "opendart"
+                  {plan.data_mode !== "mock" && draft.selected_source === "opendart"
                     ? "원문을 대조한 2022년과 2024년의 연간 연결 매출액만 지원합니다. 기간에 2022-2024를 입력해 주세요."
-                    : plan.data_mode === "live" && draft.selected_source === "kosis"
+                    : plan.data_mode !== "mock" && draft.selected_source === "kosis"
                     ? "2020~2024년 안에서 서로 다른 시작·종료 연도의 연간 고용률을 비교합니다. 예: 2020-2024."
                     : plan.available_years?.length ? `가상 수치 자료는 ${plan.available_years[0]}~${plan.available_years[plan.available_years.length - 1]}년을 지원합니다. 서로 다른 시작·종료 연도의 연간 값만 비교합니다.`
                     : "시작 연도와 종료 연도의 연간 값을 비교합니다. 모의 실습은 1900~2100년 안의 서로 다른 두 연도를 입력받으며, 실제 자료의 제공 기간을 뜻하지 않습니다."}
                 </p>
-                {draft.selected_source === "kosis" && <p className="field-help synthetic-label">{plan.data_mode === "live"
-                  ? "실제 자료는 15~29세 고용률만 지원하며, 15~34세·취업자 수로 바꾸어 조회하지 않습니다. ‘전국’은 17개 시도, ‘수도권’은 서울·인천·경기, ‘비수도권’은 나머지 14개 시도를 각각 비교합니다. 권역 전체 고용률을 평균내지 않습니다."
+                {draft.selected_source === "kosis" && <p className="field-help synthetic-label">{plan.data_mode !== "mock"
+                  ? `${plan.data_mode === "snapshot" ? "저장된" : "실제"} 자료는 15~29세 고용률만 지원하며, 15~34세·취업자 수로 바꾸어 조회하지 않습니다. ‘전국’은 17개 시도, ‘수도권’은 서울·인천·경기, ‘비수도권’은 나머지 14개 시도를 각각 비교합니다. 권역 전체 고용률을 평균내지 않습니다.`
                   : "공식 통계가 아닌 가상 숫자로 계산합니다. ‘전국’은 가상 지역 A~D, ‘수도권’은 A·B, ‘비수도권’은 C·D를 고르는 실습 분류입니다."}</p>}
                 {errors.length > 0 ? (
                   <div className="notice" role="status">
@@ -337,7 +406,7 @@ function App() {
                   <p className="field-help" role="status">{result ? "승인한 조회 조건과 두 응답을 아래에서 비교해 주세요." : "조건이 모두 입력됐습니다. 승인하면 일반 응답 예시와 근거 기반 브리핑이 함께 표시됩니다."}</p>
                 )}
                 <button className="primary" type="submit" disabled={busy !== null || errors.length > 0}>
-                  {busy === "execute" ? (dataMode === "live" ? (draft.selected_source === "kosis" ? "통계 자료를 조회하는 중…" : "공시 자료를 조회하는 중…") : "모의 자료를 준비하는 중…") : "이 조건으로 조회"}
+                  {busy === "execute" ? (dataMode === "snapshot" ? "저장 자료로 계산하는 중…" : dataMode === "live" ? (draft.selected_source === "kosis" ? "통계 자료를 조회하는 중…" : "공시 자료를 조회하는 중…") : "모의 자료를 준비하는 중…") : "이 조건으로 조회"}
                 </button>
                 <p className="field-help">조건을 수정하면 결과와 검토 표시가 숨겨집니다. 바꾼 조건을 다시 승인하면 직전 결과와 비교할 수 있습니다. 질문을 바꾸거나 다시 분석하면 비교도 초기화됩니다.</p>
               </form>
@@ -360,16 +429,17 @@ function App() {
                   </dl>
                   <dl>
                     <div><dt>단위</dt><dd>{result.calculation ? `입력 ${result.calculation.input_unit} · 결과 ${result.calculation.result_unit}` : result.financial_calculation ? `입력 원 · 결과 ${result.financial_calculation.result_unit}` : result.evidence.unit}</dd></div>
-                    <div><dt>{result.evidence.data_mode === "live" ? "자료 조회 완료 시각" : result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
+                    <div><dt>{result.evidence.data_mode === "snapshot" ? "저장 자료의 원래 조회 시각" : result.evidence.data_mode === "live" ? "자료 조회 완료 시각" : result.calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(result.evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
                     <div><dt>계산식</dt><dd>{result.evidence.formula}</dd></div>
                   </dl>
                   <CacheNotice result={result} />
+                  {result.evidence.data_mode === "snapshot" && result.snapshot && <SnapshotNotice snapshot={result.snapshot} />}
                   {result.financial_calculation && <FinancialEvidence result={result} />}
                   {result.calculation?.data_origin === "kosis" && <KosisEvidence result={result} />}
                   {result.calculation && <CalculationTable calculation={result.calculation} comparison={result.query_plan.comparison} />}
                   <h3>자료 이용 시 주의사항</h3>
                   <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
-                  <span className="data-mode">{result.evidence.data_mode === "live" ? (result.calculation?.data_origin === "kosis" ? "공식 통계 실제 조회 · 사람 검토 필요" : "공식 공시 실제 조회 · 사람 검토 필요") : result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
+                  <span className="data-mode">{result.evidence.data_mode === "snapshot" ? "공식 저장 자료 · 최신 조회 아님 · 사람 검토 필요" : result.evidence.data_mode === "live" ? (result.calculation?.data_origin === "kosis" ? "공식 통계 실제 조회 · 사람 검토 필요" : "공식 공시 실제 조회 · 사람 검토 필요") : result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
                 </section>
               </ReviewSession>
             </>

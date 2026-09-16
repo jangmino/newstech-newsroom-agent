@@ -9,7 +9,7 @@
     "method": "같은 표의 공식 메타데이터와 자료 응답을 대조. 별도 통계표 화면 전수 대조나 통계 해석 검증은 하지 않음.",
     "projection": "자료 응답의 한글 식별 필드와 수치·최종수정일만 발췌. 85개 셀 전체와 원래 값 문자열 유지. 메타데이터 영문 필드 제외, 기간은 연간 목록만 추출.",
     "usage_url": "https://kosis.kr/openapi/community/community_0401List.do",
-    "limitations": "오프라인 계약 테스트 전용. 실시간·snapshot fallback·기사 사용 승인 자료가 아님."
+    "limitations": "공식 저장 자료 실습·오프라인 계약 검증용. 확보 이후 개정은 미반영. 통계 해석 검증 완료나 기사 사용 승인이 아님. ADR 0011에 따라 명시적 선택·재승인 후 사용."
   },
   "request": {
     "endpoint": "https://kosis.kr/openapi/Param/statisticsParameterData.do",

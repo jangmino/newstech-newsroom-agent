@@ -57,6 +57,6 @@
   "fixture_kind": "normalized_public_excerpt",
   "verified_by": "Codex: authenticated API retrieval and DART filing comparison; human review still required",
   "verified_at": "2026-09-16",
-  "usage": "Offline regression tests only; not an application snapshot fallback",
+  "usage": "Versioned workshop snapshot and offline regression data; human review required. See ADR 0011.",
   "terms_url": "https://opendart.fss.or.kr/intro/terms.do"
 }

@@ -13,7 +13,7 @@ from newsroom_agent.models import QueryConditions
 from newsroom_agent.providers.kosis import KosisClient
 from newsroom_agent.providers.kosis_employment import ERROR_MESSAGES, KosisError
 
-FIXTURE = json.loads((Path(__file__).parents[3] / "fixtures/public-data/"
+FIXTURE = json.loads((Path(__file__).parents[1] / "src/newsroom_agent/snapshot_data/"
                      "kosis-youth-employment-2020-2024.json").read_text())
 QUESTION = "전국 시·도 15-29세 청년 고용률 2020-2024년 연간 증감 폭 비교"
 CONDITIONS = {

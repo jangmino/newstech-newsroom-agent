@@ -1,4 +1,5 @@
 import { FinancialSummary } from "./FinancialEvidence";
+import { SnapshotNotice } from "./SnapshotNotice";
 import { CacheNotice } from "./CacheNotice";
 import { comparisonConditions } from "./resultComparison";
 import type { CalculationResult, ExecutionResponse } from "./types";
@@ -9,17 +10,18 @@ function ResultSummary({ result, side }: { result: ExecutionResponse; side: "pre
   return (
     <article className="condition-result" aria-labelledby={`${side}-result-title`}>
       <h3 id={`${side}-result-title`}>{title}</h3>
-      <p className="synthetic-label">{evidence.data_mode === "live" ? (calculation?.data_origin === "kosis" ? "공식 통계 실제 조회 · 사람 검토 필요" : "공식 공시 실제 조회 · 사람 검토 필요") : calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 결과 · 실제 조회·계산 전"}</p>
+      <p className="synthetic-label">{evidence.data_mode === "snapshot" ? "공식 저장 자료 · 최신 조회 아님 · 사람 검토 필요" : evidence.data_mode === "live" ? (calculation?.data_origin === "kosis" ? "공식 통계 실제 조회 · 사람 검토 필요" : "공식 공시 실제 조회 · 사람 검토 필요") : calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 결과 · 실제 조회·계산 전"}</p>
       <p className="result-summary">{brief.summary}</p>
       {result.financial_calculation && <FinancialSummary calculation={result.financial_calculation} />}
       <dl>
         <div><dt>자료원</dt><dd>{evidence.source_name}</dd></div>
         <div><dt>자료</dt><dd>{evidence.table_or_report}</dd></div>
         <div><dt>단위</dt><dd>{calculation ? `입력 ${calculation.input_unit} · 결과 ${calculation.result_unit}` : evidence.unit}</dd></div>
-        <div><dt>{evidence.data_mode === "live" ? "자료 조회 완료 시각" : calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
+        <div><dt>{evidence.data_mode === "snapshot" ? "저장 자료의 원래 조회 시각" : evidence.data_mode === "live" ? "자료 조회 완료 시각" : calculation ? "가상 자료 계산 시각" : "모의 자료 생성 시각"}</dt><dd>{new Date(evidence.retrieved_at).toLocaleString("ko-KR")}</dd></div>
         <div><dt>계산식</dt><dd>{evidence.formula}</dd></div>
       </dl>
       <CacheNotice result={result} compact />
+      {evidence.data_mode === "snapshot" && result.snapshot && <SnapshotNotice snapshot={result.snapshot} compact />}
       <details open>
         <summary>{title}의 주의사항과 해석 한계</summary>
         <ul>{[...new Set([...evidence.caveats, ...brief.interpretation_limits])].map((text) => <li key={text}>{text}</li>)}</ul>
@@ -76,7 +78,7 @@ export function ConditionComparison({ previous, current }: {
           <p className="notice">각 순위는 해당 조회 대상 안에서 매긴 순위입니다. 단위·지표·기간·대상·연령 등 기준이 다른 값은 그대로 대소 비교할 수 없습니다. 여러 조건을 바꿨다면 특정 조건 하나의 영향으로 단정하지 마세요.</p>
           <div className="comparison-scroll" role="region" aria-label={`${official ? "시도별" : "가상 지역별"} 결과 비교 표, 작은 화면에서는 좌우로 이동할 수 있습니다`} tabIndex={0}>
             <table className="condition-comparison-table">
-              <caption>{official ? "시도별 결과 비교 · KOSIS 실제 조회" : "가상 지역별 결과 비교 · 공식 통계 아님"}</caption>
+              <caption>{official ? `시도별 결과 비교 · KOSIS ${current.evidence.data_mode === "snapshot" ? "공식 저장 자료" : "실제 조회"}` : "가상 지역별 결과 비교 · 공식 통계 아님"}</caption>
               <thead><tr><th scope="col">{official ? "시도" : "가상 지역"}</th><th scope="col">이전 결과</th><th scope="col">이번 결과</th></tr></thead>
               <tbody>{regions.map((region) => (
                 <tr key={region}><th scope="row">{region}</th>

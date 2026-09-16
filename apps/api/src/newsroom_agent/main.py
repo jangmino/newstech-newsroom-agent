@@ -13,8 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from newsroom_agent.calculations import CalculationDataError
 from newsroom_agent.conditions import route_question, validate_conditions
 from newsroom_agent.config import get_settings
-from newsroom_agent.live_employment import execute_employment
-from newsroom_agent.live_financials import execute_financials
+from newsroom_agent.live_employment import compose_employment, execute_employment
+from newsroom_agent.live_financials import compose_financials, execute_financials
 from newsroom_agent.models import (
     AnalysisRequest,
     AnalysisResponse,
@@ -24,7 +24,7 @@ from newsroom_agent.models import (
     PlanResponse,
 )
 from newsroom_agent.orchestrator import InvalidConditions, MockOrchestrator
-from newsroom_agent.planning import InvalidPlannerOutput, create_plan
+from newsroom_agent.planning import InvalidPlannerOutput, create_plan, plan_from_conditions
 from newsroom_agent.providers.kosis import KosisClient
 from newsroom_agent.providers.kosis_employment import EmploymentSeries, KosisError
 from newsroom_agent.providers.mock_planner import MockQuestionPlanner
@@ -38,6 +38,7 @@ from newsroom_agent.providers.planner import (
     PlannerUnavailable,
     QuestionPlanner,
 )
+from newsroom_agent.providers.snapshot import SnapshotError, load_snapshot, select_employment
 from newsroom_agent.public_data_cache import PublicDataCache
 from newsroom_agent.public_data_limits import (
     PublicDataCallLimiter,
@@ -75,6 +76,19 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(SnapshotError)
+async def snapshot_error(request: Request, exc: SnapshotError):
+    return JSONResponse(status_code=409 if exc.code == "snapshot_changed" else 503,
+                        headers={"Cache-Control": "no-store"}, content={"detail": {
+                            "code": exc.code, "message": str(exc), "field_errors": {},
+                        }})
+
+
+def require_snapshot() -> None:
+    if not settings.fallback_snapshot_enabled:
+        raise SnapshotError("snapshot_disabled")
+
+
 @app.get("/health")
 def health() -> dict[str, str | bool]:
     return {
@@ -105,7 +119,8 @@ async def validation_error(request: Request, exc: RequestValidationError):
         return await request_validation_exception_handler(request, exc)
     messages = {
         "question": "질문을 3자 이상 1,000자 이하로 입력해 주세요.",
-        "mode": "모의 자료 또는 공식 실제 자료 모드를 선택해 주세요.",
+        "mode": "모의 자료, 공식 실제 자료 또는 공식 저장 자료를 선택해 주세요.",
+        "snapshot_id": "저장 자료 안내를 다시 확인한 뒤 해당 조건으로 승인해 주세요.",
         "approved": "조건을 확인한 뒤 ‘이 조건으로 조회’를 눌러 주세요.",
         "interpretation_method": "모의 규칙 또는 Gemini 중 질문 해석 방식을 선택해 주세요.",
     }
@@ -182,7 +197,20 @@ def plan(
     try:
         if request.mode == "live":
             require_live_source(route_question(request.question))
-        result = create_plan(request.question, planner, request.mode)
+        if request.mode == "snapshot":
+            require_snapshot()
+        if request.conditions is not None:
+            if request.conditions.selected_source != route_question(request.question):
+                raise HTTPException(status_code=422, detail={
+                    "code": "invalid_conditions", "message": "질문과 자료원이 달라졌습니다. "
+                    "질문을 다시 분석해 주세요.", "field_errors": {},
+                })
+            result = plan_from_conditions(request.question, request.conditions, "snapshot")
+            result.conditions_preserved = True
+        else:
+            result = create_plan(request.question, planner, request.mode)
+        if request.mode == "snapshot" and result.query_plan.selected_source != "undetermined":
+            result.snapshot = load_snapshot(result.query_plan.selected_source).metadata
         result.interpretation_method = request.interpretation_method
         result.interpretation_model = (
             settings.gemini_model if request.interpretation_method == "gemini" else None
@@ -235,14 +263,27 @@ def plan(
 @app.post("/api/v1/execute", response_model=ExecutionResponse)
 async def execute(request: ExecuteRequest, http_request: Request) -> ExecutionResponse:
     try:
-        if request.mode == "live":
-            errors = validate_conditions(request.conditions, "live")
+        if request.mode in ("live", "snapshot"):
+            errors = validate_conditions(request.conditions, request.mode)
             if request.conditions.selected_source != route_question(request.question):
                 errors["selected_source"] = (
                     "자료원과 질문이 달라졌습니다. 질문을 다시 해석해 주세요."
                 )
             if errors:
                 raise InvalidConditions(errors)
+            if request.mode == "snapshot":
+                require_snapshot()
+                saved = load_snapshot(request.conditions.selected_source)
+                if request.snapshot_id != saved.metadata.snapshot_id:
+                    raise SnapshotError("snapshot_changed")
+                if saved.employment is not None:
+                    return compose_employment(
+                        request.question, request.conditions,
+                        select_employment(saved.employment, request.conditions),
+                        snapshot=saved.metadata,
+                    )
+                return compose_financials(request.question, request.conditions, saved.revenue,
+                                          snapshot=saved.metadata)
             require_live_source(request.conditions.selected_source)
             caches = http_request.app.state if settings.public_data_cache_enabled else None
             limiter = get_public_data_limiter(
@@ -285,9 +326,9 @@ async def execute(request: ExecuteRequest, http_request: Request) -> ExecutionRe
         raise HTTPException(
             status_code=503,
             detail={
-                "code": "invalid_live_data" if request.mode == "live" else "invalid_mock_data",
+                "code": f"invalid_{request.mode}_data",
                 "message": ("자료의 숫자나 단위를 검증하지 못해 계산을 중단했습니다."
-                            if request.mode == "live" else
+                            if request.mode != "mock" else
                             "가상 자료의 숫자나 단위를 검증하지 못해 계산을 중단했습니다."),
                 "field_errors": {},
             },

@@ -140,12 +140,14 @@ HTTP/전체 수신 타임아웃 20초, 응답 상한 2MB, 엄격한 JSON·정규
 발췌·정규화 전후에 그대로 유지하는지 테스트합니다. 이는 고용 개선 원인이나 통계적
 유의성을 확인한 결과가 아닙니다.
 
-[공개 fixture](../fixtures/public-data/kosis-youth-employment-2020-2024.json)는
+[공개 fixture](../apps/api/src/newsroom_agent/snapshot_data/kosis-youth-employment-2020-2024.json)는
 자료의 한글 식별 필드·수치·최종수정일을 선택한 발췌입니다. 85개 셀과 수치 문자열은
 바꾸지 않았습니다. 영문 필드를 제외한 항목 메타데이터 전체, 연간 기간 목록, 주석,
 출처·조건·보관 시각·검사 주체(Codex)·검증 한계를 함께 기록합니다.
 별도 통계표 화면과의 전수 대조나 사람의 통계 해석 검토를 마친 자료로 표시하지 않습니다.
-런타임·fallback에서는 읽지 않습니다.
+M3의 [ADR 0011](decisions/0011-explicit-public-data-snapshot.md)에서 명시적 snapshot 사용으로
+범위를 확장했습니다. 파일은 패키지로 옮겼지만 수치·출처·원래 시각은 유지했습니다.
+실제 조회 실패의 자동 대체가 아니라 저장 자료 선택·안내 확인·별도 승인을 요구합니다.
 
 KOSIS [공유서비스 FAQ](https://kosis.kr/openapi/community/community_0401List.do)는
 출처 표시를 전제로 통계 재이용을 안내하며, 국제·북한 통계의 예외도 설명합니다.
