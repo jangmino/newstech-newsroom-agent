@@ -154,7 +154,9 @@ M3 캐시·동일 요청 합치기·프로세스 내부 호출 제한·명시적
 [개인 임시 stage](docs/STAGE_SMOKE_TEST.md)도 Cloud Run·Secret Manager·비용 알림과 함께
 배포했습니다. 현재 stage의 실제 공급자는 꺼져 있으며 mock·저장 자료로 확인했습니다.
 [30명 단기 API 부하 시험](docs/STAGE_LOAD_TEST.md)도 766개 요청으로 통과했습니다.
-다음은 장애·공식 저장 자료 전환 리허설입니다. 기관 환경 재배포·실제 공급자 Secret 연결·
+[장애·저장 자료 전환 리허설](docs/FALLBACK_REHEARSAL.md)도 모의 장애와 stage 비활성 경로로
+완료했습니다. 다음은 행사 운영자 가이드와 시작·중단·종료 점검표입니다.
+기관 환경 재배포·실제 공급자 Secret 연결·
 지속 부하와 행사장 확인·넓은 모델 품질 검증은 남아 있습니다.
 전체 진행 상태는 [로드맵](docs/ROADMAP.md)을 참고하십시오.
 가상 숫자로 비교 기준과 오류를 체험하는 방법은 [계산 실습 안내](fixtures/synthetic/README.md)를 참고하십시오.

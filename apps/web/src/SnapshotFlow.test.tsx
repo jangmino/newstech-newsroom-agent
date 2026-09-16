@@ -131,19 +131,27 @@ test.each(["kosis", "opendart"] as const)("%s preview discloses origin without d
   expect(within(review).getByText(/원래 조회 시각·지원 범위와 확보 이후/)).toBeTruthy();
 });
 
-test("live error preserves edits; selecting snapshot only prepares and requires reapproval", async () => {
-  const fetch = setup("kosis", "live");
+test.each([
+  ["kosis", "kosis_timeout", 503], ["opendart", "opendart_timeout", 503],
+  ["kosis", "public_data_busy", 429], ["opendart", "public_data_busy", 429],
+  ["kosis", "kosis_unavailable", 503], ["opendart", "opendart_unavailable", 503],
+] as const)("%s %s preserves edits and requires snapshot reapproval", async (source, code, status) => {
+  const fetch = setup(source, "live");
   await plan();
   const oldReview = await approve();
   fireEvent.click(within(oldReview).getAllByRole("checkbox")[0]);
-  fireEvent.change(screen.getByRole("combobox", { name: "대상" }), { target: { value: "수도권 시·도" } });
-  fireEvent.change(screen.getByRole("textbox", { name: "기간" }), { target: { value: "2021-2024" } });
+  if (source === "kosis") {
+    fireEvent.change(screen.getByRole("combobox", { name: "대상" }), { target: { value: "수도권 시·도" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "기간" }), { target: { value: "2021-2024" } });
+  }
   fireEvent.change(screen.getByRole("combobox", { name: "비교 기준" }), { target: { value: "증감률" } });
   fetch.mockResolvedValueOnce(json({ detail: {
-    code: "public_data_busy", message: "현재 실제 자료 조회 요청이 많습니다.", field_errors: {},
-  } }, 429));
+    code, message: "현재 실제 자료를 조회할 수 없습니다.", field_errors: {},
+  } }, status));
   fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
-  expect((await screen.findByRole("alert")).textContent).toContain("조회 요청이 많습니다");
+  expect((await screen.findByRole("alert")).textContent).toContain("조회할 수 없습니다");
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
   expect(screen.getByRole<HTMLSelectElement>("combobox", { name: "조회 자료" }).value).toBe("live");
   expect(fetch).toHaveBeenCalledTimes(3);
   fireEvent.click(screen.getByRole("button", { name: "저장 자료로 조건 다시 확인" }));
@@ -152,9 +160,12 @@ test("live error preserves edits; selecting snapshot only prepares and requires 
   const prepared = JSON.parse(String(fetch.mock.calls[3][1]?.body)) as PlanRequest;
   expect(prepared.mode).toBe("snapshot");
   expect(prepared.interpretation_method).toBe("mock_rules");
-  expect(prepared.conditions).toMatchObject({ entity: "수도권 시·도", period: "2021-2024", comparison: "증감률" });
-  expect(screen.getByRole<HTMLInputElement>("textbox", { name: "기간" }).value).toBe("2021-2024");
-  expect(screen.getByText(/전환하기 전 실제 조회 안내/).textContent).toContain("조회 요청이 많습니다");
+  expect(prepared.conditions).toMatchObject({
+    entity: source === "kosis" ? "수도권 시·도" : "삼성전자",
+    period: source === "kosis" ? "2021-2024" : "2022-2024", comparison: "증감률",
+  });
+  expect(screen.getByRole<HTMLInputElement>("textbox", { name: "기간" }).value).toBe(prepared.conditions!.period);
+  expect(screen.getByText(/전환하기 전 실제 조회 안내/).textContent).toContain("조회할 수 없습니다");
   expect(screen.getByText(/기존 입력 조건을 유지했습니다/)).toBeTruthy();
   expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
   const review = await approve();
@@ -183,6 +194,47 @@ test("snapshot condition edits hide results and reapproval compares saved result
   fireEvent.change(screen.getByRole("textbox", { name: "질문 입력" }), { target: { value: "다른 고용 질문" } });
   expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
   expect(screen.queryByLabelText("승인 전 저장 자료 안내")).toBeNull();
+});
+
+test.each(["kosis", "opendart"] as const)("%s stops when both live and snapshot preparation fail", async (source) => {
+  const fetch = setup(source, "live");
+  await plan();
+  fetch.mockResolvedValueOnce(json({ detail: {
+    code: `${source}_timeout`, message: "실제 조회 시간이 초과됐습니다.", field_errors: {},
+  } }, 503));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  await screen.findByRole("alert");
+  fetch.mockResolvedValueOnce(json({ detail: {
+    code: "snapshot_unavailable", message: "저장 자료를 확인할 수 없습니다. 운영자에게 문의해 주세요.", field_errors: {},
+  } }, 503));
+  fireEvent.click(screen.getByRole("button", { name: "저장 자료로 조건 다시 확인" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("저장 자료를 확인할 수 없습니다");
+  expect(screen.getByText(/전환하기 전 실제 조회 안내/).textContent).toContain("실제 조회 시간이 초과");
+  expect(screen.queryByRole("article", { name: "근거 기반 브리핑" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "이 결과의 실습 검토" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "이 조건으로 조회" })).toBeNull();
+  expect(screen.getByRole<HTMLSelectElement>("combobox", { name: "조회 자료" }).value).toBe("snapshot");
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+test("late recovery preview cannot restore old conditions after the question changes", async () => {
+  const fetch = setup("kosis", "live");
+  await plan();
+  fetch.mockResolvedValueOnce(json({ detail: {
+    code: "kosis_timeout", message: "조회 시간이 초과됐습니다.", field_errors: {},
+  } }, 503));
+  fireEvent.click(screen.getByRole("button", { name: "이 조건으로 조회" }));
+  await screen.findByRole("alert");
+  let finish!: (response: Response) => void;
+  fetch.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  fireEvent.click(screen.getByRole("button", { name: "저장 자료로 조건 다시 확인" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "질문 입력" }), { target: { value: "다른 고용 질문" } });
+  await act(async () => finish(json({ ...planned("kosis"), conditions_preserved: true })));
+  expect(screen.queryByLabelText("승인 전 저장 자료 안내")).toBeNull();
+  expect(screen.queryByRole("button", { name: "이 조건으로 조회" })).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByText(/전환하기 전 실제 조회 안내/)).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(3);
 });
 
 test.each(["mode", "id", "source", "time", "evidence_time", "missing", "cache"])("mismatched snapshot %s never appears as an approved result", async (change) => {

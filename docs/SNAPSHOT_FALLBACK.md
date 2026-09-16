@@ -137,5 +137,7 @@ JSON을 wheel/sdist에 포함하며 기존 Dockerfile의 `COPY apps/api/src`에�
 후속 **행사용 접근코드**는 [접근 계약](WORKSHOP_ACCESS.md)으로 완료했습니다.
 저장 자료도 같은 요청별 코드 검사를 거칩니다. [요청 ID·구조화 로그](REQUEST_LOGGING.md)도
 완료했습니다. [읽기 전용 실습 운영 상태 화면](OPERATIONS_STATUS.md)에서 파일 사용 가능
-여부·범위·원래 시각을 확인할 수 있습니다. 다음은 기관 stage 배포 준비입니다. 기관 Secret Manager·
-Cloud Run stage 배포, 분산 호출 정책, 30명 부하 시험과 실제 행사 장애 리허설은 남아 있습니다.
+여부·범위·원래 시각을 확인할 수 있습니다. [개인 임시 stage](STAGE_SMOKE_TEST.md),
+[30명 단기 부하 시험](STAGE_LOAD_TEST.md), [장애·저장 자료 전환 리허설](FALLBACK_REHEARSAL.md)도
+완료했습니다. 마지막 검증은 로컬 모의 장애와 stage 비활성 경로로 한정합니다.
+기관 전환·실제 공급자 클라우드 연결과 장애·행사 조건의 부하 확인·분산 호출 정책은 남아 있습니다.
