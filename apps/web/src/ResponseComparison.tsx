@@ -1,6 +1,9 @@
 import type { ExecutionResponse } from "./types";
 
-export function ResponseComparison({ result }: { result: ExecutionResponse }) {
+export function ResponseComparison({ result, reviewProgress }: {
+  result: ExecutionResponse;
+  reviewProgress: string;
+}) {
   const { brief, evidence, general_response: general, question, calculation } = result;
   const rows = [
     ["조회 조건", "구체적인 조회 조건을 제시하지 않음", "참가자가 수정·승인한 조건 표시"],
@@ -47,7 +50,8 @@ export function ResponseComparison({ result }: { result: ExecutionResponse }) {
           <h4>추가 취재 질문</h4>
           <ul>{brief.follow_up_questions.map((item) => <li key={item}>{item}</li>)}</ul>
           <a className="evidence-link" href="#evidence-title">승인된 조회 조건과 계산 근거 보기</a>
-          <span className="review-status">사람 검토 필요</span>
+          <a className="review-progress" href="#review-title">{reviewProgress}</a>
+          <p className="field-help">실습 검토 표시이며, 사실 검증 완료나 기사 사용 승인이 아닙니다.</p>
         </article>
       </div>
 

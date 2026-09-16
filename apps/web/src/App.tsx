@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   conditionErrors, conditionLabels, conditionValue, editableConditions, sourceLabel, updateCondition,
 } from "./conditions";
-import { ResponseComparison } from "./ResponseComparison";
+import { ReviewSession } from "./ReviewSession";
 import { CalculationTable } from "./CalculationTable";
 import type {
   ApiErrorDetail, ExecuteRequest, ExecutionResponse, PlanRequest, PlanResponse, QueryConditions,
@@ -247,8 +247,7 @@ function App() {
           </section>
 
           {result && (
-            <>
-              <ResponseComparison result={result} />
+            <ReviewSession key={result.request_id} result={result}>
               <section className="card evidence-card" aria-labelledby="evidence-title">
                 <p className="step">04 · 자료와 계산 근거</p>
                 <h2 id="evidence-title">{result.evidence.source_name}</h2>
@@ -269,7 +268,7 @@ function App() {
                 <ul>{result.evidence.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
                 <span className="data-mode">{result.calculation ? "가상 수치 계산 · 공식 통계 아님" : "모의 자료 · 실제 조회 전"}</span>
               </section>
-            </>
+            </ReviewSession>
           )}
         </div>
       )}

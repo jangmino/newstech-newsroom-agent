@@ -1,4 +1,4 @@
-.PHONY: doctor setup dev-api dev-web lint test typecheck build check docker-build
+.PHONY: doctor setup dev-api dev-web lint test test-web typecheck build check docker-build
 
 doctor:
 	@./scripts/doctor.sh
@@ -19,6 +19,9 @@ lint:
 test:
 	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv run pytest
 
+test-web:
+	pnpm --dir apps/web test
+
 typecheck:
 	pnpm --dir apps/web typecheck
 
@@ -26,7 +29,7 @@ build:
 	pnpm --dir apps/web build
 	cd apps/api && UV_CACHE_DIR=../../.cache/uv uv build
 
-check: lint test typecheck build
+check: lint test test-web typecheck build
 
 docker-build:
 	docker build -f infra/Dockerfile -t newstech-newsroom-agent:local .

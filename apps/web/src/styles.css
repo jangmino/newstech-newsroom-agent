@@ -94,6 +94,17 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .calculation-table th, .calculation-table td { padding: 12px; text-align: left; border-top: 1px solid #e7ecf3; vertical-align: top; }
 .calculation-table td:last-child { max-width: 240px; }
 
+.human-review { grid-column: 1 / -1; }
+.card .review-progress { display: inline-block; padding: 8px 12px; border-radius: 10px; color: #174eaf; background: #eaf1ff; font-weight: 750; line-height: 1.6; }
+.response-card .review-progress { margin: auto 0 8px; text-underline-offset: 3px; }
+.review-checklist { min-width: 0; border: 0; padding: 0; margin: 20px 0; }
+.review-checklist legend { font-weight: 750; padding: 0; margin-bottom: 12px; }
+.review-item { display: flex; gap: 14px; align-items: flex-start; padding: 16px; margin-bottom: 10px; border: 1px solid #dce4ee; border-radius: 12px; cursor: pointer; line-height: 1.6; }
+.review-item input { flex: 0 0 auto; width: 20px; height: 20px; margin: 3px 0 0; accent-color: #2762d9; }
+.review-item input:focus-visible { outline: 3px solid rgba(39, 98, 217, 0.35); outline-offset: 3px; }
+.review-item span span { display: block; margin-top: 4px; color: #506077; font-weight: 400; }
+.human-review .notice { color: #674d00; }
+
 @media (max-width: 760px) {
   .shell { width: min(100% - 20px, 680px); padding-top: 20px; }
   .topbar { align-items: flex-start; flex-direction: column; }

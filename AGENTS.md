@@ -65,6 +65,7 @@ make doctor       # tool and configuration check
 make dev-api      # FastAPI at :8000
 make dev-web      # Vite at :5173
 make test         # backend tests
+make test-web     # frontend behavior tests with mocked responses
 make typecheck    # frontend TypeScript check
 make build        # frontend and backend package checks
 make check        # all local validation
