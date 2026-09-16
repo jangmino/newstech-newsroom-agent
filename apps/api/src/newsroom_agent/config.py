@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     google_cloud_project: str = ""
     google_cloud_location: str = "asia-northeast3"
 
-    opendart_api_key: str = ""
+    opendart_api_key: str = Field(default="", repr=False)
     kosis_api_key: str = ""
 
     requests_per_minute: int = Field(default=30, ge=1, le=300)

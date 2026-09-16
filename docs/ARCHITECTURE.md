@@ -171,6 +171,19 @@ Gemini 요청은 JSON Schema와 고정 system instruction을 사용하며 검색
 설정·요청량·실제 호출 미검증 범위는 [ADR 0004](decisions/0004-gemini-planning-with-mock-evidence.md)를 따릅니다.
 후속 로컬 실제 호출 네 건의 결과와 남은 검증 범위는 [확인 기록](GEMINI_SMOKE_TEST.md)에 있습니다.
 
+## M2 OpenDART 매출액 어댑터 준비
+
+`providers/opendart.py`는 두 연도의 연간 연결 매출액을 순차 조회하는 내부 어댑터입니다.
+`opendart_financials.py`는 회사·연도·보고서·계정·통화·금액을 결정론적으로 검증하고
+원문 링크와 조회 시각을 남깁니다. 어댑터는 명시적 활성화가 필요하며 현재 공개 API와
+연결하지 않습니다. 모의 전송 검증만 완료했고 실제 자료·화면은 아직 mock입니다.
+
+재시도·리다이렉트·환경 프록시를 사용하지 않고 키 포함 URL이나 원래 오류를 노출하지
+않습니다. 요청별 HTTP/전체 수신 시간 제한과 응답 크기 상한을 적용합니다. 첫 요청 또는
+두 번째 요청의 실패 시 부분 결과를 반환하지 않습니다. 공공데이터를 모델이 계산하거나
+검증된 기사로 승인하게 하지 않습니다. [내부 계약](OPENDART_REVENUE.md)과
+[ADR 0005](decisions/0005-opendart-annual-revenue-adapter.md)를 참고합니다.
+
 ## 추후 추가할 운영 장치
 
 - 프로세스 내부 동시 실행 제한
