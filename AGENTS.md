@@ -20,9 +20,10 @@ Use `git status --short` before edits. Preserve user changes and do not overwrit
 ## Current phase
 
 - Phase: M3 event readiness; M1 and constrained M2 flows are complete.
-- Current priority: preserve the existing guided workflow as Part 1 and implement the approved
-  Part 2 research planning, wider OpenDART companies/metrics, and grounded Gemini briefing
-  before final live load testing. Follow ADR 0017 and the current CODEX_HARNESS priority.
+- Part 1 guided workflow and the approved Part 2 research planning, wider OpenDART
+  companies/metrics, and grounded Gemini briefing are implemented. Current priority:
+  staged live load validation including Part 2 call budgets. Follow ADR 0017,
+  RESEARCH_VALIDATION.md, and the current CODEX_HARNESS priority.
 - Live Gemini, OpenDART, and KOSIS calls are off by default.
 - Preserve the mock flow and explicit approval before live data access, including cache reuse.
 - Do not deploy or enable billing unless the user explicitly asks.
