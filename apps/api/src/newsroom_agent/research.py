@@ -413,7 +413,7 @@ def calculated_facts(
                 return difference / before if c.comparison == "증감률" else difference
 
             ordered = sorted(changes, key=raw_change, reverse=True)
-            for fact in changes:
+            for fact in changes if len(changes) > 1 else []:
                 fact.rank = next(
                     i + 1 for i, row in enumerate(ordered) if raw_change(row) == raw_change(fact)
                 )

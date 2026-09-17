@@ -171,6 +171,7 @@ def test_kosis_single_region_plan_and_exact_query(client):
     assert plan["conditions"]["entity"] == "서울특별시"
     result = client.post("/api/v1/research/execute", json=execute_body(plan)).json()
     assert {f["entity"] for f in result["facts"]} == {"서울특별시"}
+    assert all(f["rank"] is None for f in result["facts"])
     query = EmploymentQuery(
         entity="서울특별시",
         metric="고용률",
