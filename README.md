@@ -129,7 +129,7 @@ dotenv 로딩과 실제 요청을 차단합니다.
 | 단계 | 모델·인프라 소유자 | 데이터 방식 | 목적 |
 |---|---|---|---|
 | local | 개발자 개인 | mock 우선, 개인 키로 제한적 실험 | 기능 개발 |
-| 임시 stage | 개발자 개인, 사용자 승인 | mock·공식 저장 자료, Secret Manager 접근코드 | 기관 계정 전 배포 검증 |
+| 개인 stage | 개발자 개인, 사용자 승인 | Gemini·OpenDART·KOSIS live, mock·공식 저장 자료, Secret Manager | 실제 연결·부하·리허설 검증 |
 | stage | 건국대학교·주최 측 | 기관 키 + 저장 자료 fallback | 부하 시험·리허설 |
 | event | 건국대학교·주최 측 | 기관 키 + 모니터링 + fallback | 워크숍 운영 |
 
@@ -152,14 +152,15 @@ M3 캐시·동일 요청 합치기·프로세스 내부 호출 제한·명시적
 [읽기 전용 실습 운영 상태 화면](docs/OPERATIONS_STATUS.md)도 완료했습니다. 제목 아래
 ‘실습 운영 상태 보기’에서 외부 호출 없이 설정·저장 파일·캐시/호출 한도를 확인합니다.
 [개인 임시 stage](docs/STAGE_SMOKE_TEST.md)도 Cloud Run·Secret Manager·비용 알림과 함께
-배포했습니다. 현재 stage의 실제 공급자는 꺼져 있으며 mock·저장 자료로 확인했습니다.
+배포했습니다. 첫 배포는 mock·저장 자료로 확인했고, 후속 사용자 승인으로
+[개인 stage의 Gemini·OpenDART·KOSIS 실제 연결](docs/STAGE_LIVE_TEST.md)을 확인했습니다.
+기존 stage URL에서 ‘Gemini · 실제 모델’과 ‘공식 실제 자료’를 선택하여 사용할 수 있습니다.
 [30명 단기 API 부하 시험](docs/STAGE_LOAD_TEST.md)도 766개 요청으로 통과했습니다.
 [장애·저장 자료 전환 리허설](docs/FALLBACK_REHEARSAL.md)도 모의 장애와 stage 비활성 경로로
 완료했습니다. [운영자 가이드](docs/OPERATOR_GUIDE.md)와
 [행사 시작·중단·종료 점검표](docs/EVENT_CHECKLIST.md)도 준비했습니다. 점검표는 미실행 양식이며
-행사별 확인 결과를 별도로 기록합니다. 다음 최소 단위는 stage Gemini 질문 해석의 Secret 연결과
-소규모 실제 확인입니다. 공공자료는 mock을 유지하며 공급자별로 나누어 검증합니다.
-기관 환경 재배포·실제 공급자 Secret 연결·
-지속 부하와 행사장 확인·넓은 모델 품질 검증은 남아 있습니다.
+행사별 확인 결과를 별도로 기록합니다. 다음은 개인 stage에서 실제 모드의 단계적 부하 확인입니다.
+기관 계정·프로젝트 요청과 환경 이전은 마지막 인계 단계로 미루며, live 테스트는 개인 계정으로
+계속합니다. 지속 부하·행사장 확인·넓은 모델 품질 검증은 남아 있습니다.
 전체 진행 상태는 [로드맵](docs/ROADMAP.md)을 참고하십시오.
 가상 숫자로 비교 기준과 오류를 체험하는 방법은 [계산 실습 안내](fixtures/synthetic/README.md)를 참고하십시오.

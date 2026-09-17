@@ -102,6 +102,57 @@ def commands(config: dict[str, str], source: str, tag: str, digest: str | None) 
             "build": shlex.join(build), "deploy_private": shlex.join(deploy) if deploy else None}
 
 
+def load_provider_secrets(path: Path) -> dict[str, dict[str, str]]:
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict) or set(value) != {
+        "GEMINI_API_KEY", "OPENDART_API_KEY", "KOSIS_API_KEY",
+    }:
+        raise ValueError("Provide exactly three provider Secret references")
+    for reference in value.values():
+        if (not isinstance(reference, dict) or set(reference) != {"secret", "version"}
+            or not isinstance(reference["secret"], str)
+            or not re.fullmatch(CONFIG_PATTERNS["access_secret"], reference["secret"])
+            or not isinstance(reference["version"], str)
+            or not re.fullmatch(CONFIG_PATTERNS["access_secret_version"], reference["version"])):
+            raise ValueError("Use Secret names and numeric versions only")
+    if len({item["secret"] for item in value.values()}) != 3:
+        raise ValueError("Provider Secrets must be distinct")
+    return value
+
+
+def live_commands(config, secrets, digest, suffix, rollback_revision):
+    base = commands(config, ".cache/unused", "unused", digest)
+    if digest is None or not re.fullmatch(r"[a-z][a-z0-9-]{0,30}[a-z0-9]", suffix):
+        raise ValueError("Pinned image and explicit revision suffix are required")
+    revision = f"{config['service']}-{suffix}"
+    if (len(revision) > 63 or not re.fullmatch(
+        re.escape(config["service"]) + r"-[a-z0-9][a-z0-9-]{0,47}", rollback_revision,
+    ) or revision == rollback_revision):
+        raise ValueError("Use a distinct existing rollback revision of the same service")
+    if config["access_secret"] in {item["secret"] for item in secrets.values()}:
+        raise ValueError("Access and provider Secrets must be separate")
+    common = [config["service"], f"--account={config['account']}",
+              f"--project={config['project']}", f"--region={config['region']}"]
+    access_reference = f"{config['access_secret']}:{config['access_secret_version']}"
+    references = [f"WORKSHOP_ACCESS_CODE={access_reference}"]
+    references.extend(f"{key}={item['secret']}:{item['version']}" for key, item in secrets.items())
+    image = base["image_tag"].rsplit(":", 1)[0] + "@" + digest
+    candidate = ["gcloud", "run", "services", "update", *common, f"--image={image}",
+                 f"--service-account={base['runtime_identity']}",
+                 "--no-traffic", "--tag=live-check",
+                 f"--revision-suffix={suffix}", "--env-vars-file=infra/stage-live.env.yaml",
+                 "--set-secrets=" + ",".join(references)]
+    traffic = ["gcloud", "run", "services", "update-traffic", *common]
+    return {
+        "candidate_revision": revision, "rollback_revision": rollback_revision,
+        "deploy_candidate": shlex.join(candidate),
+        "promote": shlex.join([*traffic, f"--to-revisions={revision}=100",
+                               "--remove-tags=live-check"]),
+        "rollback": shlex.join([*traffic, f"--to-revisions={rollback_revision}=100",
+                                "--remove-tags=live-check"]),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -112,10 +163,21 @@ def main() -> None:
     plan.add_argument("--source", default=".cache/stage-source")
     plan.add_argument("--tag", required=True)
     plan.add_argument("--image-digest")
+    live = sub.add_parser("live-plan", help="Print opt-in candidate/promotion/rollback commands")
+    live.add_argument("--config", type=Path, required=True)
+    live.add_argument("--provider-secrets", type=Path, required=True)
+    live.add_argument("--image-digest", required=True)
+    live.add_argument("--revision-suffix", required=True)
+    live.add_argument("--rollback-revision", required=True)
     args = parser.parse_args()
     try:
         if args.action == "package":
             print(json.dumps({"build_files": prepare_source(ROOT, args.output)}))
+        elif args.action == "live-plan":
+            print(json.dumps(live_commands(
+                load_config(args.config), load_provider_secrets(args.provider_secrets),
+                args.image_digest, args.revision_suffix, args.rollback_revision,
+            ), indent=2))
         else:
             print(json.dumps(commands(load_config(args.config), args.source, args.tag,
                                       args.image_digest), indent=2))

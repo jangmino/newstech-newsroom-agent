@@ -38,3 +38,7 @@ Cloud Run 외 Cloud Build·Artifact Registry·Secret Manager·로그/네트워�
 2026-09-17 사용자가 개인 결제 연결·월 1만원 비용 알림·공개 URL과 접근코드 구성을 승인했다.
 Cloud Build·Secret Manager·Cloud Run의 생성·배포·mock/snapshot 확인을 완료했다.
 [실제 확인 기록](../STAGE_SMOKE_TEST.md)을 참고한다.
+
+2026-09-17 후속 승인으로 개인 stage의 Gemini·OpenDART·KOSIS live 검증도 진행한다.
+기관 계정 요청·이전은 마지막 인계 단계로 미룬다. 첫 배포의 mock 한정과 로컬 키 미복사
+규칙은 첫 배포 기록이며, 후속 Secret 연결·개인 환경 live 검증은 [ADR 0016](0016-personal-stage-live-validation.md)을 따른다.

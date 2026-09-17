@@ -199,17 +199,22 @@ OpenDART는 두 연도를 조회하므로 정상 완료를 위해 분당 한도�
 유지해 전환하고 안내를 읽은 뒤 다시 승인합니다. 직접 Gemini 분석을 선택하면 질문 해석만
 별도 외부 호출합니다. [지원 범위·재승인·검증](SNAPSHOT_FALLBACK.md)을 참고하십시오.
 
-## 임시 개인 Stage
+## 개인 Stage — live 검증 포함
 
-기관 계정이 아직 준비되지 않아 사용자 승인으로 개인 GCP의 전용 프로젝트를 먼저
-사용합니다. 기존 업무 프로젝트와 분리하며 개인 결제·서울 리전·요청 기반 과금·최소 0/
+사용자 승인으로 개발·live 검증에 개인 GCP의 전용 프로젝트를 사용합니다. 기관 계정 요청은
+마지막 인계 단계로 미룹니다. 기존 업무 프로젝트와 분리하며 개인 결제·서울 리전·요청 기반 과금·최소 0/
 리비전 최대 1·1 CPU/512 MiB·동시 8·월 1만원 비용 알림으로 한정합니다.
-공개 입장 화면과 공유 접근코드를 사용하며 첫 배포는 mock·공식 저장 자료만 허용합니다.
-공급자 키는 복사하지 않고 접근코드만 개인 Secret Manager에서 고정 버전으로 주입합니다.
-이는 기관 소유 원칙의 임시 예외이며 행사 전 기관 환경으로 교체합니다.
+공개 입장 화면과 공유 접근코드를 사용하며 첫 배포는 mock·공식 저장 자료로 확인했습니다.
+후속 승인으로 기존 개인 Gemini/OpenDART/KOSIS 키도 개인 Secret Manager에 연결했습니다.
+접근코드와 공급자별 숫자 버전을 고정하고 런타임에 개별 Secret 읽기 권한만 부여합니다.
+기관 이전·행사 운영 소유자와 책임은 마지막 인계 단계에서 확정합니다.
 [결정](decisions/0015-temporary-personal-stage.md), [배포·이전 절차](STAGE_DEPLOYMENT.md)를 따릅니다.
 2026-09-17 Cloud Run 배포·접근코드 보호·mock/저장 자료의 승인 실행을 확인했습니다.
 [실제 구성과 검증 기록](STAGE_SMOKE_TEST.md)을 참고하십시오.
+후속 live 연결은 [ADR 0016](decisions/0016-personal-stage-live-validation.md)과
+[stage 실제 확인 기록](STAGE_LIVE_TEST.md)을 따릅니다. `infra/stage-live.env.yaml`은 별도
+명시적 live 설정이며 기본 `infra/stage.env.yaml`은 mock으로 유지합니다. 기존 live off
+부하/리허설 도구는 live stage를 거부하므로 `scripts/stage_live.py --allow-live`를 사용합니다.
 
 ## 기관 Stage
 

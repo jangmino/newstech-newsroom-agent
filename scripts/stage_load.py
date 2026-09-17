@@ -72,11 +72,12 @@ def summarize(records):
 
 
 class LoadCheck:
-    def __init__(self, client, code, *, pause=0.25, deadline=120):
+    def __init__(self, client, code, *, pause=0.25, deadline=120, request_timeout=15):
         self.client = client
         self.code = code
         self.pause = pause
         self.deadline = deadline
+        self.request_timeout = request_timeout
         self.records = []
         self.request_ids = set()
         self.inflight = 0
@@ -91,7 +92,7 @@ class LoadCheck:
         try:
             # No default authentication headers: the no-code probe must really omit the code.
             headers = {"X-Workshop-Code": self.code} if authenticated else {}
-            async with asyncio.timeout(15):
+            async with asyncio.timeout(self.request_timeout):
                 response = await self.client.request(method, path, json=body, headers=headers)
             row["status"] = response.status_code
             require(response.status_code == expected, "unexpected_http_status")

@@ -51,8 +51,10 @@ OpenDART와 KOSIS 모두 실제 자료 선택·조건 승인 뒤에만 조회합
 완료했습니다. [30명 단기 API 부하 시험](STAGE_LOAD_TEST.md)도 mock/저장 자료로 통과했습니다.
 [장애·저장 자료 전환 리허설](FALLBACK_REHEARSAL.md)도 로컬 모의 장애와 stage 비활성 경로로
 완료했습니다. [운영자 가이드](OPERATOR_GUIDE.md)와 [미실행 행사 점검표](EVENT_CHECKLIST.md)도
-작성했습니다. 다음 최소 단위는 **stage Gemini 질문 해석의 Secret 연결·소규모 실제 확인**입니다.
-공공자료는 mock을 유지하며 OpenDART/KOSIS stage 연결은 이후 공급자별로 확인합니다.
+작성했습니다. [개인 stage의 Gemini 해석+실제 공공자료 연결](STAGE_LIVE_TEST.md)도
+Secret Manager·조건 승인·캐시·명시적 저장 자료 전환까지 소규모로 확인했습니다.
+다음 최소 단위는 **개인 stage의 단계적 live 부하 확인**입니다. 기관 계정·프로젝트 요청과
+환경 이전은 마지막 인계 단계로 미루며 개발·live 시험은 개인 계정에서 계속합니다.
 
 ## M3 — Event readiness
 
@@ -63,17 +65,18 @@ OpenDART와 KOSIS 모두 실제 자료 선택·조건 승인 뒤에만 조회합
 - [x] 요청 ID·구조화 로그·오류 문의 번호
 - [x] 읽기 전용 실습 운영 상태 화면 (설정·저장 파일·프로세스 한도, 외부 호출 없음)
 - [x] 개인 임시 stage 배포 (전용 프로젝트·Secret Manager·비용 알림·mock/저장 자료)
-- [ ] 기관 stage로 재배포·기관 키 전환
-- [ ] stage 실제 공급자 Secret 연결·소규모 live 확인
+- [x] 개인 stage 실제 공급자 Secret 연결·소규모 live 확인 (Gemini 해석+OpenDART/KOSIS 승인 조회)
 - [x] 30명 단기 API 부하 시험 (mock/저장 자료, 766회 요청)
 - [ ] 행사 조건의 부하 확인 (live·지속 사용·동시 최초 입장·행사장 브라우저)
 - [x] 장애·snapshot fallback 리허설 (로컬 모의 장애·stage 비활성 경로, 실제 공급자 장애 제외)
 - [x] 운영자 가이드·시작/중단/종료 점검표 (절차 작성, 실제 행사 운영 기록은 별도)
+- [ ] 마지막 인계: 기관 계정·프로젝트 요청, 운영 책임 확정, 기관 환경·키 전환
 
 Gemini와 공공자료에는 각각 프로세스 내부 한도를 적용했습니다. 여러 인스턴스를 포함한 행사
 전체의 제한·인스턴스 간 정책·부하 검증은 위 항목의 남은 범위입니다.
 [캐시 검증](PUBLIC_DATA_CACHE.md)의 30개 동시 작업 검사는 행사 부하 시험을 대신하지 않습니다.
 [호출 제한 계약·검증](PUBLIC_DATA_LIMITS.md)에 HTTP 계산 단위와 적용 범위를 기록합니다.
 stage는 프론트엔드 정적 빌드와 FastAPI를 단일 Cloud Run 서비스로 제공합니다.
-현재 개인 임시 stage는 [ADR 0015](decisions/0015-temporary-personal-stage.md)의 승인된 예외입니다.
-행사는 기관/주최 측 프로젝트·자격증명과 Secret Manager로 교체한 뒤 진행합니다.
+현재 개인 stage와 live 검증은 [ADR 0015](decisions/0015-temporary-personal-stage.md),
+[ADR 0016](decisions/0016-personal-stage-live-validation.md)의 승인된 범위입니다.
+기관 이전과 행사 운영 소유자·책임 확정은 마지막 인계 단계에서 진행합니다.

@@ -138,3 +138,73 @@ def test_stage_settings_keep_access_required_and_providers_off():
         assert settings[key] == "false"
     assert settings["FALLBACK_SNAPSHOT_ENABLED"] == "true"
     assert not any("KEY" in key or "CODE" in key for key in settings)
+
+
+def test_live_plan_pins_image_and_four_secrets_without_changing_public_access():
+    config = stage.load_config(ROOT / "infra/stage-config.example.json")
+    references = stage.load_provider_secrets(ROOT / "infra/stage-live-secrets.example.json")
+    result = stage.live_commands(config, references, "sha256:" + "a" * 64,
+                                 "live-test", "newsroom-stage-old")
+    candidate = shlex.split(result["deploy_candidate"])
+    assert "--no-traffic" in candidate and "--tag=live-check" in candidate
+    assert "--env-vars-file=infra/stage-live.env.yaml" in candidate
+    assert not any("unauthenticated" in arg for arg in candidate)
+    identity = "newsroom-runtime@your-stage-project.iam.gserviceaccount.com"
+    assert f"--service-account={identity}" in candidate
+    bindings = next(arg for arg in candidate if arg.startswith("--set-secrets=")).split(",")
+    assert len(bindings) == 4 and all(binding.endswith(":1") for binding in bindings)
+    for name in ("deploy_candidate", "promote", "rollback"):
+        args = shlex.split(result[name])
+        assert "--account=developer@example.com" in args and "--region=asia-northeast3" in args
+        assert "--project=your-stage-project" in args
+    assert "--to-revisions=newsroom-stage-live-test=100" in shlex.split(result["promote"])
+    assert "--to-revisions=newsroom-stage-old=100" in shlex.split(result["rollback"])
+    assert "--remove-tags=live-check" in shlex.split(result["rollback"])
+
+
+@pytest.mark.parametrize("mutation", ["extra", "missing", "latest", "value", "duplicate", "inject"])
+def test_live_secret_references_reject_values_and_unsafe_names(tmp_path, mutation):
+    value = json.loads((ROOT / "infra/stage-live-secrets.example.json").read_text())
+    if mutation == "extra":
+        value["OTHER_KEY"] = {"secret": "other", "version": "1"}
+    elif mutation == "missing":
+        del value["KOSIS_API_KEY"]
+    elif mutation == "latest":
+        value["GEMINI_API_KEY"]["version"] = "latest"
+    elif mutation == "value":
+        value["GEMINI_API_KEY"]["value"] = "must-not-be-a-key-value"
+    elif mutation == "duplicate":
+        value["KOSIS_API_KEY"] = value["OPENDART_API_KEY"]
+    else:
+        value["GEMINI_API_KEY"]["secret"] = "secret,OTHER=value"
+    path = tmp_path / "refs.json"
+    path.write_text(json.dumps(value))
+    with pytest.raises(ValueError):
+        stage.load_provider_secrets(path)
+
+
+@pytest.mark.parametrize("digest,suffix,rollback", [
+    (None, "live-test", "newsroom-stage-old"),
+    ("latest", "live-test", "newsroom-stage-old"),
+    ("sha256:" + "a" * 64, "bad suffix", "newsroom-stage-old"),
+    ("sha256:" + "a" * 64, "live-test", "different-service-old"),
+    ("sha256:" + "a" * 64, "live-test", "newsroom-stage-live-test"),
+])
+def test_live_plan_rejects_unpinned_image_or_invalid_recovery(digest, suffix, rollback):
+    config = stage.load_config(ROOT / "infra/stage-config.example.json")
+    references = stage.load_provider_secrets(ROOT / "infra/stage-live-secrets.example.json")
+    with pytest.raises(ValueError):
+        stage.live_commands(config, references, digest, suffix, rollback)
+
+
+def test_live_profile_is_separate_and_keeps_limits_snapshot_and_no_credentials():
+    settings = dict(line.split(": ", 1) for line in (ROOT / "infra/stage-live.env.yaml")
+                    .read_text().splitlines() if line and not line.startswith("#"))
+    settings = {key: json.loads(value) for key, value in settings.items()}
+    assert settings["APP_ENV"] == "stage" and settings["PUBLIC_DATA_MODE"] == "live"
+    for key in ("LIVE_API_ENABLED", "GEMINI_PLANNER_ENABLED", "OPENDART_ENABLED", "KOSIS_ENABLED",
+                "FALLBACK_SNAPSHOT_ENABLED", "PUBLIC_DATA_CACHE_ENABLED"):
+        assert settings[key] == "true"
+    assert settings["GEMINI_AUTH_MODE"] == "api_key"
+    assert settings["REQUESTS_PER_MINUTE"] == settings["PUBLIC_DATA_REQUESTS_PER_MINUTE"] == "30"
+    assert not any("KEY" in key or "CODE" in key for key in settings)

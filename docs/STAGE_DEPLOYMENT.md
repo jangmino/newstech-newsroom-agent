@@ -1,7 +1,8 @@
 # 임시 개인 stage 배포와 기관 전환
 
 [ADR 0015](decisions/0015-temporary-personal-stage.md)에 따라 기관 계정이 준비될 때까지
-개인 GCP의 전용 프로젝트에서 배포를 검증합니다. 기관 행사 환경으로의 전환은 별도입니다.
+개인 GCP의 전용 프로젝트에서 배포를 검증합니다. 후속 [ADR 0016](decisions/0016-personal-stage-live-validation.md)으로
+개인 환경 live 시험도 승인됐으며 기관 계정 요청·환경 전환은 마지막 인계 단계로 미룹니다.
 이 문서는 계정·프로젝트 ID·결제 ID·접근코드 값을 보관하지 않습니다.
 
 ## 첫 stage의 범위
@@ -97,6 +98,9 @@ python3 scripts/stage.py plan --config infra/stage-config.local.json \
 비공개 유지 시 Google IAM을 통과하는 `gcloud run services proxy`로 확인합니다.
 
 ## 배포 후 확인과 비용
+
+아래는 첫 mock 배포의 확인 기준입니다. 현재 live stage의 설정·Secret 참조·후보 배포·
+트래픽 전환·복귀·검증은 [실제 연결 확인](STAGE_LIVE_TEST.md)을 따릅니다.
 
 - 공개 UI·정적 파일·`/health`가 열리고 `/api/v1/access`가 `{required:true, available:true}`인지 확인.
 - 코드 없는 분석·실행·운영 상태·OpenAPI 요청이 401인지 확인.
