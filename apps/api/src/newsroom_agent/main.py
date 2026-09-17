@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
@@ -53,6 +54,13 @@ from newsroom_agent.request_logging import (
     configure_request_logging,
     record_error,
 )
+from newsroom_agent.research import ResearchError, ResearchService
+from newsroom_agent.research_models import (
+    ResearchExecuteRequest,
+    ResearchExecutionResponse,
+    ResearchPlanRequest,
+    ResearchPlanResponse,
+)
 from newsroom_agent.workshop_access import WorkshopAccessMiddleware, access_status
 
 settings = get_settings()
@@ -68,11 +76,17 @@ async def lifespan(app: FastAPI):
     app.state.revenue_cache = PublicDataCache[RevenuePair](
         settings.cache_ttl_seconds, settings.cache_max_entries,
     )
+    app.state.research_metadata_cache = PublicDataCache(86400, settings.cache_max_entries)
+    app.state.research_data_cache = PublicDataCache(
+        settings.cache_ttl_seconds, settings.cache_max_entries,
+    )
     try:
         yield
     finally:
         await app.state.employment_cache.close()
         await app.state.revenue_cache.close()
+        await app.state.research_metadata_cache.close()
+        await app.state.research_data_cache.close()
         get_public_data_limiter.cache_clear()
 
 
@@ -148,7 +162,8 @@ def analyze(request: AnalysisRequest) -> AnalysisResponse:
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
     record_error("invalid_request")
-    if request.url.path not in {"/api/v1/plan", "/api/v1/execute"}:
+    if request.url.path not in {"/api/v1/plan", "/api/v1/execute",
+                                "/api/v1/research/plan", "/api/v1/research/execute"}:
         return await request_validation_exception_handler(request, exc)
     messages = {
         "question": "질문을 3자 이상 1,000자 이하로 입력해 주세요.",
@@ -156,6 +171,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
         "snapshot_id": "저장 자료 안내를 다시 확인한 뒤 해당 조건으로 승인해 주세요.",
         "approved": "조건을 확인한 뒤 ‘이 조건으로 조회’를 눌러 주세요.",
         "interpretation_method": "모의 규칙 또는 Gemini 중 질문 해석 방식을 선택해 주세요.",
+        "briefing_method": "모의 문장 또는 Gemini 중 브리핑 작성 방식을 선택해 주세요.",
     }
     errors = {}
     for error in exc.errors():
@@ -404,6 +420,87 @@ def require_live_source(source: str) -> None:
             "code": "live_disabled", "message": "공식 실제 자료 조회가 꺼져 있습니다.",
             "field_errors": {},
         })
+
+
+def get_research_service(request: Request) -> ResearchService:
+    from newsroom_agent.providers.opendart_research import OpenDartResearchClient
+
+    def limiter(source):
+        return get_public_data_limiter(source, settings.public_data_requests_per_minute,
+                                       settings.public_data_max_concurrent_requests)
+
+    def model(instruction, schema, briefing):
+        planner = get_question_planner(PlanRequest(
+            question="2부 실습", interpretation_method="gemini",
+        ))
+        planner.system_instruction = instruction
+        planner.output_schema = schema
+        planner.max_output_tokens = 4096 if briefing else settings.gemini_max_output_tokens
+        if briefing:
+            planner.enabled = settings.live_api_enabled and getattr(
+                settings, "gemini_briefing_enabled", False,
+            )
+        return planner
+
+    return ResearchService(
+        dart=lambda: OpenDartResearchClient(settings.opendart_api_key, enabled=True,
+                                            limiter=limiter("opendart")),
+        kosis=lambda: KosisClient(settings.kosis_api_key, enabled=True, limiter=limiter("kosis")),
+        model=model, require_source=require_live_source,
+        metadata_cache=request.app.state.research_metadata_cache,
+        data_cache=(request.app.state.research_data_cache
+                    if settings.public_data_cache_enabled else None),
+    )
+
+
+async def research_call(operation):
+    try:
+        async with asyncio.timeout(50):
+            return await operation
+    except TimeoutError:
+        raise HTTPException(status_code=503, detail={
+            "code": "research_timeout", "message": "조사 처리 시간이 길어 중단했습니다. "
+            "조회 기간을 줄이거나 잠시 후 다시 승인해 주세요.", "field_errors": {},
+        }) from None
+    except ResearchError as exc:
+        raise HTTPException(status_code=422, detail={
+            "code": "invalid_conditions", "message": str(exc), "field_errors": exc.field_errors,
+        }) from None
+    except (OpenDartError, KosisError) as exc:
+        provider = "kosis" if isinstance(exc, KosisError) else "opendart"
+        message = str(exc)
+        if isinstance(exc, OpenDartError) and exc.code in {
+            "missing_account", "ambiguous_account", "missing_value", "invalid_amount",
+        }:
+            message = "선택한 재무 항목을 정확히 확인하지 못했습니다. 계정 누락·중복·금액을 "
+            message += "공시 원문에서 확인하거나 지표·기간을 바꿔 다시 승인해 주세요."
+        raise HTTPException(status_code=429 if exc.code == "rate_limited" else 503, detail={
+            "code": f"{provider}_{exc.code}", "message": message, "field_errors": {},
+        }) from None
+    except PublicDataLimitError as exc:
+        raise HTTPException(status_code=429, detail={
+            "code": exc.code, "message": str(exc), "field_errors": {},
+            "retry_after_seconds": exc.retry_after_seconds,
+        }) from None
+    except (PlannerUnavailable, InvalidPlannerOutput):
+        raise HTTPException(status_code=503, detail={
+            "code": "planner_unavailable", "message": "Gemini 조사 계획을 확인하지 못했습니다. "
+            "설정·사용 한도를 확인하거나 잠시 후 다시 계획을 요청해 주세요. "
+            "입력 내용은 유지됩니다.",
+            "field_errors": {},
+        }) from None
+
+
+@app.post("/api/v1/research/plan", response_model=ResearchPlanResponse)
+async def research_plan(request: ResearchPlanRequest,
+                        service: Annotated[ResearchService, Depends(get_research_service)]):
+    return await research_call(service.plan(request))
+
+
+@app.post("/api/v1/research/execute", response_model=ResearchExecutionResponse)
+async def research_execute(request: ResearchExecuteRequest,
+                           service: Annotated[ResearchService, Depends(get_research_service)]):
+    return await research_call(service.execute(request))
 
 
 static_dir = Path("/app/static")

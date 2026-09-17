@@ -63,7 +63,7 @@ export interface ApiErrorDetail {
     | "invalid_live_data" | "live_disabled" | `opendart_${string}` | `kosis_${string}`
     | "public_data_rate_limited" | "public_data_busy" | "snapshot_disabled"
     | "snapshot_changed" | "snapshot_unavailable" | "invalid_snapshot_data"
-    | "workshop_access_required" | "workshop_access_unavailable" | "internal_error";
+    | "workshop_access_required" | "workshop_access_unavailable" | "internal_error" | "research_timeout";
   message: string;
   field_errors: Record<string, string>;
   source?: "kosis" | "opendart";
@@ -186,6 +186,7 @@ export interface OperationsStatus {
   checked_at: string;
   external_calls_made: false;
   providers: Record<"gemini" | "opendart" | "kosis", ProviderState>;
+  briefing?: ProviderState;
   snapshots: Record<"opendart" | "kosis", SnapshotStatus>;
   cache: { scope: "process"; enabled: boolean; ttl_seconds: number; max_entries_per_source: number };
   limits: {

@@ -23,7 +23,8 @@ def test_default_contract_has_no_evidence_and_uses_bundled_snapshots():
     assert response.headers["x-request-id"]
     body = response.json()
     assert set(body) == {"checked_at", "external_calls_made", "providers", "snapshots",
-                         "cache", "limits"}
+                         "cache", "limits", "briefing"}
+    assert body["briefing"] == "disabled"
     assert datetime.fromisoformat(body["checked_at"]).utcoffset() is not None
     assert body["external_calls_made"] is False
     assert body["providers"] == dict.fromkeys(("gemini", "opendart", "kosis"), "disabled")

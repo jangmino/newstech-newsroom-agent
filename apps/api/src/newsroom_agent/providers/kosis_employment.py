@@ -70,10 +70,12 @@ class EmploymentQuery:
     age_range: str
     start_year: int
     end_year: int
+    allow_single_region: bool = False
 
     def __post_init__(self) -> None:
         if (
-            not isinstance(self.entity, str) or self.entity not in GROUPS
+            not isinstance(self.entity, str) or (self.entity not in GROUPS
+                and not (self.allow_single_region and self.entity in REGIONS.values()))
             or self.metric != "고용률" or self.age_range != "15-29세"
         ):
             raise KosisContractError("unsupported_conditions")
@@ -86,7 +88,9 @@ class EmploymentQuery:
 
     @property
     def region_codes(self) -> tuple[str, ...]:
-        return GROUPS[self.entity]
+        return GROUPS[self.entity] if self.entity in GROUPS else tuple(
+            code for code, name in REGIONS.items() if name == self.entity
+        )
 
     @property
     def years(self) -> tuple[int, ...]:

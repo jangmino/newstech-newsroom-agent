@@ -100,3 +100,8 @@ Git 제외 상태를 확인했습니다.
 현재 live 리비전의 화면은 **설정상 허용 · 실제 연결 미확인**을 표시합니다. 별도 수동
 실제 연결 확인이 성공해도 이 읽기 전용 API가 공급자 연결을 검사하는 것으로 바꾸지 않습니다.
 개인 live 검증은 계속 진행하고 기관 계정·환경 전환은 마지막 인계 단계로 미룹니다.
+# 2부 브리핑 설정 추가
+
+`/api/v1/operations`의 `briefing`은 `disabled|missing_configuration|configured` 중 하나입니다.
+`GEMINI_BRIEFING_ENABLED`와 전역 live 허용·인증 설정만 검사하며 실제 호출은 없습니다.
+화면에 ‘Gemini 브리핑 작성’을 표시합니다. 기존 `providers` 세 항목과 한도는 유지합니다.

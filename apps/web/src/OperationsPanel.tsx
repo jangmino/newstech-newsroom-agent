@@ -26,6 +26,7 @@ function validStatus(value: unknown): value is OperationsStatus {
   const data = value as OperationsStatus;
   return typeof data.checked_at === "string" && Number.isFinite(Date.parse(data.checked_at))
     && data.external_calls_made === false
+    && (data.briefing === undefined || ["disabled", "missing_configuration", "configured"].includes(data.briefing))
     && (["gemini", "opendart", "kosis"] as const).every((source) =>
       ["disabled", "missing_configuration", "configured"].includes(data.providers?.[source]))
     && (["opendart", "kosis"] as const).every((source) => {
@@ -99,7 +100,9 @@ export function OperationsPanel({ get }: { get: ApiGet }) {
           <section aria-labelledby="provider-status-title">
             <h3 id="provider-status-title">질문 해석과 실제 자료 설정</h3>
             <dl>{(Object.keys(providerLabels) as (keyof typeof providerLabels)[]).map((source) =>
-              <div key={source}><dt>{providerLabels[source]}</dt><dd>{providerStates[status.providers[source]]}</dd></div>)}</dl>
+              <div key={source}><dt>{providerLabels[source]}</dt><dd>{providerStates[status.providers[source]]}</dd></div>)}
+              {status.briefing && <div><dt>Gemini 브리핑 작성</dt><dd>{providerStates[status.briefing]}</dd></div>}
+            </dl>
             <p className="field-help">모의 규칙·모의 자료는 별도로 사용할 수 있습니다. 설정상 허용되어도 지원 범위 안에서 질문과 조건을 확인해야 합니다.</p>
           </section>
           <section aria-labelledby="snapshot-status-title">

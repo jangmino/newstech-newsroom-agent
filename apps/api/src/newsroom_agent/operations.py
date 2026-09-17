@@ -51,6 +51,7 @@ class OperationsStatus(BaseModel):
     checked_at: str
     external_calls_made: Literal[False] = False
     providers: ProviderStatuses
+    briefing: ProviderState = "disabled"
     snapshots: SnapshotStatuses
     cache: CacheSettings
     limits: LimitSettings
@@ -82,6 +83,10 @@ def operations_status(settings: Settings) -> OperationsStatus:
     )
     return OperationsStatus(
         checked_at=datetime.now(UTC).isoformat(),
+        briefing=_provider_state(
+            settings.live_api_enabled and getattr(settings, "gemini_briefing_enabled", False),
+            gemini_configured,
+        ),
         providers=ProviderStatuses(
             gemini=_provider_state(
                 settings.live_api_enabled and settings.gemini_planner_enabled, gemini_configured,

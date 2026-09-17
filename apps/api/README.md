@@ -419,3 +419,9 @@ Gemini 전용 오류도 같은 `detail` 구조와 빈 `field_errors`를 사용�
 [KOSIS 기록](../../docs/KOSIS_SMOKE_TEST.md)을 따릅니다.
 자동 테스트에서는 실제 API를 호출하지 않습니다. 자료 모드 변경·late 응답·조회 실패 때
 결과와 검토를 숨기고, 재승인 후 항상 검토 0/4로 시작하는지도 검사합니다.
+# 2부 조사 API
+
+기존 안내형 API는 1부로 유지합니다. 2부는 `/api/v1/research/plan`과
+`/api/v1/research/execute`를 사용합니다. 조건·근거 인용·오류·활성화 설정과 승인 경계는
+[2부 계약](../../docs/RESEARCH_WORKSHOP.md#api-계약)을 참고하세요. Gemini 브리핑은
+`GEMINI_BRIEFING_ENABLED`로 별도 활성화하며 자동 테스트에서는 외부 호출을 하지 않습니다.

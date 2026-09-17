@@ -90,6 +90,7 @@ class GeminiQuestionPlanner:
     def __init__(
         self, *, client_factory: Callable[[], genai.Client], model: str, enabled: bool,
         configured: bool, limiter: GeminiCallLimiter, max_output_tokens: int = 2048,
+        system_instruction: str = SYSTEM_INSTRUCTION, output_schema: dict | None = None,
     ) -> None:
         self.client_factory = client_factory
         self.model = model
@@ -97,6 +98,8 @@ class GeminiQuestionPlanner:
         self.configured = configured
         self.limiter = limiter
         self.max_output_tokens = max_output_tokens
+        self.system_instruction = system_instruction
+        self.output_schema = output_schema
 
     def interpret(self, question: str) -> str:
         if not self.enabled:
@@ -111,9 +114,9 @@ class GeminiQuestionPlanner:
                         model=self.model,
                         contents=[types.Content(role="user", parts=[types.Part(text=question)])],
                         config=types.GenerateContentConfig(
-                            system_instruction=SYSTEM_INSTRUCTION,
+                            system_instruction=self.system_instruction,
                             response_mime_type="application/json",
-                            response_json_schema=response_schema(),
+                            response_json_schema=self.output_schema or response_schema(),
                             candidate_count=1, max_output_tokens=self.max_output_tokens,
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(
                                 disable=True,

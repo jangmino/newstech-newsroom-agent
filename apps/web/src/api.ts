@@ -1,4 +1,7 @@
 import type { ApiErrorDetail, ExecuteRequest, PlanRequest } from "./types";
+import type { ResearchExecuteRequest, ResearchPlanRequest } from "./researchTypes";
+
+type PostBody = PlanRequest | ExecuteRequest | ResearchPlanRequest | ResearchExecuteRequest;
 
 export function withRequestReference(message: string, response?: Response): string {
   const id = response?.headers.get("X-Request-ID");
@@ -12,8 +15,8 @@ export class WorkshopAccessError extends Error {
   }
 }
 
-export async function postJson<T>(path: string, body: PlanRequest | ExecuteRequest, signal: AbortSignal, code?: string): Promise<T> {
-  if (!/^\/api\/v1\/(plan|execute)$/.test(path)) throw new Error("지원하지 않는 요청입니다.");
+export async function postJson<T>(path: string, body: PostBody, signal: AbortSignal, code?: string): Promise<T> {
+  if (!/^\/api\/v1\/(research\/)?(plan|execute)$/.test(path)) throw new Error("지원하지 않는 요청입니다.");
   let response: Response;
   try {
     response = await fetch(path, {
@@ -64,5 +67,5 @@ async function readJson<T>(response: Response): Promise<T> {
   }
 }
 
-export type ApiPost = <T>(path: string, body: PlanRequest | ExecuteRequest, signal: AbortSignal) => Promise<T>;
+export type ApiPost = <T>(path: string, body: PostBody, signal: AbortSignal) => Promise<T>;
 export type ApiGet = <T>(path: string, signal: AbortSignal) => Promise<T>;

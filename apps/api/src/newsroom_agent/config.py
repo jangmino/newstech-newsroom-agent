@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", repr=False)
     gemini_model: str = "gemini-3.8-flash"
     gemini_planner_enabled: bool = False
+    gemini_briefing_enabled: bool = False
     gemini_timeout_ms: int = Field(default=20_000, ge=1000, le=60_000)
     gemini_max_output_tokens: int = Field(default=2048, ge=256, le=4096)
     google_cloud_project: str = ""

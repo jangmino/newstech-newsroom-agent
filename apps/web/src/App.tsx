@@ -14,6 +14,7 @@ import { WorkshopGuide } from "./WorkshopGuide";
 import { workshopQuestion, type WorkshopScenarioId } from "./workshopScenarios";
 import { getJson, postJson, type ApiGet, type ApiPost } from "./api";
 import { OperationsPanel } from "./OperationsPanel";
+import { ResearchWorkshop } from "./ResearchWorkshop";
 import type {
   ExecutionResponse, InterpretationMethod, PlanResponse,
   QueryConditions, QueryMode,
@@ -24,7 +25,7 @@ const samples = [
   "삼성전자의 최근 실적은 악화됐는가?",
 ];
 
-function App({ post = postJson, get = getJson }: { post?: ApiPost; get?: ApiGet }) {
+function GuidedApp({ post, get }: { post: ApiPost; get: ApiGet }) {
   const [question, setQuestion] = useState(samples[0]);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [draft, setDraft] = useState<QueryConditions | null>(null);
@@ -424,4 +425,14 @@ function App({ post = postJson, get = getJson }: { post?: ApiPost; get?: ApiGet 
   );
 }
 
-export default App;
+export default function App({ post = postJson, get = getJson }: { post?: ApiPost; get?: ApiGet }) {
+  const [part, setPart] = useState<1 | 2>(1);
+  return <>
+    <nav className="workshop-parts" aria-label="실습 구성">
+      <button aria-pressed={part === 1} onClick={() => setPart(1)}>1부 · 조건과 근거 확인</button>
+      <button aria-pressed={part === 2} onClick={() => setPart(2)}>2부 · 자유 질문과 AI 브리핑</button>
+      <span>실습을 바꾸면 질문·결과·검토가 초기화됩니다.</span>
+    </nav>
+    {part === 1 ? <GuidedApp post={post} get={get} /> : <ResearchWorkshop post={post} get={get} />}
+  </>;
+}

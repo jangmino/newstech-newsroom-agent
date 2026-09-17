@@ -16,6 +16,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = logging.getLogger("newsroom_agent.requests")
 ROUTES = frozenset({"/", "/health", "/api/v1/access", "/api/v1/plan", "/api/v1/execute",
+                    "/api/v1/research/plan", "/api/v1/research/execute",
                     "/api/v1/analyze", "/api/v1/operations", "/docs", "/redoc", "/openapi.json"})
 METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 ERROR_CODES = frozenset({
@@ -24,7 +25,7 @@ ERROR_CODES = frozenset({
     "planner_configuration_error", "planner_timeout", "planner_rate_limited", "live_disabled",
     "public_data_rate_limited", "public_data_busy", "snapshot_disabled", "snapshot_changed",
     "snapshot_unavailable", "workshop_access_required", "workshop_access_unavailable",
-    "internal_error",
+    "internal_error", "research_timeout",
 } | {f"{source}_{code}" for source in ("opendart", "kosis") for code in (
     "disabled", "configuration", "invalid_request", "authentication", "rate_limited", "no_data",
     "missing_account", "ambiguous_account", "missing_value", "invalid_amount",
