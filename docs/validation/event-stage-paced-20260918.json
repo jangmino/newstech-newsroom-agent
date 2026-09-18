@@ -1,0 +1,109 @@
+{
+  "started_at": "2026-09-18T03:54:15.926474+00:00",
+  "users": 30,
+  "interval_seconds": 20,
+  "gemini_call_budget": 90,
+  "profile": "paced_operator_simulation_not_real_attendees",
+  "passed": true,
+  "completed": 30,
+  "briefs": {
+    "complete": 28,
+    "failed": 2
+  },
+  "cache": {
+    "miss": 4,
+    "hit": 26
+  },
+  "failure": null,
+  "duration_s": 590.75,
+  "requests": {
+    "guard.catalog": {
+      "requests": 1,
+      "statuses": {
+        "200": 1
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 32.67,
+      "p95_ms": 32.67,
+      "max_ms": 32.67
+    },
+    "guard.unapproved": {
+      "requests": 4,
+      "statuses": {
+        "422": 4
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 19.97,
+      "p95_ms": 30.21,
+      "max_ms": 30.21
+    },
+    "guard.unauthorized": {
+      "requests": 1,
+      "statuses": {
+        "401": 1
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 137.29,
+      "p95_ms": 137.29,
+      "max_ms": 137.29
+    },
+    "live.execute": {
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 3887.85,
+      "p95_ms": 6974.44,
+      "max_ms": 7705.87
+    },
+    "live.general": {
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 3476.13,
+      "p95_ms": 4738.07,
+      "max_ms": 5109.16
+    },
+    "live.plan": {
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 2051.84,
+      "p95_ms": 4368.96,
+      "max_ms": 8272.89
+    },
+    "snapshot.execute": {
+      "requests": 4,
+      "statuses": {
+        "200": 4
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 34.49,
+      "p95_ms": 44.6,
+      "max_ms": 44.6
+    },
+    "snapshot.general": {
+      "requests": 4,
+      "statuses": {
+        "200": 4
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 25.83,
+      "p95_ms": 29.51,
+      "max_ms": 29.51
+    }
+  }
+}

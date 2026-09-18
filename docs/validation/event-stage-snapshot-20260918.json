@@ -1,0 +1,41 @@
+{
+  "profile": "30_concurrent_official_snapshot_sessions",
+  "external_calls": 0,
+  "completed": 30,
+  "peak_client_requests": 30,
+  "metrics": {
+    "catalog": {
+      "requests": 1,
+      "statuses": {
+        "200": 1
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 113.85,
+      "p95_ms": 113.85,
+      "max_ms": 113.85
+    },
+    "snapshot.execute": {
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 199.71,
+      "p95_ms": 308.7,
+      "max_ms": 326.8
+    },
+    "snapshot.general": {
+      "requests": 30,
+      "statuses": {
+        "200": 30
+      },
+      "unexpected": 0,
+      "cancelled": 0,
+      "p50_ms": 221.98,
+      "p95_ms": 244.21,
+      "max_ms": 268.86
+    }
+  }
+}

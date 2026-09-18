@@ -23,7 +23,8 @@
 - [x] 실제 모델 비교·실행 기록·공식 저장 자료
 - [x] 행사 UI 통합·사람 수정 산출물·다운로드
 - [x] 원문 대조·로컬 브라우저·오류 대응·전체 검사
-- [ ] 개인 stage 후보 검증·30명 속도/한도·지속 리허설
+- [x] 개인 stage 후보 검증·30개 분산 실제 흐름·30개 동시 저장 재생·약 10분 지속 검증
+- [ ] 실제 행사장·Windows·30명 참가자 리허설·운영 책임 인계 (현장 확인 필요)
 
 ## 완료 보고의 네 구분
 
@@ -104,3 +105,20 @@ comparison, comparison_period, statement_basis, amount_basis, age_range이다.
 월간 시도 고용률·15~34세·공시와 고용의 인과관계 결합은 지원 불가 설명을 확인하는 사례다.
 이를 다른 지표/연령으로 몰래 대체해 성공 사례로 시연하지 않는다. 기관 이전과 현장 리허설은
 최종 인계 시 확인하며 자사 파일럿 작성 활동은 포함하지 않는다.
+
+
+운영자가 다시 실제 호출을 검증하려면 다음 명령을 사용한다. 기본 4개 흐름이며 `--users 30`은
+Gemini 최대 90회다. 접근코드 파일은 Git에 넣지 않고 결과 경로도 `.cache/`에 둔다.
+
+```bash
+apps/api/.venv/bin/python scripts/event_rehearsal.py \
+  --origin https://YOUR-STAGE.run.app \
+  --access-code-file .cache/stage-workshop-code.txt \
+  --output .cache/event-rehearsal-NEW.json \
+  --users 30 --interval 20 --execute-live
+```
+
+HTTP 실패나 계약 불일치 때 중단한다. 브리핑 실패는 근거 보존과 오류 문구를 확인해
+기록하며, 최종 브리핑 성공률이 90% 미만이면 리허설 불합격으로 판정한다. 90%는 이번
+리허설의 내부 기준이며 행사 당일 무중단을 보장하지 않는다. 실패 시 참가자의 재승인 또는
+공식 저장 자료 선택이 필요하다.
