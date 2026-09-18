@@ -47,6 +47,36 @@ test('general model is a separate explicit call with exactly the approved condit
   expect(screen.getByText(/공공자료 도구·웹 검색 없음/)).toBeTruthy();
 });
 
+test('a new question starts a new comparison baseline', async () => {
+  setup(); await propose(); await approve();
+  fireEvent.change(screen.getByRole('textbox', { name: '취재 질문 입력' }), { target: { value: '부산의 고용 변화는 어떨까?' } });
+  await propose(); await approve();
+  expect(screen.queryByRole('heading', { name: '조건을 바꾸니 무엇이 달라졌을까?' })).toBeNull();
+});
+
+test('download button creates a JSON artifact with the current review and original evidence', async () => {
+  setup(); await propose(); await approve();
+  const create = vi.fn(() => 'blob:test-export');
+  const revoke = vi.fn();
+  vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: revoke });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    expect(this.isConnected).toBe(true);
+    expect(this.download).toBe('뉴스룸-실습-검토기록.json');
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: '검토 판단의 이유' }), { target: { value: '원문 추가 확인' } });
+  fireEvent.click(screen.getByRole('button', { name: '조건·근거·AI 원본·검토 기록 내려받기' }));
+  expect(click).toHaveBeenCalledTimes(1);
+  const blob = (create.mock.calls[0] as unknown as [Blob])[0];
+  const text = await new Promise<string>(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsText(blob); });
+  const artifact = JSON.parse(text);
+  expect(artifact.human_review.reason).toBe('원문 추가 확인');
+  expect(artifact.result.conditions).toEqual(conditions);
+  expect(artifact.result.facts).toHaveLength(2);
+  click.mockRestore();
+  await waitFor(() => expect(revoke).toHaveBeenCalled(), { timeout: 1500 });
+  vi.unstubAllGlobals();
+});
+
 test('general error preserves grounded evidence', async () => {
   setup(async (path, body) => { if (path.endsWith('general')) throw new Error('모델 한도 초과'); return path.endsWith('plan') ? plan() : result(body as EventExecuteRequest); });
   await propose(); await approve(); fireEvent.click(screen.getByRole('button', { name: '실제 일반 모델 응답 비교하기' })); await screen.findByText('모델 한도 초과'); expect(screen.getByRole('table')).toBeTruthy();

@@ -467,3 +467,37 @@ async def test_blank_model_comparison_is_an_explicit_proposal():
     assert plan.conditions.comparison_period == "시작·종료"
     assert any("명시하지 않은" in p for p in plan.proposals)
     assert not plan.field_errors
+
+
+def test_event_renderer_derives_missing_slot_citation_but_rejects_untrusted_numbers():
+    from newsroom_agent.event_service import render_event_brief
+    from newsroom_agent.planning import InvalidPlannerOutput
+
+    fact = ResearchFact(
+        id="F1",
+        entity="서울",
+        metric="고용률",
+        period="2025",
+        value="49.1",
+        unit="%",
+        kind="observation",
+        retrieved_at="now",
+    )
+    second = fact.model_copy(update={"id": "F2", "entity": "전국"})
+    draft = {
+        "summary": {"text": "{{F1.entity}} {{F2.value}}", "evidence_ids": ["F1"]},
+        "findings": [{"text": "{{F1.value}}", "evidence_ids": ["F1"]}],
+        "limitations": ["원문 확인 필요"],
+        "follow_up_questions": ["원인은 무엇인가?"],
+    }
+    assert render_event_brief(json.dumps(draft), [fact, second]).summary.evidence_ids == [
+        "F1",
+        "F2",
+    ]
+    draft["limitations"] = ["2025년 확인"]
+    with pytest.raises(InvalidPlannerOutput):
+        render_event_brief(json.dumps(draft), [fact, second])
+    draft["limitations"] = ["원문 확인"]
+    draft["summary"]["evidence_ids"] = ["F999"]
+    with pytest.raises(InvalidPlannerOutput):
+        render_event_brief(json.dumps(draft), [fact, second])

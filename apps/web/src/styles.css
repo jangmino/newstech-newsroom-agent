@@ -57,6 +57,7 @@ textarea:focus { outline: 3px solid rgba(39, 98, 217, 0.16); border-color: #2762
 .card p { color: #506077; line-height: 1.65; }
 dl { display: grid; gap: 10px; margin: 20px 0 0; }
 dl div { display: grid; grid-template-columns: 88px 1fr; gap: 12px; padding-top: 10px; border-top: 1px solid #e7ecf3; }
+dt { word-break: keep-all; }
 dt { color: #6a788c; }
 dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .notice { margin-top: 18px; padding: 16px; border-radius: 13px; background: #fff6dc; color: #674d00; }

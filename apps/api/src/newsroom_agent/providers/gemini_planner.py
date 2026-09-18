@@ -100,6 +100,7 @@ class GeminiQuestionPlanner:
         self.max_output_tokens = max_output_tokens
         self.system_instruction = system_instruction
         self.output_schema = output_schema
+        self.thinking_level = None
 
     def interpret(self, question: str) -> str:
         if not self.enabled:
@@ -118,6 +119,8 @@ class GeminiQuestionPlanner:
                             response_mime_type="application/json",
                             response_json_schema=self.output_schema or response_schema(),
                             candidate_count=1, max_output_tokens=self.max_output_tokens,
+                            thinking_config=(types.ThinkingConfig(thinking_level=self.thinking_level)
+                                             if self.thinking_level else None),
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(
                                 disable=True,
                             ),

@@ -19,7 +19,7 @@ export function EventReview({ result, general }: { result: EventResult; general:
   function update(values: Partial<ReviewArtifact>) { setReview(old => ({ ...old, ...values, status: values.status ?? (old.status === '실습 검토 완료' ? '검토 중' : old.status) })); }
   function download() {
     const blob = new Blob([JSON.stringify(exportReview(result, general, review), null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = '뉴스룸-실습-검토기록.json'; link.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = '뉴스룸-실습-검토기록.json'; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section className="card human-review" aria-labelledby="event-review-title"><p className="step">05 · 사람의 검토와 수정</p><h2 id="event-review-title">나의 취재 검토 기록</h2>
     <p role="status" className="review-progress">{review.status} · 직접 확인한 사실 {review.facts.filter(f => f.checked).length}/2개</p>

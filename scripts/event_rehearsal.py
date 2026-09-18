@@ -151,6 +151,7 @@ async def run(origin, code, users, interval):
                     body=body | {"approved": False},
                     expected=422,
                 )
+            require(briefs["complete"] >= users * 0.9, "brief_success_below_90_percent")
             report["passed"] = True
         except CheckFailed as exc:
             report["failure"] = str(exc)

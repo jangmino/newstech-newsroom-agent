@@ -88,6 +88,18 @@ def test_real_sdk_serialization_is_bounded_and_separates_question_from_system_ru
     assert "evidence" not in result.model_dump()
 
 
+def test_event_thinking_level_is_serialized_without_exposing_thoughts():
+    configs = []
+    def handler(request):
+        configs.append(json.loads(request.content)["generationConfig"])
+        return httpx.Response(200, json=response_body())
+
+    with sdk_planner(handler) as planner:
+        planner.thinking_level = "LOW"
+        assert planner.interpret(QUESTION)
+    assert configs[0]["thinkingConfig"] == {"thinking_level": "LOW"}
+
+
 @pytest.mark.parametrize(("status", "error"), [
     (401, PlannerUnavailable), (403, PlannerUnavailable), (404, PlannerUnavailable),
     (429, PlannerRateLimited), (500, PlannerUnavailable), (503, PlannerUnavailable),

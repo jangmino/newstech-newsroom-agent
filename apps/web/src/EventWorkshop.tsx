@@ -28,7 +28,7 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
   const [generalError, setGeneralError] = useState('');
   const version = useRef(0); const abort = useRef<AbortController | null>(null); const last = useRef<EventResult | null>(null);
   useEffect(() => { const controller = new AbortController(); void get<EventCatalog>('/api/v1/event/catalog', controller.signal).then(setCatalog).catch(() => { if (!controller.signal.aborted) setError('저장 자료 목록을 확인하지 못했습니다. 새로고침하거나 실제 조회를 진행해 주세요.'); }); return () => { controller.abort(); abort.current?.abort(); version.current++; }; }, [get]);
-  function invalidate(clear = false) { version.current++; abort.current?.abort(); setResult(null); setGeneral(null); setPrevious(null); setBusy(null); setError(''); setGeneralError(''); if (clear) { setPlan(null); setDraft(null); setRevision(''); } }
+  function invalidate(clear = false) { version.current++; abort.current?.abort(); setResult(null); setGeneral(null); setPrevious(null); setBusy(null); setError(''); setGeneralError(''); if (clear) { last.current = null; setPlan(null); setDraft(null); setRevision(''); } }
   function changeQuestion(value: string) { invalidate(true); setQuestion(value); }
   function change<K extends keyof EventConditions>(field: K, value: EventConditions[K]) { if (!draft) return; invalidate(); setDraft({ ...draft, [field]: value }); }
   function chooseSnapshot(id: string) {

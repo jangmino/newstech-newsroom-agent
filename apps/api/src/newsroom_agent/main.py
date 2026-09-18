@@ -518,6 +518,17 @@ def get_event_service(request: Request):
     from newsroom_agent.providers.opendart_event import EventDartClient
 
     research = get_research_service(request)
+    base_model = research.model
+
+    def event_model(instruction, schema, briefing):
+        model = base_model(instruction, schema, briefing)
+        # Use the same bounded setting for planning and both comparison responses.
+        # Gemini 2.x does not support thinking_level.
+        if model.model.startswith("gemini-3"):
+            model.thinking_level = "LOW"
+        return model
+
+    research.model = event_model
     research.dart = lambda: EventDartClient(
         settings.opendart_api_key,
         enabled=True,

@@ -23,12 +23,11 @@ Use `git status --short` before edits. Preserve user changes and do not overwrit
 - Implement the approved scope continuously; participant UI uses live or official snapshots only.
   Keep internal mock fixtures and legacy API regression coverage. Exclude the own-newsroom pilot.
 - Phase history: M3 event readiness; M1 and constrained M2 flows are complete.
-- Part 1 guided workflow and the approved Part 2 research planning, wider OpenDART
-  companies/metrics, and grounded Gemini briefing are implemented. Current priority:
-  staged live load validation including Part 2 call budgets. Follow ADR 0017,
-  RESEARCH_VALIDATION.md, and the current CODEX_HARNESS priority.
+- Event tools, live model comparison, source trace, and human review artifacts are implemented.
+  Use ADR 0018 and EVENT_VALIDATION.md for current acceptance evidence and remaining event checks.
 - Live Gemini, OpenDART, and KOSIS calls are off by default.
-- Preserve the mock flow and explicit approval before live data access, including cache reuse.
+- Preserve internal mock regression tests. Participant UI uses live or official snapshots only.
+  Require explicit approval before data access, including cache and snapshot reuse.
 - Do not deploy or enable billing unless the user explicitly asks.
 
 ## Architecture constraints
@@ -94,7 +93,7 @@ Create a Git checkpoint before and after a risky change. Do not commit secrets o
 
 A slice is complete only when:
 
-- the participant-facing flow works in mock mode;
+- the participant-facing flow passes offline behavior tests and official snapshot replay;
 - errors and loading states are understandable;
 - source and verification metadata remain visible;
 - backend tests and frontend type checks pass;
