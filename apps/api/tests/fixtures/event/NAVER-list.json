@@ -1,0 +1,90 @@
+{
+  "retrieved_at": "2026-09-18T03:11:00.863545+00:00",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 7,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00266961",
+        "corp_name": "NAVER",
+        "stock_code": "035420",
+        "corp_cls": "Y",
+        "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서",
+        "rcept_no": "20260917000248",
+        "flr_nm": "이상철",
+        "rcept_dt": "20260917",
+        "rm": ""
+      },
+      {
+        "corp_code": "00266961",
+        "corp_name": "NAVER",
+        "stock_code": "035420",
+        "corp_cls": "Y",
+        "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서",
+        "rcept_no": "20260917000239",
+        "flr_nm": "최승락",
+        "rcept_dt": "20260917",
+        "rm": ""
+      },
+      {
+        "corp_code": "00266961",
+        "corp_name": "NAVER",
+        "stock_code": "035420",
+        "corp_cls": "Y",
+        "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서",
+        "rcept_no": "20260917000236",
+        "flr_nm": "한석주",
+        "rcept_dt": "20260917",
+        "rm": ""
+      },
+      {
+        "corp_code": "00266961",
+        "corp_name": "NAVER",
+        "stock_code": "035420",
+        "corp_cls": "Y",
+        "report_nm": "풍문또는보도에대한해명              ",
+        "rcept_no": "20260917800315",
+        "flr_nm": "NAVER",
+        "rcept_dt": "20260917",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00266961",
+        "corp_name": "NAVER",
+        "stock_code": "035420",
+        "corp_cls": "Y",
+        "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서",
+        "rcept_no": "20260911000383",
+        "flr_nm": "이종화",
+        "rcept_dt": "20260911",
+        "rm": ""
+      },
+      {
+        "corp_code": "00266961",
+        "corp_name": "NAVER",
+        "stock_code": "035420",
+        "corp_cls": "Y",
+        "report_nm": "기업설명회(IR)개최(안내공시)              ",
+        "rcept_no": "20260901800215",
+        "flr_nm": "NAVER",
+        "rcept_dt": "20260901",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00266961",
+        "corp_name": "NAVER",
+        "stock_code": "035420",
+        "corp_cls": "Y",
+        "report_nm": "대규모기업집단현황공시[분기별공시(대표회사용)]",
+        "rcept_no": "20260826000163",
+        "flr_nm": "NAVER",
+        "rcept_dt": "20260826",
+        "rm": "공"
+      }
+    ]
+  }
+}

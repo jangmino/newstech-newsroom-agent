@@ -1,7 +1,8 @@
+import type { EventExecuteRequest, EventPlanRequest } from "./eventTypes";
 import type { ApiErrorDetail, ExecuteRequest, PlanRequest } from "./types";
 import type { ResearchExecuteRequest, ResearchPlanRequest } from "./researchTypes";
 
-type PostBody = PlanRequest | ExecuteRequest | ResearchPlanRequest | ResearchExecuteRequest;
+type PostBody = EventExecuteRequest | EventPlanRequest | PlanRequest | ExecuteRequest | ResearchPlanRequest | ResearchExecuteRequest;
 
 export function withRequestReference(message: string, response?: Response): string {
   const id = response?.headers.get("X-Request-ID");
@@ -16,7 +17,7 @@ export class WorkshopAccessError extends Error {
 }
 
 export async function postJson<T>(path: string, body: PostBody, signal: AbortSignal, code?: string): Promise<T> {
-  if (!/^\/api\/v1\/(research\/)?(plan|execute)$/.test(path)) throw new Error("지원하지 않는 요청입니다.");
+  if (!/^\/api\/v1\/(?:(?:research\/)?(?:plan|execute)|event\/(?:plan|execute|general))$/.test(path)) throw new Error("지원하지 않는 요청입니다.");
   let response: Response;
   try {
     response = await fetch(path, {
@@ -31,7 +32,7 @@ export async function postJson<T>(path: string, body: PostBody, signal: AbortSig
 }
 
 export async function getJson<T>(path: string, signal: AbortSignal, code?: string): Promise<T> {
-  if (path !== "/api/v1/operations") throw new Error("지원하지 않는 요청입니다.");
+  if (path !== "/api/v1/operations" && path !== "/api/v1/event/catalog") throw new Error("지원하지 않는 요청입니다.");
   let response: Response;
   try {
     response = await fetch(path, {

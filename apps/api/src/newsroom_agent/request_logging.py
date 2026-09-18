@@ -16,7 +16,8 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = logging.getLogger("newsroom_agent.requests")
 ROUTES = frozenset({"/", "/health", "/api/v1/access", "/api/v1/plan", "/api/v1/execute",
-                    "/api/v1/research/plan", "/api/v1/research/execute",
+                    "/api/v1/event/catalog", "/api/v1/event/plan", "/api/v1/event/execute",
+                    "/api/v1/event/general", "/api/v1/research/plan", "/api/v1/research/execute",
                     "/api/v1/analyze", "/api/v1/operations", "/docs", "/redoc", "/openapi.json"})
 METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 ERROR_CODES = frozenset({

@@ -70,6 +70,13 @@ class KosisClient:
         self._limiter = limiter
 
     async def fetch_employment(self, query: EmploymentQuery) -> EmploymentSeries:
+        if not isinstance(query, EmploymentQuery):
+            raise KosisError("invalid_request")
+        payload = await self.fetch_parameters(query.parameters)
+        return normalize_employment(payload, query, self._clock())
+
+    async def fetch_parameters(self, parameters: dict[str, str]) -> list:
+        """Backend catalog supplies parameters; never an arbitrary HTTP proxy."""
         if self._enabled is not True:
             raise KosisError("disabled")
         if (
@@ -78,8 +85,6 @@ class KosisClient:
             or not math.isfinite(self._timeout) or not 1 <= self._timeout <= 60
         ):
             raise KosisError("configuration")
-        if not isinstance(query, EmploymentQuery):
-            raise KosisError("invalid_request")
         token = _sensitive_request.set(True)
         try:
             async with httpx.AsyncClient(
@@ -90,7 +95,7 @@ class KosisClient:
                     async with asyncio.timeout(self._timeout):
                         async with client.stream(
                             "GET", self.data_url,
-                            params={**query.parameters, "apiKey": self._api_key},
+                            params={**parameters, "apiKey": self._api_key},
                         ) as response:
                             if response.status_code != 200:
                                 code = {
@@ -124,7 +129,7 @@ class KosisClient:
                     "42": "authentication", "50": "unavailable",
                 }[str(err)]
                 raise KosisError(code)
-            return normalize_employment(payload, query, self._clock())
+            return payload
         except (KosisError, PublicDataLimitError):
             raise
         except (httpx.TimeoutException, TimeoutError):

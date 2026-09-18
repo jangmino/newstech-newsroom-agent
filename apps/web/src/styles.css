@@ -206,3 +206,11 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .research-table-wrap tr:target { background: #fff3c9; outline: 2px solid #b79954; }
 .research-table-wrap .numeric { white-space: nowrap; font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) { .research-choices { grid-template-columns: 1fr; } .workshop-parts { width: calc(100% - 20px); } }
+
+.preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
+.response-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.response-grid article { min-width: 0; }
+.human-review > label, .human-review details > label { display: block; margin: 1rem 0; }
+.human-review textarea, .human-review select { display: block; width: 100%; margin-top: .4rem; }
+.research-table-wrap td { overflow-wrap: anywhere; }
+@media (max-width: 800px) { .response-grid { grid-template-columns: 1fr; } }

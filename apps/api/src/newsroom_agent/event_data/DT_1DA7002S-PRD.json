@@ -1,0 +1,17 @@
+[
+  {
+    "PRD_SE": "월",
+    "STRT_PRD_DE": "1999.06",
+    "END_PRD_DE": "2026.08"
+  },
+  {
+    "PRD_SE": "분기",
+    "STRT_PRD_DE": "1999 3/4",
+    "END_PRD_DE": "2026 2/4"
+  },
+  {
+    "PRD_SE": "년",
+    "STRT_PRD_DE": "2000",
+    "END_PRD_DE": "2025"
+  }
+]

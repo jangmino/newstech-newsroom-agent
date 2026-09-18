@@ -15,6 +15,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from newsroom_agent.calculations import CalculationDataError
 from newsroom_agent.conditions import route_question, validate_conditions
 from newsroom_agent.config import get_settings
+from newsroom_agent.event_models import (
+    EventExecuteRequest,
+    EventPlan,
+    EventPlanRequest,
+    EventResult,
+    GeneralResponse,
+)
+from newsroom_agent.event_service import EventService, snapshot_catalog
 from newsroom_agent.live_employment import compose_employment, execute_employment
 from newsroom_agent.live_financials import compose_financials, execute_financials
 from newsroom_agent.models import (
@@ -501,6 +509,58 @@ async def research_plan(request: ResearchPlanRequest,
 async def research_execute(request: ResearchExecuteRequest,
                            service: Annotated[ResearchService, Depends(get_research_service)]):
     return await research_call(service.execute(request))
+
+
+# Participant event endpoints deliberately have no mock mode.
+
+
+def get_event_service(request: Request):
+    from newsroom_agent.providers.opendart_event import EventDartClient
+
+    research = get_research_service(request)
+    research.dart = lambda: EventDartClient(
+        settings.opendart_api_key,
+        enabled=True,
+        limiter=get_public_data_limiter(
+            "opendart",
+            settings.public_data_requests_per_minute,
+            settings.public_data_max_concurrent_requests,
+        ),
+    )
+    return EventService(research, settings.fallback_snapshot_enabled)
+
+
+@app.get("/api/v1/event/catalog")
+async def event_catalog():
+    from newsroom_agent.event_catalog import AGES, ENTITIES, PERIOD_NOTICE
+
+    return {
+        "snapshots": snapshot_catalog() if settings.fallback_snapshot_enabled else [],
+        "entities": ENTITIES,
+        "ages": list(AGES),
+        "notice": PERIOD_NOTICE,
+    }
+
+
+@app.post("/api/v1/event/plan", response_model=EventPlan)
+async def event_plan(
+    body: EventPlanRequest, service: Annotated[EventService, Depends(get_event_service)]
+):
+    return await research_call(service.plan(body))
+
+
+@app.post("/api/v1/event/execute", response_model=EventResult)
+async def event_execute(
+    body: EventExecuteRequest, service: Annotated[EventService, Depends(get_event_service)]
+):
+    return await research_call(service.execute(body))
+
+
+@app.post("/api/v1/event/general", response_model=GeneralResponse)
+async def event_general(
+    body: EventExecuteRequest, service: Annotated[EventService, Depends(get_event_service)]
+):
+    return await research_call(service.general(body))
 
 
 static_dir = Path("/app/static")

@@ -40,7 +40,7 @@ function validStatus(value: unknown): value is OperationsStatus {
     && validLimits(data.limits.gemini) && validLimits(data.limits.public_data_per_source);
 }
 
-export function OperationsPanel({ get }: { get: ApiGet }) {
+export function OperationsPanel({ get, event = false }: { get: ApiGet; event?: boolean }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<OperationsStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -103,7 +103,7 @@ export function OperationsPanel({ get }: { get: ApiGet }) {
               <div key={source}><dt>{providerLabels[source]}</dt><dd>{providerStates[status.providers[source]]}</dd></div>)}
               {status.briefing && <div><dt>Gemini 브리핑 작성</dt><dd>{providerStates[status.briefing]}</dd></div>}
             </dl>
-            <p className="field-help">모의 규칙·모의 자료는 별도로 사용할 수 있습니다. 설정상 허용되어도 지원 범위 안에서 질문과 조건을 확인해야 합니다.</p>
+            <p className="field-help">{event ? "참가자 화면은 실제 모델과 공식 자료를 사용합니다. 저장 사례 목록은 조회 자료에서 확인해 주세요." : "모의 규칙·모의 자료는 별도로 사용할 수 있습니다."} 설정상 허용되어도 지원 범위 안에서 질문과 조건을 확인해야 합니다.</p>
           </section>
           <section aria-labelledby="snapshot-status-title">
             <h3 id="snapshot-status-title">공식 저장 자료</h3>
@@ -126,7 +126,7 @@ export function OperationsPanel({ get }: { get: ApiGet }) {
               <div><dt>보관 시간</dt><dd>{status.cache.ttl_seconds}초</dd></div>
               <div><dt>자료원별 최대</dt><dd>{status.cache.max_entries_per_source}건</dd></div>
             </dl>
-            <p className="field-help">실제 조회에 적용하는 설정이며 현재 저장 건수가 아닙니다. 모의 자료와 공식 저장 자료에는 적용하지 않습니다.</p>
+            <p className="field-help">실제 조회에 적용하는 설정이며 현재 저장 건수가 아닙니다. {event ? "공식 저장 자료" : "모의 자료와 공식 저장 자료"}에는 적용하지 않습니다.</p>
           </section>
           <section aria-labelledby="limits-status-title">
             <h3 id="limits-status-title">호출 제한 설정</h3>

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
-import App from "./App";
+import App from "./LegacyApp";
 import { getJson } from "./api";
 import { exampleOperations } from "./test/operationsResponse";
 import { examplePlan, exampleResult } from "./test/responses";

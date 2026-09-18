@@ -76,7 +76,7 @@ python3 scripts/stage.py package --output .cache/stage-source
 python3 scripts/stage.py plan --config infra/stage-config.local.json --tag stage-<COMMIT>
 ```
 
-`package`는 명시한 빌드 파일·웹 소스·Python 소스·두 공식 저장 JSON만 복사하며 `.env`를
+`package`는 명시한 빌드 파일·웹 소스·Python 소스·명시된 공식 저장 자료·행사 메타데이터 JSON만 복사하며 `.env`를
 읽지 않습니다. 소스 symlink를 거절합니다. `.gcloudignore`와 `.dockerignore`도 허용 목록을
 사용하여 Git 이력·개인 설정·키·캐시·의존성 디렉터리를 제외합니다.
 업로드 전 `gcloud meta list-files-for-upload .cache/stage-source`로 목록을 확인합니다.

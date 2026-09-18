@@ -17,6 +17,20 @@ FIXED_INPUTS = (
     "apps/web/vite.config.ts", "apps/api/pyproject.toml", "apps/api/uv.lock", "apps/api/README.md",
     "apps/api/src/newsroom_agent/snapshot_data/kosis-youth-employment-2020-2024.json",
     "apps/api/src/newsroom_agent/snapshot_data/opendart-samsung-revenue-2022-2024.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7002S-CMMT.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7002S-ITM.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7002S-PRD.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7015S-CMMT.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7015S-ITM.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7015S-PRD.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7031S-CMMT.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7031S-ITM.json",
+    "apps/api/src/newsroom_agent/event_data/DT_1DA7031S-PRD.json",
+    "apps/api/src/newsroom_agent/event_snapshots/disclosures.json",
+    "apps/api/src/newsroom_agent/event_snapshots/finance.json",
+    "apps/api/src/newsroom_agent/event_snapshots/ranking.json",
+    "apps/api/src/newsroom_agent/event_snapshots/seoul.json",
+
 )
 CONFIG_PATTERNS = {
     "account": r"[A-Za-z0-9_.+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",

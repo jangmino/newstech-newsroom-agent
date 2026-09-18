@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
-import App from "./App";
+// Access regression harness remains on the original UI contract.
+vi.mock("./App", () => import("./LegacyApp"));
+import App from "./LegacyApp";
 import { WorkshopAccess } from "./WorkshopAccess";
 import { withRequestReference } from "./api";
 import { examplePlan, exampleResult } from "./test/responses";

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
-import App from "./App";
+import App from "./LegacyApp";
 import { examplePlan, exampleResult } from "./test/responses";
 import type { ExecuteRequest, QueryConditions } from "./types";
 import { workshopQuestion } from "./workshopScenarios";

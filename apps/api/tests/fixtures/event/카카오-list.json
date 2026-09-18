@@ -1,0 +1,156 @@
+{
+  "retrieved_at": "2026-09-18T03:11:00.975478+00:00",
+  "payload": {
+    "status": "000",
+    "message": "정상",
+    "page_no": 1,
+    "page_count": 100,
+    "total_count": 13,
+    "total_page": 1,
+    "list": [
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "기업설명회(IR)개최(안내공시)              ",
+        "rcept_no": "20260909800462",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260909",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "대규모기업집단현황공시[분기별공시(대표회사용)]",
+        "rcept_no": "20260826000632",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260826",
+        "rm": "공"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "기업설명회(IR)개최(안내공시)              ",
+        "rcept_no": "20260826800361",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260826",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "[첨부정정]주요사항보고서(회사합병결정)",
+        "rcept_no": "20260824000219",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260824",
+        "rm": ""
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "기업가치제고계획(자율공시)              ",
+        "rcept_no": "20260821800122",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260821",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "주주명부폐쇄기간또는기준일설정              ",
+        "rcept_no": "20260821800113",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260821",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "기업설명회(IR)개최(안내공시)              ",
+        "rcept_no": "20260821800125",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260821",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(회사합병결정)",
+        "rcept_no": "20260821000052",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260821",
+        "rm": "정"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "주요사항보고서(회사분할결정)",
+        "rcept_no": "20260821000047",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260821",
+        "rm": ""
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "매매거래정지및정지해제(중요내용공시)              ",
+        "rcept_no": "20260821800086",
+        "flr_nm": "유가증권시장본부",
+        "rcept_dt": "20260821",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "조회공시요구(풍문또는보도)에대한답변(미확정)              ",
+        "rcept_no": "20260820800725",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260820",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "조회공시요구(풍문또는보도)              ",
+        "rcept_no": "20260820800119",
+        "flr_nm": "유가증권시장본부",
+        "rcept_dt": "20260820",
+        "rm": "유"
+      },
+      {
+        "corp_code": "00258801",
+        "corp_name": "카카오",
+        "stock_code": "035720",
+        "corp_cls": "Y",
+        "report_nm": "[기재정정]반기보고서 (2026.06)",
+        "rcept_no": "20260819000055",
+        "flr_nm": "카카오",
+        "rcept_dt": "20260819",
+        "rm": ""
+      }
+    ]
+  }
+}

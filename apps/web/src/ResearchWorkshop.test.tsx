@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
-import App from "./App";
+import App from "./LegacyApp";
 import type { ResearchExecuteRequest, ResearchPlan, ResearchResult } from "./researchTypes";
 
 const question = "SK하이닉스 최근 실적이 좋아졌는지 숫자로 확인하고 싶어.";
