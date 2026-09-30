@@ -27,10 +27,21 @@ class EventConditions(StrictModel):
     age_range: str = Field(default="15-29세", max_length=20)
 
 
+class EventDialogueTurn(StrictModel):
+    question: str = Field(min_length=1, max_length=500)
+    answer: str = Field(min_length=1, max_length=1000)
+
+
+class EventClarification(StrictModel):
+    question: str = Field(min_length=1, max_length=500)
+    choices: list[Text] = Field(default_factory=list, max_length=3)
+
+
 class EventPlanRequest(StrictModel):
     question: str = Field(min_length=3, max_length=1000)
     previous_conditions: EventConditions | None = None
     revision: str = Field(default="", max_length=1000)
+    conversation: list[EventDialogueTurn] = Field(default_factory=list, max_length=8)
 
 
 class EventIntent(StrictModel):
@@ -38,6 +49,8 @@ class EventIntent(StrictModel):
     recent_periods: int | None = Field(default=None, ge=1, le=93)
     clarification: str = Field(default="", max_length=500)
     unsupported: bool = False
+    follow_up_question: str = Field(default="", max_length=500)
+    choices: list[Text] = Field(default_factory=list, max_length=3)
 
 
 class TraceStep(StrictModel):
@@ -58,6 +71,8 @@ class EventPlan(StrictModel):
     companies: list[Company] = Field(default_factory=list)
     trace: list[TraceStep] = Field(default_factory=list)
     snapshot_id: str | None = None
+    status: Literal["ready", "needs_clarification", "unsupported"] = "ready"
+    clarification: EventClarification | None = None
 
 
 class EventExecuteRequest(StrictModel):

@@ -1,0 +1,259 @@
+{
+  "date": "2026-09-30",
+  "initial_candidate": {
+    "cases": [
+      {
+        "case": "samsung_ambiguous",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.57,
+        "request_id": "6018807d-50f4-486f-ac30-e67bd88c2d0c",
+        "status": "needs_clarification",
+        "tool": "undetermined",
+        "brief_status": null
+      },
+      {
+        "case": "samsung_narrowed",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 7.33,
+        "request_id": "998cccc8-d9b0-4f4b-ab68-bc5a996d062e",
+        "status": "ready",
+        "tool": "financials",
+        "brief_status": null
+      },
+      {
+        "case": "samsung_second_answer",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.4,
+        "request_id": "7bd3f931-b38b-485c-a82c-278842ef967a",
+        "status": "ready",
+        "tool": "financials",
+        "brief_status": null
+      },
+      {
+        "case": "clear_finance",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.29,
+        "request_id": "bff45cf9-7b31-447f-b446-73abfe78a6c2",
+        "status": "ready",
+        "tool": "financials",
+        "brief_status": null
+      },
+      {
+        "case": "clear_disclosures",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.73,
+        "request_id": "e0a41d37-40db-4118-aa58-ffe0dd11ad61",
+        "status": "ready",
+        "tool": "disclosures",
+        "brief_status": null
+      },
+      {
+        "case": "clear_employment",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.15,
+        "request_id": "022ce1cc-0bee-47ab-a1ea-039f4dffda73",
+        "status": "ready",
+        "tool": "employment",
+        "brief_status": null
+      },
+      {
+        "case": "unsupported_article_combination",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.53,
+        "request_id": "2d11ec82-1928-4567-8f91-a9776fbf8392",
+        "status": "unsupported",
+        "tool": "undetermined",
+        "brief_status": null
+      },
+      {
+        "case": "unsupported_explicit_narrowing",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.53,
+        "request_id": "f6e907af-d130-4581-849b-699cd21227d9",
+        "status": "ready",
+        "tool": "financials",
+        "brief_status": null
+      },
+      {
+        "case": "unsupported_age",
+        "phase": "plan",
+        "type": "result",
+        "seconds": 2.49,
+        "request_id": "06abafdf-209b-40ec-ba91-456a1d303777",
+        "status": "unsupported",
+        "tool": "employment",
+        "brief_status": null
+      },
+      {
+        "case": "approved_finance",
+        "phase": "execute",
+        "type": "result",
+        "seconds": 5.5,
+        "request_id": "7c61f479-4cce-49e3-8ec2-20e7ecb3c5db",
+        "status": null,
+        "tool": "financials",
+        "brief_status": "complete"
+      },
+      {
+        "case": "approved_fresh_kosis",
+        "phase": "execute",
+        "type": "error",
+        "seconds": 20.03,
+        "request_id": "2e4a362c-63aa-49ec-937d-de34e0f7e965",
+        "error_code": "kosis_timeout"
+      }
+    ],
+    "provider_calls": {
+      "gemini": 10,
+      "opendart": 3
+    },
+    "passed": false,
+    "failure_type": "AssertionError"
+  },
+  "kosis_failure_phase": "connect",
+  "public_baseline": {
+    "type": "result",
+    "seconds": 15.83,
+    "request_id": "25eb061f-d47c-46db-aa90-f1559d779656",
+    "error_code": null,
+    "brief_status": "complete",
+    "provider_calls": {
+      "kosis": 1,
+      "gemini": 1
+    }
+  },
+  "final_candidate_plans": {
+    "passed": true,
+    "cases": [
+      {
+        "case": "samsung_question",
+        "status": "needs_clarification",
+        "seconds": 2.3,
+        "request_id": "d8260e71-2b15-492d-9846-2a348e1a1ad3",
+        "provider_calls": {
+          "gemini": 1
+        }
+      },
+      {
+        "case": "samsung_answer",
+        "status": "ready",
+        "seconds": 5.1,
+        "request_id": "dab9bc45-e836-46e7-be47-8899255fa5f4",
+        "provider_calls": {
+          "gemini": 1,
+          "opendart": 1
+        }
+      },
+      {
+        "case": "unsupported_explanation",
+        "status": "unsupported",
+        "seconds": 2.79,
+        "request_id": "920bef2e-bccc-41ee-9946-84d3b78e9e6d",
+        "provider_calls": {
+          "gemini": 1
+        }
+      }
+    ]
+  },
+  "final_candidate_kosis": {
+    "type": "result",
+    "seconds": 4.24,
+    "request_id": "97b33d8e-7958-4987-a211-72413d910d9f",
+    "error_code": null,
+    "brief_status": "complete",
+    "provider_calls": {
+      "kosis": 1,
+      "gemini": 1
+    }
+  },
+  "public_check": {
+    "assets_match": [
+      "/assets/index-BQ_yb6ye.js",
+      "/assets/index-CXXyj8Mm.css"
+    ],
+    "plan_status": "needs_clarification",
+    "choices": [
+      "실적 변화(매출·영업이익)",
+      "주요 공시(투자·지분·소송)"
+    ],
+    "request_id": "7f7600a1-ace3-46fb-8291-2b67ca7d11cc",
+    "provider_calls": {
+      "gemini": 1
+    }
+  },
+  "public_snapshot_smoke": {
+    "snapshots": [
+      {
+        "snapshot": "seoul",
+        "phase": "execute",
+        "ok": true
+      },
+      {
+        "snapshot": "seoul",
+        "phase": "general",
+        "ok": true
+      },
+      {
+        "snapshot": "disclosures",
+        "phase": "execute",
+        "ok": true
+      },
+      {
+        "snapshot": "disclosures",
+        "phase": "general",
+        "ok": true
+      },
+      {
+        "snapshot": "ranking",
+        "phase": "execute",
+        "ok": true
+      },
+      {
+        "snapshot": "ranking",
+        "phase": "general",
+        "ok": true
+      },
+      {
+        "snapshot": "finance",
+        "phase": "execute",
+        "ok": true
+      },
+      {
+        "snapshot": "finance",
+        "phase": "general",
+        "ok": true
+      }
+    ],
+    "approval_guard": true,
+    "access_guard": true,
+    "health": true,
+    "queue": {
+      "active_requests": 0,
+      "max_requests": 40,
+      "wait_limit_seconds": 120,
+      "request_limit_seconds": 180,
+      "scope": "single_process",
+      "provider_calls": {
+        "gemini": 5,
+        "opendart": 1,
+        "kosis": 1
+      },
+      "completed": 21,
+      "failed": 0
+    }
+  },
+  "total_provider_calls": {
+    "gemini": 16,
+    "opendart": 4,
+    "kosis": 3
+  },
+  "note": "Initial candidate provider_calls contains completed stream metrics only; total includes the failed KOSIS call. Recovery on the final instance is not a proven connectivity root-cause fix."
+}

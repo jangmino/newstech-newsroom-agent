@@ -38,8 +38,12 @@
 
 ## 참가자 진행
 
-1부는 예시 질문으로 승인·출처·계산·검토를 익히고, 2부는 같은 검증 도구에 자유 질문과
-자연어 조건 수정을 사용한다. 질문 분석은 Gemini와 회사 목록 확인만 수행한다.
+1부 ‘예제로 흐름 익히기’는 예시 질문으로 승인·출처·계산·검토를 익히고, 2부 ‘내 질문으로
+조사하기’는 같은 검증 도구에 자신의 질문을 입력한다. 모호하면 확인 질문에 선택지 또는
+직접 답변으로 응답한다. 대화가 구체화되면 조건 승인 폼이 나타난다. 두 실습 모두 Gemini
+브리핑을 제공하며 2부에만 별도의 생성 기능이 있는 것은 아니다.
+질문 분석은 Gemini와 회사 목록 확인만 수행한다. 자료원이 미정이면 지표·기간 폼을
+표시하지 않고, 지원 불가 요청은 가능한 별도 조사 방향을 선택하도록 안내한다.
 대상·지표·기간·비교·연령/회계 기준을 확인한 뒤 **이 조건으로 조회**를 눌러야 근거와
 브리핑이 나타난다. 수정한 조건은 표시하며 결과의 조회 조건에 그대로 남긴다.
 
@@ -61,12 +65,20 @@ API 테스트에서만 유지하며 참가자 진입 경로에서는 선택할 �
 | 경로 | 입력 | 출력/외부 호출 |
 |---|---|---|
 | GET `/api/v1/event/catalog` | 없음 | 지원 범위·저장 사례 조건만; 외부 호출 없음 |
-| POST `/api/v1/event/plan` | question, previous_conditions?, revision? | 조건·제안·field_errors·회사 후보·trace; 모델 및 공식 회사 목록 |
+| POST `/api/v1/event/plan` | question, previous_conditions?, revision?, conversation? | status·clarification·조건·제안·field_errors·회사 후보·trace; 모델 및 공식 회사 목록 |
 | POST `/api/v1/event/execute` | question, conditions, approved:true, mode:live/snapshot, snapshot_id? | 승인 조건·facts·brief·coverage·caveats·trace·cache·시각 |
 | POST `/api/v1/event/general` | execute와 동일 | text·model·instruction·tools·승인 조건·생성 시각 |
 
 conditions는 tool, entities, company_codes, metrics, start, end, frequency,
 comparison, comparison_period, statement_basis, amount_basis, age_range이다.
+`status`는 `ready | needs_clarification | unsupported`이다. `ready`에서만 승인 폼을
+제시한다. `clarification`은 `{question, choices}` 또는 null이며 선택지는 최대 3개다.
+`conversation`은 `{question, answer}` 최대 8회(질문 500자·답변 1000자)로 현재 답변까지
+포함한다. 최신 답변은 `revision`, 현재 편집 조건은 `previous_conditions`에도 보낸다.
+실패·취소 시 완료 이력을 늘리지 않고 입력을 유지한다. 원 질문·실습·자료 모드 변경 시
+질답·결과·검토를 초기화한다. DB·브라우저 저장소에 대화를 저장하지 않는다.
+JSON과 `/plan/stream`은 같은 계획 계약을 사용한다. 기존 입력 필드는 계속 허용한다.
+상세 결정과 완료 조건은 [ADR 0020](decisions/0020-event-planning-dialogue.md)을 따른다.
 `approved`는 문자열/숫자가 아닌 JSON true만 허용한다. snapshot은 질문과 전체 조건이
 저장 사례와 정확히 같아야 한다. 기존 `/api/v1/analyze`와 research 계약은 개발 회귀 및
 기존 도구 호환성을 위해 유지한다. 새 프론트엔드 타입은 `eventTypes.ts`이다.
@@ -85,6 +97,8 @@ comparison, comparison_period, statement_basis, amount_basis, age_range이다.
 
 한 참가자의 계획 1회 + 승인 후 브리핑 1회 + 일반 응답 1회는 Gemini 최대 3회다.
 자연어 수정·재승인은 각각 추가 1회다. 아래 기본 예산에는 제한적 429 재시도가 별도다.
+확인 질답의 답변도 한 번 보낼 때마다 계획 호출 1회가 추가된다. 30명이 각 2회 답변하고
+계획·브리핑·일반 응답을 한 번씩 실행하면 총 150회다. 자동 질답·무한 모델 반복은 없다.
 30명이 한 번씩 진행하면
 기본 90회, 수정·재승인을 모두 한 번씩 하면 최대 150회다. 기존 Gemini 분당 30회/
 동시 8개, 공공자료 공급자별 분당 30회/동시 2개, 1시간·64개 캐시를 유지한다.

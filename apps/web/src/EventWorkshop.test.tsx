@@ -7,7 +7,7 @@ import { exportReview, reviewComplete, type ReviewArtifact } from './EventReview
 
 const question = '서울의 청년 고용률은 최근 5년간 전국 집계와 비교해 어떻게 달라졌을까?';
 const conditions: EventConditions = { tool: 'employment', entities: ['서울특별시', '전국 집계'], company_codes: [], metrics: ['고용률'], start: '2021', end: '2025', frequency: '연간', comparison: '증감 폭', comparison_period: '시작·종료', statement_basis: '연결', amount_basis: '당기', age_range: '15-29세' };
-function plan(q = question): EventPlan { return { request_id: 'plan-1', question: q, conditions, model: 'test-model', proposals: ['공식 제공 기간을 확인해 주세요.'], field_errors: {}, companies: [], trace: [], snapshot_id: null }; }
+function plan(q = question): EventPlan { return { request_id: 'plan-1', question: q, conditions, model: 'test-model', proposals: ['공식 제공 기간을 확인해 주세요.'], field_errors: {}, companies: [], trace: [], snapshot_id: null, status: 'ready', clarification: null }; }
 function result(request?: EventExecuteRequest): EventResult { return { request_id: 'result-1', question: request?.question ?? question, conditions: request?.conditions ?? conditions, data_mode: request?.mode ?? 'live', facts: [1, 2].map(i => ({ id: `F${i}`, entity: '서울특별시', metric: '고용률', period: `202${i}`, value: '45', unit: '%', kind: 'observation', source_urls: ['https://kosis.kr/statHtml/statHtml.do?tblId=official'], retrieved_at: '2026-09-18T00:00:00Z', formula: '원자료 값', details: {} })), caveats: ['원문 대조 필요'], coverage: 'complete', trace: [{ tool: 'KOSIS 공식 통계', status: 'complete', at: '2026-09-18T00:00:00Z', parameters: {}, note: '' }], cache: null, brief: { status: 'complete', model: 'test-model', generation_method: 'gemini', content: { summary: { text: '공식 근거 요약', evidence_ids: ['F1'] }, findings: [{ text: '관찰 내용', evidence_ids: ['F2'] }], limitations: ['원인 확인 필요'], follow_up_questions: ['추가 취재는?'] }, error: null, verification_status: 'review_required' }, generated_at: '2026-09-18T00:00:00Z', snapshot_id: null }; }
 function setup(overrides?: (path: string, body: unknown) => Promise<unknown>) {
   const post = vi.fn(async (path: string, body: unknown) => {
@@ -84,7 +84,7 @@ test('general error preserves grounded evidence', async () => {
 
 test('unsupported catalog explanation blocks execution until plan is reconsidered', async () => {
   const { post } = setup(async () => ({ ...plan(), field_errors: { scope: '시도별 월간 고용률 자료가 없습니다.' } }));
-  await propose(); expect(screen.getByText('시도별 월간 고용률 자료가 없습니다.')).toBeTruthy(); expect((screen.getByRole('button', { name: '이 조건으로 조회' }) as HTMLButtonElement).disabled).toBe(true); expect(post).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' })); await screen.findByText('시도별 월간 고용률 자료가 없습니다.'); expect(screen.queryByRole('button', { name: '이 조건으로 조회' })).toBeNull(); expect(post).toHaveBeenCalledTimes(1);
 });
 
 test('snapshot needs selection and reapproval, without live plan calls', async () => {
@@ -110,7 +110,7 @@ test('review completion requires actual entries and valid evidence; export prese
 });
 
 test('switching workshop parts resets question and review', async () => {
-  setup(); await propose(); await approve(); fireEvent.click(screen.getByRole('button', { name: '2부 · 자유 질문과 AI 브리핑' }));
+  setup(); await propose(); await approve(); fireEvent.click(screen.getByRole('button', { name: '2부 · 내 질문으로 조사하기' }));
   expect(screen.queryByRole('table')).toBeNull(); expect(screen.getByRole('heading', { name: '질문에서 근거 기반 브리핑까지' })).toBeTruthy();
 });
 
@@ -151,4 +151,123 @@ test('cancelling a refinement retains edited conditions and the refinement text'
   expect(screen.getByRole('textbox', { name: /시작 기간/ })).toHaveProperty('value', '2022');
   expect(screen.getByRole('textbox', { name: '계획을 말로 수정하기' })).toHaveProperty('value', '부산으로 바꿔 줘');
   expect(screen.queryByRole('table')).toBeNull();
+});
+
+function ambiguous(q = question, prompt = '실적 변화와 공시 중 무엇을 볼까요?'): EventPlan {
+  return { ...plan(q), status: 'needs_clarification', conditions: { ...conditions, tool: 'undetermined', entities: ['삼성전자'], metrics: [], start: '', end: '' }, clarification: { question: prompt, choices: ['실적 변화', '투자·지분·소송 공시'] }, field_errors: { tool: prompt } };
+}
+
+test('two dialogue answers preserve the question and history until explicit approval', async () => {
+  let step = 0;
+  const { post } = setup(async (path, body) => {
+    const request = body as { question: string };
+    if (!path.endsWith('/plan')) return result(body as EventExecuteRequest);
+    step++;
+    if (step === 1) return ambiguous(request.question);
+    if (step === 2) return { ...ambiguous(request.question, '어느 기간을 비교할까요?'), clarification: { question: '어느 기간을 비교할까요?', choices: ['최근 두 연도'] } };
+    return { ...plan(request.question), conditions: { ...conditions, tool: 'financials', entities: ['삼성전자'], company_codes: ['00126380'], metrics: ['매출액', '영업이익'], start: '2024', end: '2025' } };
+  });
+  fireEvent.click(screen.getByRole('button', { name: '2부 · 내 질문으로 조사하기' }));
+  expect(screen.getByRole('textbox', { name: '취재 질문 입력' })).toHaveProperty('value', '');
+  fireEvent.change(screen.getByRole('textbox', { name: '취재 질문 입력' }), { target: { value: '삼성전자의 최근 재무 이슈?' } });
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' }));
+  await screen.findByText('실적 변화와 공시 중 무엇을 볼까요?');
+  expect(screen.queryByRole('checkbox', { name: '고용률' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: '시작 기간' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '이 조건으로 조회' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '실적 변화' }));
+  await screen.findByText('어느 기간을 비교할까요?');
+  fireEvent.change(screen.getByRole('textbox', { name: '직접 답변하기' }), { target: { value: '2024년과 2025년을 비교해 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '답변 보내기' }));
+  await screen.findByRole('button', { name: '이 조건으로 조회' });
+  expect(post.mock.calls[2][1]).toMatchObject({ question: '삼성전자의 최근 재무 이슈?', revision: '2024년과 2025년을 비교해 줘', conversation: [
+    { question: '실적 변화와 공시 중 무엇을 볼까요?', answer: '실적 변화' },
+    { question: '어느 기간을 비교할까요?', answer: '2024년과 2025년을 비교해 줘' },
+  ] });
+  expect(post).toHaveBeenCalledTimes(3);
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(screen.getByRole('checkbox', { name: '매출액' })).toBeTruthy();
+  await approve();
+  expect(post.mock.calls[3][1]).toMatchObject({ approved: true, conditions: { tool: 'financials', entities: ['삼성전자'], start: '2024', end: '2025' } });
+});
+
+test('a failed answer preserves text and does not duplicate conversation on retry', async () => {
+  let n = 0;
+  const { post } = setup(async () => { n++; if (n === 2) throw new Error('질문 해석 일시 오류'); return n === 1 ? ambiguous() : plan(); });
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' }));
+  await screen.findByRole('textbox', { name: '직접 답변하기' });
+  fireEvent.change(screen.getByRole('textbox', { name: '직접 답변하기' }), { target: { value: '실적 변화' } });
+  fireEvent.click(screen.getByRole('button', { name: '답변 보내기' }));
+  await screen.findByText('질문 해석 일시 오류');
+  expect(screen.getByRole('textbox', { name: '직접 답변하기' })).toHaveProperty('value', '실적 변화');
+  fireEvent.click(screen.getByRole('button', { name: '답변 보내기' }));
+  await screen.findByRole('button', { name: '이 조건으로 조회' });
+  expect(post.mock.calls[2][1]).toEqual(post.mock.calls[1][1]);
+});
+
+test('cancelling an answer retains the question and answer and ignores its late plan', async () => {
+  let resolve!: (value: EventPlan) => void;
+  let n = 0;
+  setup(async () => ++n === 1 ? ambiguous() : new Promise<EventPlan>(r => { resolve = r; }));
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' }));
+  await screen.findByRole('button', { name: '실적 변화' });
+  fireEvent.click(screen.getByRole('button', { name: '실적 변화' }));
+  fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
+  await act(async () => resolve(plan()));
+  expect(screen.getByRole('textbox', { name: '직접 답변하기' })).toHaveProperty('value', '실적 변화');
+  expect(screen.queryByRole('button', { name: '이 조건으로 조회' })).toBeNull();
+});
+
+test('changing the original question discards dialogue and a late reply', async () => {
+  let resolve!: (value: EventPlan) => void;
+  let n = 0;
+  setup(async () => ++n === 1 ? ambiguous() : new Promise<EventPlan>(r => { resolve = r; }));
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' }));
+  await screen.findByRole('button', { name: '실적 변화' });
+  fireEvent.click(screen.getByRole('button', { name: '실적 변화' }));
+  fireEvent.change(screen.getByRole('textbox', { name: '취재 질문 입력' }), { target: { value: '부산의 취업자 수' } });
+  await act(async () => resolve(plan()));
+  expect(screen.queryByRole('textbox', { name: '직접 답변하기' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '이 조건으로 조회' })).toBeNull();
+});
+
+test('unsupported combination offers narrowing without a misleading approval form', async () => {
+  const { post } = setup(async () => ({ ...ambiguous(), status: 'unsupported', proposals: ['기업 실적과 고용의 인과관계 분석은 지원 범위 밖입니다.'], clarification: { question: '실적만 조사할까요?', choices: ['실적만 조사'] }, field_errors: { scope: '자료 결합 미지원' } }));
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' }));
+  await screen.findByRole('button', { name: '실적만 조사' });
+  expect(screen.getByText('기업 실적과 고용의 인과관계 분석은 지원 범위 밖입니다.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '이 조건으로 조회' })).toBeNull();
+  expect(post).toHaveBeenCalledTimes(1);
+});
+
+test('dialogue limit stops further model calls and allows an explicit reset', async () => {
+  const { post } = setup(async () => ambiguous());
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' }));
+  for (let i = 0; i < 8; i++) {
+    const choice = await screen.findByRole('button', { name: '실적 변화' });
+    await waitFor(() => expect(choice.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(choice);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(i + 2));
+  }
+  await screen.findByRole('button', { name: '질답 다시 시작' });
+  expect(screen.queryByRole('button', { name: '답변 보내기' })).toBeNull();
+  expect(post).toHaveBeenCalledTimes(9);
+  fireEvent.click(screen.getByRole('button', { name: '질답 다시 시작' }));
+  expect(screen.getByRole('textbox', { name: '취재 질문 입력' })).toHaveProperty('value', question);
+  expect(screen.queryByText(/함께 확인한 내용/)).toBeNull();
+});
+
+test('switching to official snapshots clears dialogue and still requires approval', async () => {
+  const { post } = setup(async (path, body) => path.endsWith('/plan') ? ambiguous() : result(body as EventExecuteRequest));
+  fireEvent.click(screen.getByRole('button', { name: '조사 계획 제안받기' }));
+  await screen.findByRole('button', { name: '실적 변화' });
+  fireEvent.click(screen.getByRole('button', { name: '실적 변화' }));
+  await screen.findByText('함께 확인한 내용 (1회)');
+  fireEvent.change(screen.getByRole('combobox', { name: '조회 자료' }), { target: { value: 'snapshot' } });
+  expect(screen.queryByText(/함께 확인한 내용/)).toBeNull();
+  fireEvent.change(screen.getByRole('combobox', { name: '공식 저장 사례' }), { target: { value: 'seoul' } });
+  expect(post).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole('table')).toBeNull();
+  await approve();
+  expect(post.mock.calls[2][1]).toMatchObject({ mode: 'snapshot', approved: true, snapshot_id: 'seoul' });
 });

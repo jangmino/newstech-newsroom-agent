@@ -193,6 +193,16 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .modified-badge { display: inline-block; padding: 2px 7px; border-radius: 6px; color: #174eaf; background: #eaf1ff; font-size: .8rem; }
 .research-plan ul, .research-results ul { padding-left: 22px; line-height: 1.8; }
 .research-plan .condition-fields { margin-top: 24px; }
+.planning-dialogue { margin: 20px 0; }
+.dialogue-question { font-size: 1.15rem; font-weight: 700; line-height: 1.6; }
+.dialogue-choices { margin: 18px 0; }
+.dialogue-choices button:disabled { opacity: .55; cursor: not-allowed; }
+.dialogue-history { margin-bottom: 18px; }
+.dialogue-history li { margin: 12px 0; }
+.dialogue-history p { margin: 5px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.research-plan > details { margin-top: 18px; }
+.research-plan h2:focus { outline: none; }
+.condition-field > .field-help { display: block; font-weight: 400; }
 .research-refinement { margin-top: 24px; padding-top: 24px; border-top: 1px solid #dce3de; }
 .fact-citations { display: inline-flex; flex-wrap: wrap; gap: 6px; font-size: .85em; }
 .research-table-wrap { max-height: 650px; overflow: auto; margin-top: 20px; }
