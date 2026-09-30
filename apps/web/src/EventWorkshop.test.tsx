@@ -4,6 +4,7 @@ import App from './App';
 import type { ApiGet, ApiPost } from './api';
 import type { EventConditions, EventExecuteRequest, EventPlan, EventResult, GeneralResponse } from './eventTypes';
 import { exportReview, reviewComplete, type ReviewArtifact } from './EventReview';
+import { EventResults } from './EventResults';
 
 const question = '서울의 청년 고용률은 최근 5년간 전국 집계와 비교해 어떻게 달라졌을까?';
 const conditions: EventConditions = { tool: 'employment', entities: ['서울특별시', '전국 집계'], company_codes: [], metrics: ['고용률'], start: '2021', end: '2025', frequency: '연간', comparison: '증감 폭', comparison_period: '시작·종료', statement_basis: '연결', amount_basis: '당기', age_range: '15-29세' };
@@ -45,6 +46,20 @@ test('general model is a separate explicit call with exactly the approved condit
   fireEvent.click(screen.getByRole('button', { name: '실제 일반 모델 응답 비교하기' }));
   await screen.findByText('일반 모델의 실제 응답'); expect(post.mock.calls[2][0]).toBe('/api/v1/event/general'); expect(post.mock.calls[2][1]).toEqual(post.mock.calls[1][1]);
   expect(screen.getByText(/공공자료 도구·웹 검색 없음/)).toBeTruthy();
+});
+
+test.each([
+  ['actual line breaks', '요약\n\n1. 관찰\n- 확인 필요', '요약\n\n1. 관찰\n- 확인 필요'],
+  ['escaped and mixed line breaks', '요약\\n\\n1. 관찰\\r\\n- 확인 필요\n다음 문장\\r끝', '요약\n\n1. 관찰\n- 확인 필요\n다음 문장\n끝'],
+  ['plain text and markup', '일반 응답 <strong>확인 필요</strong> **해석**', '일반 응답 <strong>확인 필요</strong> **해석**'],
+])('general response displays %s without changing the original', (_name, text, expected) => {
+  const general: GeneralResponse = { request_id: 'general-1', question, conditions, model: 'test-model', text, generated_at: '2026-09-18T00:01:00Z', instruction: '중립적인 입력', tools: [], cache: null, data_mode: 'live' };
+  render(<EventResults result={result()} general={general} previous={null} onGeneral={() => {}} busy={false} error="" />);
+  const article = screen.getByRole('heading', { name: '일반 모델 응답 · 도구 없음' }).closest('article')!;
+  const body = article.querySelector('p.preserve-lines')!;
+  expect(body.textContent).toBe(expected);
+  expect(body.childElementCount).toBe(0);
+  expect(general.text).toBe(text);
 });
 
 test('a new question starts a new comparison baseline', async () => {
