@@ -115,3 +115,14 @@ HTTP 상태 외에 `jsonPayload.error_code`를 함께 확인해야 한다. `queu
 `request_timeout`, `planner_billing` 등은 요청 ID와 함께 기록하고 원문·질문·키는 남기지
 않는다. 근거를 보존한 브리핑 생성 실패는 성공 응답 안의 `brief.status`로 별도 집계한다.
 [행사 대기·스트림 계약](EVENT_QUEUE.md)을 참고한다.
+
+### KOSIS 연결 단계 진단
+
+시간 초과 때만 `provider_transport_timeout` 이벤트를 한 줄 추가한다. 필드는
+`timestamp`, `severity=WARNING`, `request_id`, `provider=kosis`, `phase`뿐이다.
+phase는 `client|connect|tls|request|response_headers|response_body|unknown` 중 하나다.
+connect는 DNS/TCP를 포함하며 이를 더 세분했다고 주장하지 않는다. HTTPX trace의
+정보 사전·주소·헤더·예외 메시지는 읽거나 직렬화하지 않는다. 알 수 없는 이벤트는 무시하고
+공통 HTTP 오류 코드와 참가자 응답은 유지한다. 인증서 검증·TLS 기본 설정도 유지한다.
+[HTTPX trace extension](https://www.python-httpx.org/advanced/extensions/#trace)이 제공하는
+고정 이벤트명만 판별하며 버전은 기존 lockfile로 고정한다.

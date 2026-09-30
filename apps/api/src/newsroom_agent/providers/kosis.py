@@ -18,6 +18,7 @@ from newsroom_agent.providers.kosis_employment import (
 )
 from newsroom_agent.public_data_limits import PublicDataCallLimiter, PublicDataLimitError
 from newsroom_agent.request_flow import FlowError, provider_slot, retry_delay, retry_public
+from newsroom_agent.request_logging import record_kosis_timeout
 
 _sensitive_request: ContextVar[bool] = ContextVar("kosis_sensitive_request", default=False)
 
@@ -87,6 +88,21 @@ class KosisClient:
         ):
             raise KosisError("configuration")
         token = _sensitive_request.set(True)
+        phase = "client"
+
+        async def trace(name, info):
+            nonlocal phase
+            # Ignore info entirely: it may contain credentials, request URLs and exceptions.
+            phases = {
+                "connection.connect_tcp.started": "connect",
+                "connection.start_tls.started": "tls",
+                "http11.send_request_headers.started": "request",
+                "http11.receive_response_headers.started": "response_headers",
+                "http11.receive_response_body.started": "response_body",
+            }
+            if name in phases:
+                phase = phases[name]
+
         try:
             async with httpx.AsyncClient(
                 timeout=self._timeout, follow_redirects=False, trust_env=False,
@@ -97,6 +113,7 @@ class KosisClient:
                         async with client.stream(
                             "GET", self.data_url,
                             params={**parameters, "apiKey": self._api_key},
+                            extensions={"trace": trace},
                         ) as response:
                             if response.status_code != 200:
                                 code = {
@@ -136,6 +153,7 @@ class KosisClient:
         except (FlowError, KosisError, PublicDataLimitError):
             raise
         except (httpx.TimeoutException, TimeoutError):
+            record_kosis_timeout(phase)
             raise KosisError("timeout") from None
         except Exception:
             raise KosisError("unavailable") from None

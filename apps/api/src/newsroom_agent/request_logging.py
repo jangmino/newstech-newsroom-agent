@@ -118,6 +118,17 @@ def record_error(code: object) -> None:
         context.error_code = code if isinstance(code, str) and code in ERROR_CODES else "http_error"
 
 
+def record_kosis_timeout(phase: str) -> None:
+    """Never accept transport info dictionaries, URLs, headers or exception strings."""
+    if phase not in {"client", "connect", "tls", "request", "response_headers", "response_body"}:
+        phase = "unknown"
+    LOGGER.warning(json.dumps({
+        "timestamp": datetime.now(UTC).isoformat(), "severity": "WARNING",
+        "event": "provider_transport_timeout", "request_id": request_id(),
+        "provider": "kosis", "phase": phase,
+    }, separators=(",", ":")))
+
+
 def configure_request_logging() -> None:
     # A dedicated stdout handler emits JSON without root logger formats or duplicate propagation.
     if not LOGGER.handlers:
