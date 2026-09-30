@@ -49,7 +49,7 @@ UUID v4 형식만 표시합니다. 형식이 잘못되거나 헤더가 없으면
 | 필드 | 허용 내용 |
 |---|---|
 | `timestamp` | 로그 기록 시점, UTC ISO 시각 |
-| `severity` | 2xx/3xx `INFO`, 4xx 또는 취소/중단 `WARNING`, 5xx `ERROR` |
+| `severity` | 오류 없는 2xx/3xx `INFO`, 오류 코드 또는 취소/중단 `WARNING`, 5xx `ERROR` |
 | `event` | 고정값 `http_request` |
 | `request_id` | 서버가 새로 만든 UUID v4 |
 | `method` | GET/HEAD/POST/PUT/PATCH/DELETE/OPTIONS, 그 외 `OTHER` |
@@ -106,3 +106,12 @@ lifespan 오류, 프록시/플랫폼 로그는 이 처리 경계 밖입니다. �
 허용 경로 분류에 포함하며 상태 응답 본문이나 설정 값은 로그에 남기지 않습니다.
 다음 최소 기능은 기관 stage 배포 준비입니다. 기관 Secret Manager·
 Cloud Run stage 배포, 30명 부하 시험과 장애 리허설은 이후 범위입니다.
+
+## 행사 스트림 오류 (2026-09-30)
+
+`/api/v1/event/{plan|execute|general}/stream`과 `/api/v1/event/queue`도 고정 경로로
+분류한다. 스트림 시작 후 실패는 HTTP 200에 종료 `error` 이벤트를 보내므로, 운영 집계는
+HTTP 상태 외에 `jsonPayload.error_code`를 함께 확인해야 한다. `queue_timeout`,
+`request_timeout`, `planner_billing` 등은 요청 ID와 함께 기록하고 원문·질문·키는 남기지
+않는다. 근거를 보존한 브리핑 생성 실패는 성공 응답 안의 `brief.status`로 별도 집계한다.
+[행사 대기·스트림 계약](EVENT_QUEUE.md)을 참고한다.
