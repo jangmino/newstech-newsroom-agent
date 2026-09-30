@@ -6,7 +6,7 @@ import logging
 import math
 import re
 from collections.abc import AsyncIterator, Callable
-from contextlib import asynccontextmanager, nullcontext
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
@@ -21,6 +21,7 @@ from newsroom_agent.providers.opendart_financials import (
     normalize_revenue,
 )
 from newsroom_agent.public_data_limits import PublicDataCallLimiter, PublicDataLimitError
+from newsroom_agent.request_flow import FlowError, provider_slot, retry_delay, retry_public
 
 _sensitive_request: ContextVar[bool] = ContextVar("opendart_sensitive_request", default=False)
 
@@ -89,7 +90,7 @@ class OpenDartClient:
                 transport=self._transport or httpx.AsyncHTTPTransport(retries=0),
             ) as client:
                 yield client
-        except (OpenDartError, PublicDataLimitError):
+        except (FlowError, OpenDartError, PublicDataLimitError):
             raise
         except (httpx.TimeoutException, TimeoutError):
             raise OpenDartError("timeout") from None
@@ -99,8 +100,9 @@ class OpenDartClient:
         finally:
             _sensitive_request.reset(token)
 
+    @retry_public("opendart")
     async def _request_json(self, client: httpx.AsyncClient, endpoint: str, params: dict) -> dict:
-        with self._limiter.slot() if self._limiter else nullcontext():
+        async with provider_slot(self._limiter, "opendart"):
             async with asyncio.timeout(self._timeout):
                 async with client.stream(
                     "GET", f"{self.base_url}/{endpoint}",
@@ -111,7 +113,9 @@ class OpenDartClient:
                             400: "invalid_request", 401: "authentication", 403: "authentication",
                             408: "timeout", 429: "rate_limited", 504: "timeout",
                         }.get(response.status_code, "unavailable")
-                        raise OpenDartError(code)
+                        error = OpenDartError(code)
+                        error.retry_after = retry_delay(response)
+                        raise error
                     body = bytearray()
                     async for chunk in response.aiter_bytes(chunk_size=65_536):
                         body.extend(chunk)

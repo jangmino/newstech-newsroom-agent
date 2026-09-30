@@ -113,3 +113,42 @@ test('switching workshop parts resets question and review', async () => {
   setup(); await propose(); await approve(); fireEvent.click(screen.getByRole('button', { name: '2부 · 자유 질문과 AI 브리핑' }));
   expect(screen.queryByRole('table')).toBeNull(); expect(screen.getByRole('heading', { name: '질문에서 근거 기반 브리핑까지' })).toBeTruthy();
 });
+
+test('queued progress can be cancelled without losing conditions or accepting late results', async () => {
+  const post = vi.fn();
+  post.mockResolvedValueOnce(plan());
+  const get = vi.fn(async () => ({ snapshots: [], entities: ['서울특별시'], ages: ['15-29세'], notice: '공식 범위' }));
+  render(<App post={post as ApiPost} get={get as ApiGet} />);
+  await propose();
+  let resolve!: (value: EventResult) => void;
+  post.mockImplementationOnce((_path, _body, _signal, onProgress) => {
+    onProgress({ stage: 'waiting', provider: 'gemini', elapsed_seconds: 12, waited_seconds: 10 });
+    return new Promise<EventResult>(r => { resolve = r; });
+  });
+  fireEvent.click(screen.getByRole('button', { name: '이 조건으로 조회' }));
+  await screen.findByText('요청 순서를 기다리고 있습니다.');
+  fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
+  expect((post.mock.calls[1][2] as AbortSignal).aborted).toBe(true);
+  expect(screen.getByRole('button', { name: '이 조건으로 조회' }).hasAttribute('disabled')).toBe(false);
+  await act(async () => resolve(result()));
+  expect(screen.queryByRole('textbox', { name: '사실 1 내용' })).toBeNull();
+  expect(screen.getByRole('textbox', { name: '시작 기간' })).toHaveProperty('value', '2021');
+});
+
+
+test('cancelling a refinement retains edited conditions and the refinement text', async () => {
+  const post = vi.fn(); post.mockResolvedValueOnce(plan());
+  const get = vi.fn(async () => ({ snapshots: [], entities: ['서울특별시'], ages: ['15-29세'], notice: '공식 범위' }));
+  render(<App post={post as ApiPost} get={get as ApiGet} />);
+  await propose();
+  fireEvent.change(screen.getByRole('textbox', { name: '시작 기간' }), { target: { value: '2022' } });
+  fireEvent.change(screen.getByRole('textbox', { name: '계획을 말로 수정하기' }), { target: { value: '부산으로 바꿔 줘' } });
+  let resolve!: (value: EventPlan) => void;
+  post.mockImplementationOnce(() => new Promise<EventPlan>(r => { resolve = r; }));
+  fireEvent.click(screen.getByRole('button', { name: '수정 요청 반영' }));
+  fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
+  await act(async () => resolve(plan()));
+  expect(screen.getByRole('textbox', { name: /시작 기간/ })).toHaveProperty('value', '2022');
+  expect(screen.getByRole('textbox', { name: '계획을 말로 수정하기' })).toHaveProperty('value', '부산으로 바꿔 줘');
+  expect(screen.queryByRole('table')).toBeNull();
+});

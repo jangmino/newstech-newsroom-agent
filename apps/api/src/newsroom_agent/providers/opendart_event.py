@@ -4,7 +4,6 @@ import asyncio
 import io
 import re
 import zipfile
-from contextlib import nullcontext
 from decimal import Decimal
 from html.parser import HTMLParser
 
@@ -12,6 +11,7 @@ from newsroom_agent.event_catalog import period_list
 from newsroom_agent.event_models import EventConditions, EventData, TraceStep
 from newsroom_agent.providers.opendart_financials import OpenDartError
 from newsroom_agent.providers.opendart_research import ACCOUNT_IDS, OpenDartResearchClient
+from newsroom_agent.request_flow import provider_slot, retry_delay, retry_public
 from newsroom_agent.research_models import Company, ResearchFact
 
 ACCOUNTS = {**ACCOUNT_IDS, "당기순이익": {"ifrs-full_ProfitLoss", "ifrs_ProfitLoss"}}
@@ -186,8 +186,9 @@ def document_excerpt(body: bytes) -> str:
 
 
 class EventDartClient(OpenDartResearchClient):
+    @retry_public("opendart")
     async def document(self, client, receipt: str) -> str:
-        with self._limiter.slot() if self._limiter else nullcontext():
+        async with provider_slot(self._limiter, "opendart"):
             async with asyncio.timeout(self._timeout):
                 async with client.stream(
                     "GET",
@@ -195,7 +196,11 @@ class EventDartClient(OpenDartResearchClient):
                     params={"crtfc_key": self._api_key, "rcept_no": receipt},
                 ) as response:
                     if response.status_code != 200:
-                        raise OpenDartError("unavailable")
+                        error = OpenDartError(
+                            "rate_limited" if response.status_code == 429 else "unavailable"
+                        )
+                        error.retry_after = retry_delay(response)
+                        raise error
                     body = bytearray()
                     async for chunk in response.aiter_bytes(chunk_size=65536):
                         body.extend(chunk)

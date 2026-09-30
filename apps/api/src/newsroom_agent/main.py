@@ -23,6 +23,7 @@ from newsroom_agent.event_models import (
     GeneralResponse,
 )
 from newsroom_agent.event_service import EventService, snapshot_catalog
+from newsroom_agent.event_stream import EventAdmission
 from newsroom_agent.live_employment import compose_employment, execute_employment
 from newsroom_agent.live_financials import compose_financials, execute_financials
 from newsroom_agent.models import (
@@ -43,6 +44,8 @@ from newsroom_agent.providers.mock_planner import MockQuestionPlanner
 from newsroom_agent.providers.opendart import OpenDartClient
 from newsroom_agent.providers.opendart_financials import OpenDartError, RevenuePair
 from newsroom_agent.providers.planner import (
+    PlannerAuthenticationError,
+    PlannerBillingError,
     PlannerConfigurationError,
     PlannerDisabled,
     PlannerRateLimited,
@@ -57,6 +60,7 @@ from newsroom_agent.public_data_limits import (
     PublicDataLimitError,
     PublicDataSource,
 )
+from newsroom_agent.request_flow import flow
 from newsroom_agent.request_logging import (
     RequestLoggingMiddleware,
     configure_request_logging,
@@ -78,15 +82,19 @@ configure_request_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_public_data_limiter.cache_clear()
+    app.state.event_admission = EventAdmission()
     app.state.employment_cache = PublicDataCache[EmploymentSeries](
-        settings.cache_ttl_seconds, settings.cache_max_entries,
+        settings.cache_ttl_seconds,
+        settings.cache_max_entries,
     )
     app.state.revenue_cache = PublicDataCache[RevenuePair](
-        settings.cache_ttl_seconds, settings.cache_max_entries,
+        settings.cache_ttl_seconds,
+        settings.cache_max_entries,
     )
     app.state.research_metadata_cache = PublicDataCache(86400, settings.cache_max_entries)
     app.state.research_data_cache = PublicDataCache(
-        settings.cache_ttl_seconds, settings.cache_max_entries,
+        settings.cache_ttl_seconds,
+        settings.cache_max_entries,
     )
     try:
         yield
@@ -463,40 +471,110 @@ def get_research_service(request: Request) -> ResearchService:
 
 async def research_call(operation):
     try:
-        async with asyncio.timeout(50):
+        async with asyncio.timeout(None if flow.get() else 50):
             return await operation
     except TimeoutError:
-        raise HTTPException(status_code=503, detail={
-            "code": "research_timeout", "message": "조사 처리 시간이 길어 중단했습니다. "
-            "조회 기간을 줄이거나 잠시 후 다시 승인해 주세요.", "field_errors": {},
-        }) from None
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "research_timeout",
+                "message": "조사 처리 시간이 길어 중단했습니다. "
+                "조회 기간을 줄이거나 잠시 후 다시 승인해 주세요.",
+                "field_errors": {},
+            },
+        ) from None
     except ResearchError as exc:
-        raise HTTPException(status_code=422, detail={
-            "code": "invalid_conditions", "message": str(exc), "field_errors": exc.field_errors,
-        }) from None
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_conditions",
+                "message": str(exc),
+                "field_errors": exc.field_errors,
+            },
+        ) from None
     except (OpenDartError, KosisError) as exc:
         provider = "kosis" if isinstance(exc, KosisError) else "opendart"
         message = str(exc)
         if isinstance(exc, OpenDartError) and exc.code in {
-            "missing_account", "ambiguous_account", "missing_value", "invalid_amount",
+            "missing_account",
+            "ambiguous_account",
+            "missing_value",
+            "invalid_amount",
         }:
             message = "선택한 재무 항목을 정확히 확인하지 못했습니다. 계정 누락·중복·금액을 "
             message += "공시 원문에서 확인하거나 지표·기간을 바꿔 다시 승인해 주세요."
-        raise HTTPException(status_code=429 if exc.code == "rate_limited" else 503, detail={
-            "code": f"{provider}_{exc.code}", "message": message, "field_errors": {},
-        }) from None
+        raise HTTPException(
+            status_code=429 if exc.code == "rate_limited" else 503,
+            detail={
+                "code": f"{provider}_{exc.code}",
+                "message": message,
+                "field_errors": {},
+            },
+        ) from None
     except PublicDataLimitError as exc:
-        raise HTTPException(status_code=429, detail={
-            "code": exc.code, "message": str(exc), "field_errors": {},
-            "retry_after_seconds": exc.retry_after_seconds,
-        }) from None
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": exc.code,
+                "message": str(exc),
+                "field_errors": {},
+                "retry_after_seconds": exc.retry_after_seconds,
+            },
+        ) from None
+    except PlannerBillingError:
+        raise HTTPException(
+            503,
+            detail={
+                "code": "planner_billing",
+                "message": ("Gemini 선불 잔액 또는 결제 설정 확인이 필요합니다. "
+                    "반복 요청하지 말고 운영자에게 알려 주세요. "
+                    "공식 저장 자료로 실습을 이어갈 수 있습니다."),
+                "field_errors": {},
+            },
+        ) from None
+    except (PlannerAuthenticationError, PlannerConfigurationError, PlannerDisabled):
+        raise HTTPException(
+            503,
+            detail={
+                "code": "planner_configuration_error",
+                "message": ("Gemini 연결 설정이나 접근 권한 확인이 필요합니다. "
+                    "운영자에게 알려 주세요. 입력은 유지됩니다."),
+                "field_errors": {},
+            },
+        ) from None
+    except PlannerRateLimited:
+        raise HTTPException(
+            429,
+            detail={
+                "code": "planner_rate_limited",
+                "message": ("Gemini 공급자의 사용 한도에 도달했습니다. "
+                    "잠시 후 다시 요청하거나 공식 저장 자료를 선택해 주세요. "
+                    "계속되면 운영자에게 알려 주세요."),
+                "field_errors": {},
+            },
+        ) from None
+    except PlannerTimedOut:
+        raise HTTPException(
+            503,
+            detail={
+                "code": "planner_timeout",
+                "message": ("Gemini 응답 시간이 길어 중단했습니다. "
+                    "자동 재요청하지 않았습니다. 입력은 유지됩니다."),
+                "field_errors": {},
+            },
+        ) from None
     except (PlannerUnavailable, InvalidPlannerOutput):
-        raise HTTPException(status_code=503, detail={
-            "code": "planner_unavailable", "message": "Gemini 조사 계획을 확인하지 못했습니다. "
-            "설정·사용 한도를 확인하거나 잠시 후 다시 계획을 요청해 주세요. "
-            "입력 내용은 유지됩니다.",
-            "field_errors": {},
-        }) from None
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "planner_unavailable",
+                "message": "Gemini 조사 계획을 확인하지 못했습니다. "
+                "설정·사용 한도를 확인하거나 잠시 후 다시 계획을 요청해 주세요. "
+                ""
+                "입력 내용은 유지됩니다.",
+                "field_errors": {},
+            },
+        ) from None
 
 
 @app.post("/api/v1/research/plan", response_model=ResearchPlanResponse)
@@ -572,6 +650,38 @@ async def event_general(
     body: EventExecuteRequest, service: Annotated[EventService, Depends(get_event_service)]
 ):
     return await research_call(service.general(body))
+
+
+@app.get("/api/v1/event/queue")
+def event_queue(request: Request):
+    return request.app.state.event_admission.status()
+
+
+@app.post("/api/v1/event/plan/stream")
+async def event_plan_stream(
+    body: EventPlanRequest,
+    request: Request,
+    service: Annotated[EventService, Depends(get_event_service)],
+):
+    return request.app.state.event_admission.response(lambda: research_call(service.plan(body)))
+
+
+@app.post("/api/v1/event/execute/stream")
+async def event_execute_stream(
+    body: EventExecuteRequest,
+    request: Request,
+    service: Annotated[EventService, Depends(get_event_service)],
+):
+    return request.app.state.event_admission.response(lambda: research_call(service.execute(body)))
+
+
+@app.post("/api/v1/event/general/stream")
+async def event_general_stream(
+    body: EventExecuteRequest,
+    request: Request,
+    service: Annotated[EventService, Depends(get_event_service)],
+):
+    return request.app.state.event_admission.response(lambda: research_call(service.general(body)))
 
 
 static_dir = Path("/app/static")

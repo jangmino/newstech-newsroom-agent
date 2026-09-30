@@ -1,5 +1,6 @@
 """Opt-in Gemini interpretation; public data and arithmetic remain outside the model."""
 
+import asyncio
 import json
 import re
 from collections import deque
@@ -15,6 +16,8 @@ from google.genai import errors, types
 from newsroom_agent.conditions import FIELD_OPTIONS
 from newsroom_agent.planning import InvalidPlannerOutput, StructuredQuestion
 from newsroom_agent.providers.planner import (
+    PlannerAuthenticationError,
+    PlannerBillingError,
     PlannerConfigurationError,
     PlannerDisabled,
     PlannerRateLimited,
@@ -102,12 +105,42 @@ class GeminiQuestionPlanner:
         self.output_schema = output_schema
         self.thinking_level = None
 
+    async def interpret_queued(self, question: str) -> str:
+        from newsroom_agent.request_flow import provider_slot, wait_retry
+
+        if not self.enabled:
+            raise PlannerDisabled()
+        if not self.configured:
+            raise PlannerConfigurationError()
+        for attempt in range(2):
+            try:
+                async with provider_slot(self.limiter, "gemini"):
+                    task = asyncio.create_task(asyncio.to_thread(self._interpret, question, False))
+                    try:
+                        return await asyncio.shield(task)
+                    except asyncio.CancelledError:
+                        try:
+                            await asyncio.shield(task)
+                        except Exception:
+                            pass  # A disconnected request must never retry a late failure.
+                        raise
+            except PlannerRateLimited as exc:
+                delay = getattr(exc, "retry_after", None)
+                if attempt or delay is None:
+                    raise
+                await wait_retry(delay, "gemini", self.limiter)
+
     def interpret(self, question: str) -> str:
+        return self._interpret(question, True)
+
+    def _interpret(self, question: str, limited: bool) -> str:
+        from contextlib import nullcontext
+
         if not self.enabled:
             raise PlannerDisabled() from None
         if not self.configured or not re.fullmatch(r"gemini-[a-zA-Z0-9.-]+", self.model):
             raise PlannerConfigurationError() from None
-        with self.limiter.slot():
+        with self.limiter.slot() if limited else nullcontext():
             try:
                 # Set up credentials only after both gates and the budget check.
                 with self.client_factory() as client:
@@ -118,9 +151,13 @@ class GeminiQuestionPlanner:
                             system_instruction=self.system_instruction,
                             response_mime_type="application/json",
                             response_json_schema=self.output_schema or response_schema(),
-                            candidate_count=1, max_output_tokens=self.max_output_tokens,
-                            thinking_config=(types.ThinkingConfig(thinking_level=self.thinking_level)
-                                             if self.thinking_level else None),
+                            candidate_count=1,
+                            max_output_tokens=self.max_output_tokens,
+                            thinking_config=(
+                                types.ThinkingConfig(thinking_level=self.thinking_level)
+                                if self.thinking_level
+                                else None
+                            ),
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(
                                 disable=True,
                             ),
@@ -129,8 +166,16 @@ class GeminiQuestionPlanner:
             except httpx.TimeoutException:
                 raise PlannerTimedOut() from None
             except errors.APIError as exc:
+                if exc.code == 402:
+                    raise PlannerBillingError() from None
+                if exc.code in {401, 403}:
+                    raise PlannerAuthenticationError() from None
                 if exc.code == 429:
-                    raise PlannerRateLimited() from None
+                    from newsroom_agent.request_flow import retry_delay
+
+                    error = PlannerRateLimited()
+                    error.retry_after = retry_delay(getattr(exc, "response", None))
+                    raise error from None
                 if exc.code in {408, 504}:
                     raise PlannerTimedOut() from None
                 raise PlannerUnavailable() from None
@@ -140,7 +185,8 @@ class GeminiQuestionPlanner:
 
         feedback = response.prompt_feedback
         if feedback and feedback.block_reason not in {
-            None, types.BlockedReason.BLOCKED_REASON_UNSPECIFIED,
+            None,
+            types.BlockedReason.BLOCKED_REASON_UNSPECIFIED,
         }:
             raise InvalidPlannerOutput() from None
         candidates = response.candidates or []
@@ -155,7 +201,9 @@ class GeminiQuestionPlanner:
             if part.thought:
                 continue
             if part.text is None or set(part.model_dump(exclude_none=True)) - {
-                "text", "thought", "thought_signature",
+                "text",
+                "thought",
+                "thought_signature",
             }:
                 raise InvalidPlannerOutput() from None
             texts.append(part.text)

@@ -10,6 +10,7 @@ from time import monotonic
 from typing import Literal
 
 from newsroom_agent.models import CacheMetadata
+from newsroom_agent.request_flow import flow, progress
 
 CacheKey = tuple[tuple[str, str], ...]
 
@@ -40,6 +41,7 @@ class PublicDataCache[T]:
         self._entries: OrderedDict[CacheKey, _Entry[T]] = OrderedDict()
         self._inflight: dict[CacheKey, asyncio.Task[_Entry[T]]] = {}
         self._closed = False
+        self._waiters: dict[asyncio.Task, int] = {}
 
     async def get(
         self, key: CacheKey, loader: Callable[[], Awaitable[T]],
@@ -55,13 +57,26 @@ class PublicDataCache[T]:
             status = "hit"
         else:
             task = self._inflight.get(key)
+            if task is not None and task.cancelling():
+                task = None
             status = "coalesced" if task is not None else "miss"
             if task is None:
                 task = asyncio.create_task(self._load(key, loader), name="public-data-fetch")
                 self._inflight[key] = task  # Keep a strong reference through completion.
                 task.add_done_callback(self._consume_exception)
             # A disconnected waiter must not cancel the fetch used by other approved requests.
-            entry = await asyncio.shield(task)
+            self._waiters[task] = self._waiters.get(task, 0) + 1
+            managed = flow.get() is not None
+            if managed:
+                progress("source_wait")
+            try:
+                entry = await asyncio.shield(task)
+            finally:
+                self._waiters[task] -= 1
+                if self._waiters[task] == 0:
+                    del self._waiters[task]
+                    if managed and not task.done():
+                        task.cancel()
         return deepcopy(entry.value), CacheMetadata(
             status=status, stored_at=entry.stored_at.isoformat(),
             expires_at=(entry.stored_at + timedelta(seconds=self._ttl)).isoformat(),
@@ -79,7 +94,8 @@ class PublicDataCache[T]:
                     self._entries.popitem(last=False)
             return entry
         finally:
-            self._inflight.pop(key, None)
+            if self._inflight.get(key) is asyncio.current_task():
+                self._inflight.pop(key, None)
 
     def _prune(self) -> None:
         now = self._timer()

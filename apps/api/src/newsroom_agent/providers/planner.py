@@ -27,3 +27,11 @@ class PlannerRateLimited(PlannerUnavailable):
 
 class PlannerTimedOut(PlannerUnavailable):
     """The provider did not respond within the HTTP timeout."""
+
+
+class PlannerBillingError(PlannerUnavailable):
+    """Prepaid credits or billing require operator action."""
+
+
+class PlannerAuthenticationError(PlannerUnavailable):
+    """Credential or provider permission requires operator action."""

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { ApiGet, ApiPost } from './api';
+import type { ApiGet, ApiPost, EventProgress } from './api';
 import { OperationsPanel } from './OperationsPanel';
 import type { EventCatalog, EventConditions, EventExecuteRequest, EventPlan, EventResult, GeneralResponse } from './eventTypes';
 import { Conditions, EventResults, labels, toolLabels, Trace } from './EventResults';
@@ -24,11 +24,12 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
   const [previous, setPrevious] = useState<EventResult | null>(null);
   const [general, setGeneral] = useState<GeneralResponse | null>(null);
   const [busy, setBusy] = useState<'plan' | 'execute' | 'general' | null>(null);
+  const [progress, setProgress] = useState<EventProgress | null>(null);
   const [error, setError] = useState('');
   const [generalError, setGeneralError] = useState('');
   const version = useRef(0); const abort = useRef<AbortController | null>(null); const last = useRef<EventResult | null>(null);
   useEffect(() => { const controller = new AbortController(); void get<EventCatalog>('/api/v1/event/catalog', controller.signal).then(setCatalog).catch(() => { if (!controller.signal.aborted) setError('저장 자료 목록을 확인하지 못했습니다. 새로고침하거나 실제 조회를 진행해 주세요.'); }); return () => { controller.abort(); abort.current?.abort(); version.current++; }; }, [get]);
-  function invalidate(clear = false) { version.current++; abort.current?.abort(); setResult(null); setGeneral(null); setPrevious(null); setBusy(null); setError(''); setGeneralError(''); if (clear) { last.current = null; setPlan(null); setDraft(null); setRevision(''); } }
+  function invalidate(clear = false) { version.current++; abort.current?.abort(); setResult(null); setGeneral(null); setPrevious(null); setBusy(null); setProgress(null); setError(''); setGeneralError(''); if (clear) { last.current = null; setPlan(null); setDraft(null); setRevision(''); } }
   function changeQuestion(value: string) { invalidate(true); setQuestion(value); }
   function change<K extends keyof EventConditions>(field: K, value: EventConditions[K]) { if (!draft) return; invalidate(); setDraft({ ...draft, [field]: value }); }
   function chooseSnapshot(id: string) {
@@ -38,10 +39,10 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
     setPlan({ request_id: `snapshot-${id}`, question: item.question, conditions: item.conditions, model: null, proposals: ['공식 자료와 실제 모델 응답을 보관한 사례입니다. 최신 조회가 아니며 아래 고정 조건을 다시 승인해야 합니다.'], field_errors: {}, companies: [], trace: [], snapshot_id: id });
   }
   async function propose(e: FormEvent) {
-    e.preventDefault(); const previousDraft = draft; const previousPlan = plan; const refinement = revision.trim(); invalidate(); setPlan(null); setDraft(null);
+    e.preventDefault(); const previousDraft = draft; const previousPlan = plan; const refinement = revision.trim(); invalidate();
     const current = version.current; const controller = new AbortController(); abort.current = controller; setBusy('plan');
     try {
-      const response = await post<EventPlan>('/api/v1/event/plan', { question: question.trim(), ...(refinement && previousDraft ? { previous_conditions: previousDraft, revision: refinement } : {}) }, controller.signal);
+      const response = await post<EventPlan>('/api/v1/event/plan', { question: question.trim(), ...(refinement && previousDraft ? { previous_conditions: previousDraft, revision: refinement } : {}) }, controller.signal, value => { if (current === version.current) setProgress(value); });
       if (current !== version.current) return;
       if (response.question !== question.trim()) throw new Error('입력한 질문과 계획이 맞지 않습니다. 다시 요청해 주세요.');
       setPlan(response); setDraft(response.conditions); setRevision('');
@@ -53,7 +54,7 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
     e.preventDefault(); if (!draft || !plan || revision.trim() || plan.field_errors.scope) return;
     const request = body(); invalidate(); const current = version.current; const controller = new AbortController(); abort.current = controller; setBusy('execute');
     try {
-      const response = await post<EventResult>('/api/v1/event/execute', request, controller.signal);
+      const response = await post<EventResult>('/api/v1/event/execute', request, controller.signal, value => { if (current === version.current) setProgress(value); });
       if (current !== version.current) return;
       if (response.question !== request.question || response.data_mode !== mode || eventConditionKey(response.conditions) !== eventConditionKey(request.conditions)) throw new Error('승인한 조건과 결과가 다릅니다. 계획을 다시 확인해 주세요.');
       setPrevious(last.current); last.current = response; setResult(response);
@@ -62,9 +63,9 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
   }
   async function compare() {
     if (!result || !draft) return;
-    const current = version.current; const controller = new AbortController(); abort.current = controller; setBusy('general'); setGeneralError('');
+    const current = version.current; const controller = new AbortController(); abort.current = controller; setProgress(null); setBusy('general'); setGeneralError('');
     try {
-      const response = await post<GeneralResponse>('/api/v1/event/general', body(), controller.signal);
+      const response = await post<GeneralResponse>('/api/v1/event/general', body(), controller.signal, value => { if (current === version.current) setProgress(value); });
       if (current !== version.current) return;
       if (response.question !== result.question || eventConditionKey(response.conditions) !== eventConditionKey(result.conditions)) throw new Error('비교 응답의 조건이 다릅니다. 다시 요청해 주세요.');
       setGeneral(response);
@@ -89,6 +90,7 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
         {part === 1 && <details><summary>조건을 바꾸고 확인할 장면</summary><p>고용률을 취업자 수로, 증감 폭을 증감률로 바꿔 보세요. 청년의 연령과 전국 집계·시도 순위의 차이도 확인합니다.</p><button onClick={() => changeQuestion('서울의 15-34세 청년 월간 고용률을 확인해 줘.')}>제공되지 않는 조합 질문하기</button><p>실제 공식 자료에 없는 조합을 확인하는 실습입니다. 공급자 장애를 꾸민 응답이 아닙니다.</p></details>}
       </>}
     </section>
+    {busy && <section className="notice" role="status" aria-live="polite"><strong>{progress?.stage === 'waiting' ? '요청 순서를 기다리고 있습니다.' : progress?.stage === 'retry_wait' ? '공급자 안내에 따라 잠시 기다린 뒤 한 번 더 요청합니다.' : progress?.stage === 'source_wait' ? '승인한 공식 자료를 조회하거나 같은 자료의 조회 완료를 기다리고 있습니다.' : busy === 'plan' ? '질문을 해석하고 조사 계획을 준비하고 있습니다.' : busy === 'general' ? '일반 모델 응답을 작성하고 있습니다.' : '공식 자료 조회·계산·브리핑을 진행하고 있습니다.'}</strong><p>{progress?.provider && `${{ gemini: 'Gemini', opendart: 'OpenDART', kosis: 'KOSIS' }[progress.provider]} · `}접수 후 {Math.floor(progress?.elapsed_seconds ?? 0)}초 · 대기 {Math.floor(progress?.waited_seconds ?? 0)}초</p><p>순서가 되면 자동으로 진행합니다. 다시 누르지 않아도 됩니다. 대기는 최대 120초, 전체 처리는 최대 180초입니다.</p><button type="button" onClick={() => { version.current++; abort.current?.abort(); setBusy(null); setProgress(null); setError('요청을 취소했습니다. 이미 전송된 외부 호출은 끝날 수 있지만 후속 결과는 표시하지 않습니다. 입력한 조건은 유지됩니다.'); }}>요청 취소</button></section>}
     {error && <p role="alert" className="error request-error">{error}</p>}
     {plan && draft && <section className="card"><div className="section-heading"><span>02</span><div><h2>제안한 조회 조건을 검토해 주세요</h2><p>{toolLabels[draft.tool]} · {plan.model ?? '공식 저장 사례'}</p></div></div>
       <ul>{plan.proposals.map((p, i) => <li key={i}>{p}</li>)}</ul><Trace steps={plan.trace} />

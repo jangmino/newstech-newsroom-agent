@@ -147,6 +147,8 @@ def test_live_plan_pins_image_and_four_secrets_without_changing_public_access():
                                  "live-test", "newsroom-stage-old")
     candidate = shlex.split(result["deploy_candidate"])
     assert "--no-traffic" in candidate and "--tag=live-check" in candidate
+    assert "--concurrency=80" in candidate and "--timeout=210s" in candidate
+    assert "--max-instances=1" in candidate
     assert "--env-vars-file=infra/stage-live.env.yaml" in candidate
     assert not any("unauthenticated" in arg for arg in candidate)
     identity = "newsroom-runtime@your-stage-project.iam.gserviceaccount.com"

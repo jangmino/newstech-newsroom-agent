@@ -1,6 +1,5 @@
 """One event orchestrator. Approval is required for every retrieval/cache replay."""
 
-import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime, timedelta
@@ -23,6 +22,7 @@ from newsroom_agent.planning import InvalidPlannerOutput
 from newsroom_agent.providers.kosis_event import normalize, parameters
 from newsroom_agent.providers.opendart_research import find_companies
 from newsroom_agent.providers.planner import PlannerUnavailable
+from newsroom_agent.request_flow import FlowError, interpret
 from newsroom_agent.request_logging import request_id
 from newsroom_agent.research import ResearchError, ResearchService
 from newsroom_agent.research_briefing import BRIEF_INSTRUCTION, SLOT, brief_payload, render_brief
@@ -144,8 +144,8 @@ class EventService:
 
     async def plan(self, request: EventPlanRequest) -> EventPlan:
         model = self.research.model(PLAN_INSTRUCTION, EventIntent.model_json_schema(), False)
-        raw = await asyncio.to_thread(
-            model.interpret,
+        raw = await interpret(
+            model,
             json.dumps(
                 {**request.model_dump(), "today": datetime.now().date().isoformat()},
                 ensure_ascii=False,
@@ -324,6 +324,24 @@ class EventService:
             ],
         )
 
+    @staticmethod
+    def brief_failure(exc):
+        from newsroom_agent.providers.planner import (
+            PlannerAuthenticationError,
+            PlannerBillingError,
+            PlannerRateLimited,
+            PlannerTimedOut,
+        )
+        if isinstance(exc, PlannerBillingError):
+            return "Gemini 선불 잔액 또는 결제 설정 확인이 필요합니다. 운영자에게 알려 주세요."
+        if isinstance(exc, PlannerAuthenticationError):
+            return "Gemini 접근 권한 확인이 필요합니다. 운영자에게 알려 주세요."
+        if isinstance(exc, PlannerRateLimited):
+            return "Gemini 사용 한도에 도달했습니다. 잠시 후 다시 요청해 주세요."
+        if isinstance(exc, (FlowError, PlannerTimedOut)):
+            return "Gemini 대기 또는 응답 시간이 길어 브리핑을 중단했습니다."
+        return "Gemini 브리핑을 확인하지 못했습니다."
+
     def stored(self, request: EventExecuteRequest):
         if not self.snapshots_enabled:
             raise ResearchError("공식 저장 자료 사용이 꺼져 있습니다.")
@@ -406,8 +424,8 @@ class EventService:
                 payload = json.loads(brief_payload(request.question, c, facts, caveats, "live"))
                 if c.tool == "disclosures":
                     payload["disclosure_details"] = {f.id: f.details for f in facts[:12]}
-                raw = await asyncio.to_thread(
-                    composer.interpret, json.dumps(payload, ensure_ascii=False)
+                raw = await interpret(
+                    composer, json.dumps(payload, ensure_ascii=False)
                 )
                 brief = ResearchBrief(
                     status="complete",
@@ -423,13 +441,13 @@ class EventService:
                         parameters={"model": composer.model},
                     )
                 )
-            except (PlannerUnavailable, InvalidPlannerOutput) as exc:
+            except (PlannerUnavailable, InvalidPlannerOutput, FlowError) as exc:
                 brief = ResearchBrief(
                     status="failed",
                     generation_method="gemini",
                     model=composer.model,
                     error=(
-                        "Gemini 브리핑을 확인하지 못했습니다. 조회 근거는 남아 "
+                        self.brief_failure(exc) + " 조회 근거는 남아 "
                         "있습니다. 다시 승인해 재시도하거나 공식 저장 자료를 선택해 주세요."
                     ),
                 )
@@ -469,8 +487,8 @@ class EventService:
         if errors:
             raise ResearchError("승인할 조건을 확인해 주세요.", errors)
         model = self.research.model(GENERAL_INSTRUCTION, GeneralDraft.model_json_schema(), True)
-        raw = await asyncio.to_thread(
-            model.interpret,
+        raw = await interpret(
+            model,
             json.dumps(
                 {
                     "question": request.question,

@@ -5,7 +5,6 @@ import json
 import logging
 import math
 from collections.abc import Callable
-from contextlib import nullcontext
 from contextvars import ContextVar
 from datetime import UTC, datetime
 
@@ -18,6 +17,7 @@ from newsroom_agent.providers.kosis_employment import (
     normalize_employment,
 )
 from newsroom_agent.public_data_limits import PublicDataCallLimiter, PublicDataLimitError
+from newsroom_agent.request_flow import FlowError, provider_slot, retry_delay, retry_public
 
 _sensitive_request: ContextVar[bool] = ContextVar("kosis_sensitive_request", default=False)
 
@@ -75,6 +75,7 @@ class KosisClient:
         payload = await self.fetch_parameters(query.parameters)
         return normalize_employment(payload, query, self._clock())
 
+    @retry_public("kosis")
     async def fetch_parameters(self, parameters: dict[str, str]) -> list:
         """Backend catalog supplies parameters; never an arbitrary HTTP proxy."""
         if self._enabled is not True:
@@ -91,7 +92,7 @@ class KosisClient:
                 timeout=self._timeout, follow_redirects=False, trust_env=False,
                 transport=self._transport or httpx.AsyncHTTPTransport(retries=0),
             ) as client:
-                with self._limiter.slot() if self._limiter else nullcontext():
+                async with provider_slot(self._limiter, "kosis"):
                     async with asyncio.timeout(self._timeout):
                         async with client.stream(
                             "GET", self.data_url,
@@ -103,7 +104,9 @@ class KosisClient:
                                     403: "authentication",
                                     408: "timeout", 429: "rate_limited", 504: "timeout",
                                 }.get(response.status_code, "unavailable")
-                                raise KosisError(code)
+                                error = KosisError(code)
+                                error.retry_after = retry_delay(response)
+                                raise error
                             body = bytearray()
                             async for chunk in response.aiter_bytes(chunk_size=65_536):
                                 body.extend(chunk)
@@ -130,7 +133,7 @@ class KosisClient:
                 }[str(err)]
                 raise KosisError(code)
             return payload
-        except (KosisError, PublicDataLimitError):
+        except (FlowError, KosisError, PublicDataLimitError):
             raise
         except (httpx.TimeoutException, TimeoutError):
             raise KosisError("timeout") from None

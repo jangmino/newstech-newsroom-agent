@@ -1,0 +1,439 @@
+{
+  "date": "2026-09-30",
+  "method": "manual opt-in live per-phase simultaneous burst; conditions operator-approved",
+  "notes": [
+    "UI-only refinement cancellation fix between queueb and queuec; backend sources identical",
+    "Single client host and warmed revision, not 30 attendee browsers or venue network",
+    "HTTP success and briefing quality measured separately; no raw questions, provider responses or credentials"
+  ],
+  "runs": [
+    {
+      "profile": "5-same",
+      "revision": "newsroom-stage-queuea-20260930",
+      "started_at": "2026-09-30T11:02:56.225203+00:00",
+      "phases": {
+        "plan": {
+          "count": 5,
+          "success": 5,
+          "p95_seconds": 4.064,
+          "max_seconds": 4.064,
+          "waiting_seen": 0,
+          "briefs_complete": 0,
+          "briefs_failed": 0
+        },
+        "execute": {
+          "count": 5,
+          "success": 5,
+          "p95_seconds": 5.728,
+          "max_seconds": 5.728,
+          "waiting_seen": 0,
+          "briefs_complete": 5,
+          "briefs_failed": 0
+        },
+        "general": {
+          "count": 5,
+          "success": 5,
+          "p95_seconds": 5.67,
+          "max_seconds": 5.67,
+          "waiting_seen": 0,
+          "briefs_complete": 0,
+          "briefs_failed": 0
+        }
+      },
+      "passed_transport": true,
+      "passed_latency": true,
+      "provider_calls": {
+        "gemini": 15,
+        "opendart": 0,
+        "kosis": 1
+      },
+      "active_after": 0,
+      "control": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        },
+        "max_seconds": 0.053
+      },
+      "cache": {
+        "coalesced": 4,
+        "miss": 1
+      },
+      "coverage": {
+        "complete": 5
+      },
+      "failures": []
+    },
+    {
+      "profile": "15-same",
+      "revision": "newsroom-stage-queueb-20260930",
+      "started_at": "2026-09-30T11:05:37.743488+00:00",
+      "phases": {
+        "plan": {
+          "count": 15,
+          "success": 15,
+          "p95_seconds": 4.817,
+          "max_seconds": 4.817,
+          "waiting_seen": 7,
+          "briefs_complete": 0,
+          "briefs_failed": 0
+        },
+        "execute": {
+          "count": 15,
+          "success": 15,
+          "p95_seconds": 12.993,
+          "max_seconds": 12.993,
+          "waiting_seen": 7,
+          "briefs_complete": 15,
+          "briefs_failed": 0
+        },
+        "general": {
+          "count": 15,
+          "success": 15,
+          "p95_seconds": 53.464,
+          "max_seconds": 53.464,
+          "waiting_seen": 15,
+          "briefs_complete": 0,
+          "briefs_failed": 0
+        }
+      },
+      "passed_transport": true,
+      "passed_latency": true,
+      "provider_calls": {
+        "gemini": 45,
+        "opendart": 0,
+        "kosis": 1
+      },
+      "active_after": 0,
+      "control": {
+        "count": 36,
+        "statuses": {
+          "200": 36
+        },
+        "max_seconds": 0.069
+      },
+      "cache": {
+        "coalesced": 14,
+        "miss": 1
+      },
+      "coverage": {
+        "complete": 15
+      },
+      "failures": []
+    },
+    {
+      "profile": "30-same",
+      "revision": "newsroom-stage-queueb-20260930",
+      "started_at": "2026-09-30T11:07:03.588896+00:00",
+      "phases": {
+        "plan": {
+          "count": 30,
+          "success": 30,
+          "p95_seconds": 41.646,
+          "max_seconds": 44.519,
+          "waiting_seen": 22,
+          "briefs_complete": 0,
+          "briefs_failed": 0
+        },
+        "execute": {
+          "count": 30,
+          "success": 30,
+          "p95_seconds": 59.139,
+          "max_seconds": 59.278,
+          "waiting_seen": 30,
+          "briefs_complete": 30,
+          "briefs_failed": 0
+        },
+        "general": {
+          "count": 30,
+          "success": 30,
+          "p95_seconds": 62.785,
+          "max_seconds": 63.58,
+          "waiting_seen": 30,
+          "briefs_complete": 0,
+          "briefs_failed": 0
+        }
+      },
+      "passed_transport": true,
+      "passed_latency": true,
+      "provider_calls": {
+        "gemini": 90,
+        "opendart": 0,
+        "kosis": 0
+      },
+      "active_after": 0,
+      "control": {
+        "count": 83,
+        "statuses": {
+          "200": 83
+        },
+        "max_seconds": 0.075
+      },
+      "cache": {
+        "hit": 30
+      },
+      "coverage": {
+        "complete": 30
+      },
+      "failures": []
+    },
+    {
+      "profile": "30-mixed",
+      "revision": "newsroom-stage-queuec-20260930",
+      "started_at": "2026-09-30T11:10:37.776441+00:00",
+      "phases": {
+        "plan": {
+          "count": 30,
+          "success": 30,
+          "p95_seconds": 10.468,
+          "max_seconds": 11.355,
+          "waiting_seen": 22,
+          "briefs_complete": 0,
+          "briefs_failed": 0
+        },
+        "execute": {
+          "count": 30,
+          "success": 10,
+          "p95_seconds": 140.435,
+          "max_seconds": 140.5,
+          "waiting_seen": 28,
+          "briefs_complete": 9,
+          "briefs_failed": 1
+        }
+      },
+      "passed_transport": false,
+      "passed_latency": false,
+      "provider_calls": {
+        "gemini": 40,
+        "opendart": 60,
+        "kosis": 14
+      },
+      "active_after": 0,
+      "control": {
+        "count": 74,
+        "statuses": {
+          "200": 74
+        },
+        "max_seconds": 2.355
+      },
+      "cache": {
+        "null": 20,
+        "miss": 10
+      },
+      "coverage": {
+        "null": 20,
+        "complete": 7,
+        "partial": 3
+      },
+      "failures": [
+        {
+          "index": 0,
+          "phase": "execute",
+          "request_id": "1d59b0a3-28e0-4697-90c1-42b63eadb8e3",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 1,
+          "phase": "execute",
+          "request_id": "fb3a6688-bec9-42c9-96cc-19ac84b9e27e",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 4,
+          "phase": "execute",
+          "request_id": "11df8e7a-96e8-4195-a609-36ae049c59be",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 3,
+          "phase": "execute",
+          "request_id": "9946df68-9391-4a81-8237-0ee1d9f8e99d",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 12,
+          "phase": "execute",
+          "request_id": "71b04fdf-5580-4ddd-a5bb-0e30b27b8422",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 6,
+          "phase": "execute",
+          "request_id": "86b072e9-8d9f-40a3-973b-c3d745f02a35",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 28,
+          "phase": "execute",
+          "request_id": "9d3d3128-6903-440f-bc59-ecd1adfba7a2",
+          "brief": "failed"
+        },
+        {
+          "index": 7,
+          "phase": "execute",
+          "request_id": "5f4b7d5d-c2e1-4048-b724-01a9763b98ce",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 17,
+          "phase": "execute",
+          "request_id": "cd23e455-7179-49db-bc74-b35ad9bc7bc9",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 2,
+          "phase": "execute",
+          "request_id": "9852b0f7-6872-452b-9434-dea5fccc4f18",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 10,
+          "phase": "execute",
+          "request_id": "ffb739c8-d685-4e9f-9780-1e7503f6d855",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 8,
+          "phase": "execute",
+          "request_id": "98990f66-0c52-43f8-8d51-250c9c6666c1",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 19,
+          "phase": "execute",
+          "request_id": "f8bdd1ba-e7ba-4bb5-8f1b-57fc28f24a5b",
+          "error_code": "queue_timeout"
+        },
+        {
+          "index": 16,
+          "phase": "execute",
+          "request_id": "2b4b1a4b-80f9-4bc0-9fd0-fe2813da332c",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 11,
+          "phase": "execute",
+          "request_id": "314a6203-bc10-4940-804d-83f037243260",
+          "error_code": "queue_timeout"
+        },
+        {
+          "index": 9,
+          "phase": "execute",
+          "request_id": "88230ef4-7a54-4319-87bc-4ef926358199",
+          "error_code": "queue_timeout"
+        },
+        {
+          "index": 13,
+          "phase": "execute",
+          "request_id": "5734d829-aa17-4993-98ee-07297acedf87",
+          "error_code": "queue_timeout"
+        },
+        {
+          "index": 5,
+          "phase": "execute",
+          "request_id": "4bf6402c-7795-482c-8f48-f8a3b33c5424",
+          "error_code": "queue_timeout"
+        },
+        {
+          "index": 18,
+          "phase": "execute",
+          "request_id": "8d717d10-a3ac-43cd-b2f5-82e5c9f1587d",
+          "error_code": "queue_timeout"
+        },
+        {
+          "index": 14,
+          "phase": "execute",
+          "request_id": "fef4b0c8-a81f-41b5-975d-c54850fc3aae",
+          "error_code": "kosis_timeout"
+        },
+        {
+          "index": 15,
+          "phase": "execute",
+          "request_id": "ece18056-e1c0-47ad-8c63-3b438ff54bc9",
+          "error_code": "kosis_timeout"
+        }
+      ]
+    }
+  ],
+  "candidate_revision": "newsroom-stage-queued-20260930",
+  "image_digest": "sha256:aaa15e0b894eec075975c643a428a35fd5d0908ac112ca63fc299687b421ced8",
+  "public_revision_at_check": "newsroom-stage-eventd-20260918",
+  "kosis_diagnostics": {
+    "local": [
+      {
+        "case": "same_existing",
+        "status": 200,
+        "cells": 10,
+        "error_code": null,
+        "seconds": 0.29
+      },
+      {
+        "case": "single_existing",
+        "status": 200,
+        "cells": 5,
+        "error_code": null,
+        "seconds": 0.32
+      },
+      {
+        "case": "single_delimiters",
+        "status": 200,
+        "cells": 5,
+        "error_code": null,
+        "seconds": 0.24
+      },
+      {
+        "case": "single_method",
+        "status": 200,
+        "cells": 5,
+        "error_code": null,
+        "seconds": 0.71
+      }
+    ],
+    "candidate_c": [
+      {
+        "case": "same",
+        "type": "error",
+        "code": "kosis_timeout",
+        "brief": null,
+        "seconds": 20.11,
+        "metrics": null
+      },
+      {
+        "case": "single",
+        "type": "error",
+        "code": "kosis_timeout",
+        "brief": null,
+        "seconds": 20.03,
+        "metrics": null
+      }
+    ],
+    "candidate_b": [
+      {
+        "case": "single",
+        "type": "error",
+        "code": "kosis_timeout",
+        "brief": null,
+        "seconds": 30.58,
+        "metrics": null
+      }
+    ],
+    "public_baseline": [
+      {
+        "status": 503,
+        "code": "kosis_timeout",
+        "brief": null,
+        "seconds": 20.33
+      }
+    ],
+    "same_image_fresh_d": [
+      {
+        "case": "single",
+        "type": "error",
+        "code": "kosis_timeout",
+        "brief": null,
+        "seconds": 20.3,
+        "metrics": null
+      }
+    ]
+  }
+}

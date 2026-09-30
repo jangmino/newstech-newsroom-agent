@@ -14,6 +14,13 @@ HTTP 응답에 서버가 생성한 `X-Request-ID`를 제공합니다. 기존 성
 
 ## 참가자 흐름
 
+2026-09-30 행사 화면은 `POST /api/v1/event/{plan|execute|general}/stream`을 사용한다.
+요청 본문과 최종 결과는 기존 행사 JSON 계약과 같고 NDJSON 진행·결과·오류 이벤트를
+전송한다. HTTP 200도 종료 `error`일 수 있다. 같은 접근코드로 보호된
+`GET /api/v1/event/queue`에서 요청 수·누적 호출 시작 수를 확인한다.
+[대기·취소·시간 제한·오류 및 운영 계약](../../docs/EVENT_QUEUE.md)을 참고하십시오.
+기존 JSON 경로와 `/api/v1/analyze` 호환성은 유지한다.
+
 먼저 `GET /api/v1/access`로 `{required, available}`을 확인합니다. 코드가 필요하면
 `POST /api/v1/access`와 이후 모든 API 요청에 `X-Workshop-Code`를 보냅니다.
 입장은 자료 조회 승인이 아닙니다. 코드가 없거나 틀리면 본문 처리 전에 401

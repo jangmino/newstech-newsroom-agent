@@ -110,9 +110,9 @@ export function WorkshopAccess() {
     }
   }
 
-  const post: ApiPost = async (path, body, signal) => {
+  const post: ApiPost = async (path, body, signal, onProgress) => {
     try {
-      return await postJson(path, body, signal, code ?? undefined);
+      return await postJson(path, body, signal, code ?? undefined, onProgress);
     } catch (caught) {
       handleAccessError(caught, signal);
       throw caught;

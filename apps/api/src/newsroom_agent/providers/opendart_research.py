@@ -4,12 +4,12 @@ import asyncio
 import io
 import re
 import zipfile
-from contextlib import nullcontext
 from datetime import datetime
 from xml.etree import ElementTree
 
 from newsroom_agent.providers.opendart import OpenDartClient
 from newsroom_agent.providers.opendart_financials import OpenDartError
+from newsroom_agent.request_flow import provider_slot, retry_delay, retry_public
 from newsroom_agent.research_models import Company, ResearchFact
 
 ACCOUNT_IDS = {
@@ -164,17 +164,20 @@ def normalize_financials(
 
 
 class OpenDartResearchClient(OpenDartClient):
+    @retry_public("opendart")
     async def companies(self) -> tuple[Company, ...]:
         async with self._session() as client:
-            with self._limiter.slot() if self._limiter else nullcontext():
+            async with provider_slot(self._limiter, "opendart"):
                 async with asyncio.timeout(self._timeout):
                     async with client.stream(
                         "GET", f"{self.base_url}/corpCode.xml", params={"crtfc_key": self._api_key}
                     ) as response:
                         if response.status_code != 200:
-                            raise OpenDartError(
+                            error = OpenDartError(
                                 "rate_limited" if response.status_code == 429 else "unavailable"
                             )
+                            error.retry_after = retry_delay(response)
+                            raise error
                         body = bytearray()
                         async for chunk in response.aiter_bytes(chunk_size=65_536):
                             body.extend(chunk)

@@ -154,6 +154,7 @@ def live_commands(config, secrets, digest, suffix, rollback_revision):
     candidate = ["gcloud", "run", "services", "update", *common, f"--image={image}",
                  f"--service-account={base['runtime_identity']}",
                  "--no-traffic", "--tag=live-check",
+                 "--concurrency=80", "--timeout=210s", "--max-instances=1",
                  f"--revision-suffix={suffix}", "--env-vars-file=infra/stage-live.env.yaml",
                  "--set-secrets=" + ",".join(references)]
     traffic = ["gcloud", "run", "services", "update-traffic", *common]
