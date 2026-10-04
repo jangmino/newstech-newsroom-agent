@@ -286,3 +286,26 @@ test('switching to official snapshots clears dialogue and still requires approva
   await approve();
   expect(post.mock.calls[2][1]).toMatchObject({ mode: 'snapshot', approved: true, snapshot_id: 'seoul' });
 });
+
+test('disclosure edits show actionable limits before approval and preserve entered dates', async () => {
+  const disclosure = { ...conditions, tool: 'disclosures' as const, entities: ['NAVER', '카카오'], company_codes: ['00266961', '00258801'], metrics: ['투자'], start: '2025-01-01', end: '2025-04-03', comparison: '접수일순' };
+  const { post } = setup(async (path, body) => path.endsWith('/plan') ? { ...plan(), conditions: disclosure } : result(body as EventExecuteRequest));
+  await propose();
+  expect(screen.getByText(/이 실습 앱의 조회 범위/)).toBeTruthy();
+  const start = screen.getByRole('textbox', { name: '시작 기간' });
+  const button = screen.getByRole('button', { name: '이 조건으로 조회' });
+  expect(button.hasAttribute('disabled')).toBe(false);
+  fireEvent.change(start, { target: { value: '2024-12-31' } });
+  expect(screen.getByText(/포함 94일/).textContent).toContain('2025-01-01 이후');
+  expect(button.hasAttribute('disabled')).toBe(true);
+  fireEvent.submit(button.closest('form')!);
+  expect(post).toHaveBeenCalledTimes(1);
+  expect(start).toHaveProperty('value', '2024-12-31');
+  expect(screen.queryByRole('table')).toBeNull();
+  fireEvent.change(start, { target: { value: '2025-01-01' } });
+  expect(screen.queryByText(/포함 94일/)).toBeNull();
+  expect(button.hasAttribute('disabled')).toBe(false);
+  expect(post).toHaveBeenCalledTimes(1);
+  await approve();
+  expect(post.mock.calls[1][1]).toMatchObject({ approved: true, conditions: disclosure });
+});

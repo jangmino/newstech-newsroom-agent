@@ -621,13 +621,19 @@ def get_event_service(request: Request):
 
 @app.get("/api/v1/event/catalog")
 async def event_catalog():
-    from newsroom_agent.event_catalog import AGES, ENTITIES, PERIOD_NOTICE
+    from newsroom_agent.event_catalog import (
+        AGES,
+        ENTITIES,
+        PERIOD_NOTICE,
+        disclosure_period_limits,
+    )
 
     return {
         "snapshots": snapshot_catalog() if settings.fallback_snapshot_enabled else [],
         "entities": ENTITIES,
         "ages": list(AGES),
         "notice": PERIOD_NOTICE,
+        "disclosure_period": disclosure_period_limits(),
     }
 
 

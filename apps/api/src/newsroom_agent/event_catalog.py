@@ -1,7 +1,7 @@
 """Verified event catalog and validation. No model-supplied provider codes."""
 
 import re
-from datetime import date
+from datetime import date, timedelta
 
 from newsroom_agent.event_models import EventConditions
 from newsroom_agent.providers.kosis_employment import GROUPS, REGIONS
@@ -51,6 +51,36 @@ def period_list(c: EventConditions) -> list[str]:
     return [str(y) for y in range(int(c.start), int(c.end) + 1)]
 
 
+DISCLOSURE_MAX_DAYS = 93
+DISCLOSURE_MIN_DATE = "2015-01-01"
+
+
+def disclosure_period_limits() -> dict:
+    return {"max_days": DISCLOSURE_MAX_DAYS, "min_date": DISCLOSURE_MIN_DATE,
+            "max_date": date.today().isoformat()}
+
+
+def disclosure_period_error(start_text: str, end_text: str) -> str:
+    try:
+        start, end = date.fromisoformat(start_text), date.fromisoformat(end_text)
+        if start.isoformat() != start_text or end.isoformat() != end_text:
+            raise ValueError()
+    except ValueError:
+        return "공시 시작일과 종료일을 YYYY-MM-DD 형식의 실제 날짜로 입력해 주세요."
+    if start > end:
+        return "공시 시작일은 종료일보다 늦을 수 없습니다. 두 날짜를 확인해 주세요."
+    if start < date.fromisoformat(DISCLOSURE_MIN_DATE) or end > date.today():
+        return f"공시 접수일은 {DISCLOSURE_MIN_DATE}부터 오늘까지 선택해 주세요."
+    days = (end - start).days + 1
+    if days > DISCLOSURE_MAX_DAYS:
+        earliest = end - timedelta(days=DISCLOSURE_MAX_DAYS - 1)
+        return (f"선택한 공시 기간은 시작일·종료일 포함 {days}일입니다. "
+                f"이 실습 앱은 한 번에 최대 {DISCLOSURE_MAX_DAYS}일을 조회합니다. "
+                f"종료일을 유지하려면 시작일을 {earliest.isoformat()} 이후로 바꾸거나, "
+                "기간을 나누어 각각 승인해 주세요.")
+    return ""
+
+
 def validate_conditions(c: EventConditions) -> dict[str, str]:
     errors = {}
     if c.tool == "undetermined":
@@ -76,12 +106,8 @@ def validate_conditions(c: EventConditions) -> dict[str, str]:
         ):
             errors["entities"] = "회사명과 공식 코드를 계획 단계에서 먼저 확인해 주세요."
     if c.tool == "disclosures":
-        try:
-            start, end = date.fromisoformat(c.start), date.fromisoformat(c.end)
-            if not 0 <= (end - start).days <= 92 or start.year < 2015 or end > date.today():
-                raise ValueError()
-        except ValueError:
-            errors["period"] = "공시 접수 기간을 오늘 이전의 최대 93일로 선택해 주세요."
+        if message := disclosure_period_error(c.start, c.end):
+            errors["period"] = message
         if c.comparison not in ("접수일순", "종류별"):
             errors["comparison"] = (
                 "접수일순 또는 종류별로 비교해 주세요. 뉴스 가치 순위는 사람이 판단합니다."

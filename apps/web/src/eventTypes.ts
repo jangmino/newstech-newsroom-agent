@@ -18,4 +18,5 @@ export interface EventResult {
   trace: TraceStep[]; cache: CacheMetadata | null; brief: ResearchResult['brief']; generated_at: string; snapshot_id: string | null;
 }
 export interface GeneralResponse { request_id: string; question: string; conditions: EventConditions; text: string; model: string; generated_at: string; instruction: string; tools: string[]; cache: CacheMetadata | null; data_mode: 'live' | 'snapshot' }
-export interface EventCatalog { snapshots: { id: string; title: string; question: string; conditions: EventConditions; generated_at: string }[]; entities: string[]; ages: string[]; notice: string }
+export interface DisclosurePeriodLimits { max_days: number; min_date: string; max_date: string }
+export interface EventCatalog { snapshots: { id: string; title: string; question: string; conditions: EventConditions; generated_at: string }[]; entities: string[]; ages: string[]; notice: string; disclosure_period?: DisclosurePeriodLimits }

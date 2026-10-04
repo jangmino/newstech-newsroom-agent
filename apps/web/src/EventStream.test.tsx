@@ -39,3 +39,16 @@ test('event progress uses stream endpoint and existing access header once', asyn
   expect(fetch).toHaveBeenCalledOnce();
   expect(fetch.mock.calls[0]).toEqual(['/api/v1/event/plan/stream', expect.objectContaining({ headers: expect.objectContaining({ 'X-Workshop-Code': 'test-code' }) })]);
 });
+
+test('stream and JSON errors show field guidance and request reference identically', async () => {
+  const detail = { code: 'invalid_conditions', message: '조회 조건을 확인해 주세요.', field_errors: { period: '이 실습 앱은 한 번에 최대 93일을 조회합니다.', metrics: '지표를 선택해 주세요.' } };
+  const expected = `${detail.message} ${detail.field_errors.period} ${detail.field_errors.metrics} 문의용 요청 번호: ${id}`;
+  await expect(readEventStream(response([{ type: 'error', request_id: id, detail }]), new AbortController().signal, vi.fn())).rejects.toThrow(expected);
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ detail }), { status: 422, headers: { 'X-Request-ID': id } })));
+  await expect(postJson('/api/v1/event/plan', { question: 'NAVER 공시' }, new AbortController().signal)).rejects.toThrow(expected);
+});
+
+test('malformed field guidance does not hide the stream error or leak object values', async () => {
+  const detail = { message: '조건을 확인해 주세요.', field_errors: { period: '기간을 줄여 주세요.', bad: { internal: 'hidden' } } };
+  await expect(readEventStream(response([{ type: 'error', request_id: id, detail }]), new AbortController().signal, vi.fn())).rejects.toThrow(`조건을 확인해 주세요. 기간을 줄여 주세요. 문의용 요청 번호: ${id}`);
+});

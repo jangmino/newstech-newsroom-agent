@@ -69,12 +69,7 @@ async function readJson<T>(response: Response): Promise<T> {
     if (response.status === 401) throw new WorkshopAccessError(false, response);
     if (response.status === 503 && detail?.code === "workshop_access_unavailable") throw new WorkshopAccessError(true, response);
     if (detail?.message && detail.field_errors) {
-      const seconds = detail.retry_after_seconds;
-      const waitHint = detail.code === "public_data_rate_limited"
-        && typeof seconds === "number" && Number.isInteger(seconds) && seconds >= 1 && seconds <= 60
-        ? `다시 조회할 수 있는 예상 시간은 약 ${seconds}초 뒤입니다. 다른 요청에 따라 달라질 수 있습니다.`
-        : "";
-      throw new Error(withRequestReference([detail.message, ...Object.values(detail.field_errors), waitHint].filter(Boolean).join(" "), response));
+      throw new Error(withRequestReference(errorDetailMessage(detail), response));
     }
     throw new Error(withRequestReference("요청을 처리하지 못했습니다. 입력한 내용은 유지됩니다. 다시 시도해 주세요.", response));
   }
@@ -83,6 +78,16 @@ async function readJson<T>(response: Response): Promise<T> {
   } catch {
     throw new Error(withRequestReference("응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.", response));
   }
+}
+
+function errorDetailMessage(detail: ApiErrorDetail): string {
+  const fields = detail.field_errors && typeof detail.field_errors === 'object' && !Array.isArray(detail.field_errors)
+    ? Object.values(detail.field_errors).filter((value): value is string => typeof value === 'string') : [];
+  const seconds = detail.retry_after_seconds;
+  const waitHint = detail.code === 'public_data_rate_limited'
+    && typeof seconds === 'number' && Number.isInteger(seconds) && seconds >= 1 && seconds <= 60
+    ? `다시 조회할 수 있는 예상 시간은 약 ${seconds}초 뒤입니다. 다른 요청에 따라 달라질 수 있습니다.` : '';
+  return [...new Set([detail.message, ...fields, waitHint].filter(Boolean))].join(' ');
 }
 
 export type ApiPost = <T>(path: string, body: PostBody, signal: AbortSignal, onProgress?: (value: EventProgress) => void) => Promise<T>;
@@ -123,7 +128,7 @@ export async function readEventStream<T>(response: Response, signal: AbortSignal
           onProgress(event);
         } else if (event.type === 'result' && event.result) return event.result as T;
         else if (event.type === 'error' && typeof event.detail?.message === 'string') {
-          throw new Error(withRequestReference(event.detail.message, response));
+          throw new Error(withRequestReference(errorDetailMessage(event.detail), response));
         } else throw new Error('응답 형식이 올바르지 않습니다.');
       }
       if (done) break;

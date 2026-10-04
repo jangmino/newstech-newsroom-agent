@@ -501,3 +501,51 @@ def test_event_renderer_derives_missing_slot_citation_but_rejects_untrusted_numb
     draft["summary"]["evidence_ids"] = ["F999"]
     with pytest.raises(InvalidPlannerOutput):
         render_event_brief(json.dumps(draft), [fact, second])
+
+
+@pytest.mark.parametrize(
+    "start,end,expected",
+    [("2025-01-01", "2025-04-03", ""),
+     ("2025-01-01", "2025-04-04", "포함 94일"),
+     ("2025-02-29", "2025-03-01", "실제 날짜"),
+     ("2024-02-29", "2024-03-01", ""),
+     ("2025-03-02", "2025-03-01", "늦을 수 없습니다"),
+     ("2014-12-31", "2015-01-01", "2015-01-01부터"),
+     ("2999-01-01", "2999-01-02", "오늘까지"),
+     ("20250101", "2025-01-02", "실제 날짜")],
+)
+def test_disclosure_period_guidance(start, end, expected):
+    c = EventConditions(tool="disclosures", entities=["NAVER", "카카오"],
+                        company_codes=["00266961", "00258801"], metrics=["투자"],
+                        start=start, end=end, comparison="접수일순")
+    errors = validate_conditions(c)
+    if expected:
+        assert expected in errors["period"]
+    else:
+        assert not errors
+
+
+def test_disclosure_period_error_survives_http_and_stream_without_provider_calls():
+    from newsroom_agent.event_catalog import disclosure_period_limits
+
+    main.app.dependency_overrides[main.get_event_service] = lambda: service(None)
+    try:
+        with TestClient(main.app) as client:
+            limits = client.get("/api/v1/event/catalog").json()["disclosure_period"]
+            assert limits == disclosure_period_limits()
+            c = EventConditions(tool="disclosures", entities=["NAVER", "카카오"],
+                                company_codes=["00266961", "00258801"], metrics=["투자"],
+                                start="2025-01-01", end="2025-04-04", comparison="접수일순")
+            body = {"question": "NAVER와 카카오 공시 비교", "approved": True,
+                    "mode": "live", "conditions": c.model_dump()}
+            regular = client.post("/api/v1/event/execute", json=body)
+            assert regular.status_code == 422
+            response = client.post("/api/v1/event/execute/stream", json=body)
+            events = [json.loads(line) for line in response.text.splitlines()]
+            assert events[-1]["type"] == "error"
+            assert events[-1]["detail"] == regular.json()["detail"]
+            assert "2025-01-02 이후" in events[-1]["detail"]["field_errors"]["period"]
+            assert events[-1]["request_id"] == response.headers["X-Request-ID"]
+            assert not any(client.get("/api/v1/event/queue").json()["provider_calls"].values())
+    finally:
+        main.app.dependency_overrides.pop(main.get_event_service, None)

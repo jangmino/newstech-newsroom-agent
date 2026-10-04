@@ -4,6 +4,7 @@ import { OperationsPanel } from './OperationsPanel';
 import type { EventCatalog, EventConditions, EventDialogueTurn, EventExecuteRequest, EventPlan, EventResult, GeneralResponse } from './eventTypes';
 import { Conditions, EventResults, labels, toolLabels, Trace } from './EventResults';
 import { DialogueHistory, EventDialogue } from './EventDialogue';
+import { disclosurePeriodError, disclosurePeriodLimits } from './disclosurePeriod';
 
 const examples = [
   'NAVER와 카카오의 최근 한 달 투자·지분·소송 공시를 비교해 줘.',
@@ -59,7 +60,7 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
   }
   function body(): EventExecuteRequest { return { question: question.trim(), conditions: draft!, approved: true, mode, ...(mode === 'snapshot' ? { snapshot_id: snapshot } : {}) }; }
   async function execute(e: FormEvent) {
-    e.preventDefault(); if (busy || !draft || !plan || revision.trim() || needsDialogue) return;
+    e.preventDefault(); if (busy || !draft || !plan || revision.trim() || needsDialogue || periodError) return;
     const request = body(); invalidate(); const current = version.current; const controller = new AbortController(); abort.current = controller; setBusy('execute');
     try {
       const response = await post<EventResult>('/api/v1/event/execute', request, controller.signal, value => { if (current === version.current) setProgress(value); });
@@ -83,9 +84,12 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
   function field(key: keyof EventConditions, options?: string[]) {
     if (!draft) return null;
     const value = String(draft[key]); const modified = plan && JSON.stringify(draft[key]) !== JSON.stringify(plan.conditions[key]);
-    return <label className="condition-field" key={key}>{labels[key]} {modified && <span className="modified-badge">수정됨</span>}{options ? <select value={value} onChange={e => change(key, e.target.value)}>{!options.includes(value) && <option>{value}</option>}{options.map(v => <option key={v}>{v}</option>)}</select> : <input value={value} maxLength={10} placeholder={draft.tool === 'disclosures' ? 'YYYY-MM-DD' : draft.frequency === '분기' ? 'YYYY-Q1' : draft.frequency === '월간' ? 'YYYY-MM' : 'YYYY'} onChange={e => change(key, e.target.value)} />}</label>;
+    const disclosureDate = draft.tool === 'disclosures' && (key === 'start' || key === 'end');
+    return <label className="condition-field" key={key}>{labels[key]} {modified && <span className="modified-badge">수정됨</span>}{options ? <select value={value} onChange={e => change(key, e.target.value)}>{!options.includes(value) && <option>{value}</option>}{options.map(v => <option key={v}>{v}</option>)}</select> : <input value={value} maxLength={10} aria-invalid={disclosureDate && !!periodError} aria-describedby={disclosureDate ? `disclosure-period-help${periodError ? ' disclosure-period-error' : ''}` : undefined} placeholder={draft.tool === 'disclosures' ? 'YYYY-MM-DD' : draft.frequency === '분기' ? 'YYYY-Q1' : draft.frequency === '월간' ? 'YYYY-MM' : 'YYYY'} onChange={e => change(key, e.target.value)} />}</label>;
   }
   const needsDialogue = !!plan && (plan.status !== 'ready' || draft?.tool === 'undetermined' || !!plan.field_errors.scope);
+  const periodLimits = catalog?.disclosure_period ?? disclosurePeriodLimits();
+  const periodError = draft?.tool === 'disclosures' ? disclosurePeriodError(draft.start, draft.end, periodLimits) : '';
   const clarification = plan?.clarification ?? { question: Object.values(plan?.field_errors ?? {}).join(' ') || '어떤 내용을 조사할지 조금 더 알려 주세요.', choices: [] };
   const metrics = draft?.tool === 'financials' ? ['매출액', '영업이익', '당기순이익'] : draft?.tool === 'disclosures' ? ['투자', '지분', '소송'] : draft?.tool === 'employment' ? ['고용률', '취업자 수', '실업률'] : [];
   return <main className="shell"><header className="topbar"><div><p className="eyebrow">NewsTech Initiatives 2026 · {part}부 실습</p><h1>{part === 1 ? '조건과 근거를 확인하는 취재 실습' : '질문에서 근거 기반 브리핑까지'}</h1></div><span className="mode">{mode === 'live' ? '공식 실제 자료' : '공식 저장 자료'}</span></header>
@@ -121,8 +125,10 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
         {draft.tool === 'employment' && field('age_range', catalog?.ages ?? ['15-29세', '20-29세', '15-64세'])}
       </div>}
       <p className="field-help">{catalog?.notice} 기간 표기: 연간 2025 / 분기 2026-Q2 / 월간 2026-08 / 공시 2026-09-18</p>
+      {draft.tool === 'disclosures' && <p className="field-help" id="disclosure-period-help">공시 접수 기간은 시작일·종료일을 포함해 최대 {periodLimits.max_days}일입니다. 이 실습 앱의 조회 범위이며, 더 긴 기간은 나누어 각각 승인해 주세요.</p>}
+      {periodError && <p className="error" id="disclosure-period-error" role="status">{periodError}</p>}
       {revision.trim() && <p className="notice">작성한 수정 요청을 먼저 반영해 주세요.</p>}
-      <button className="primary" disabled={!!busy || !draft.metrics.length || !!revision.trim() || !!plan.field_errors.scope || draft.tool === 'undetermined'}>{busy === 'execute' ? '조회·계산·AI 브리핑 작성 중…' : '이 조건으로 조회'}</button><p>승인 후에만 자료와 브리핑을 표시합니다. 다시 조회하거나 조건을 바꾸면 검토 상태는 초기화됩니다.</p></form>
+      <button className="primary" disabled={!!busy || !draft.metrics.length || !!revision.trim() || !!plan.field_errors.scope || !!periodError || draft.tool === 'undetermined'}>{busy === 'execute' ? '조회·계산·AI 브리핑 작성 중…' : '이 조건으로 조회'}</button><p>승인 후에만 자료와 브리핑을 표시합니다. 다시 조회하거나 조건을 바꾸면 검토 상태는 초기화됩니다.</p></form>
       {mode === 'live' && (conversation.length >= 8 ? <p className="notice">질답·자연어 수정을 8회 진행했습니다. 아래 수정 입력 대신 조건 폼에서 편집하거나 원 질문부터 계획을 다시 제안받아 주세요.</p> : <form className="research-refinement" onSubmit={e => { e.preventDefault(); void propose(revision); }}><label>계획을 말로 수정하기<textarea maxLength={1000} value={revision} placeholder="예: 현대자동차 별도 기준으로 바꾸고, 최근 두 분기의 영업이익을 비교해 줘." onChange={e => { invalidate(); setRevision(e.target.value); }} /></label><button disabled={!!busy || !revision.trim()}>수정 요청 반영</button></form>)}
       </>}
       <Trace steps={plan.trace} />
