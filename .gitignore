@@ -24,6 +24,7 @@ __pycache__/
 apps/api/dist/
 
 # Local data and caches
+/.inner_docs/
 .cache/
 data/cache/
 fixtures/public-data/private/
