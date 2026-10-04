@@ -17,7 +17,7 @@ export function eventConditionKey(c: EventConditions) { return JSON.stringify(Ob
 export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet; part: 1 | 2 }) {
   const [question, setQuestion] = useState(part === 1 ? examples[1] : '');
   const [catalog, setCatalog] = useState<EventCatalog | null>(null);
-  const [mode, setMode] = useState<'live' | 'snapshot'>('live');
+  const [mode, setMode] = useState<'live' | 'snapshot' | 'archive'>('live');
   const [snapshot, setSnapshot] = useState('');
   const [plan, setPlan] = useState<EventPlan | null>(null);
   const [draft, setDraft] = useState<EventConditions | null>(null);
@@ -58,14 +58,16 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
     } catch (caught) { if (current === version.current) { setError(caught instanceof Error ? caught.message : '계획을 확인하지 못했습니다.'); if (refinement) { setDraft(previousDraft); setPlan(previousPlan); } } }
     finally { if (current === version.current) setBusy(null); }
   }
-  function body(): EventExecuteRequest { return { question: question.trim(), conditions: draft!, approved: true, mode, ...(mode === 'snapshot' ? { snapshot_id: snapshot } : {}) }; }
+  const investigation = catalog?.investigations?.find(s => s.tool === draft?.tool);
+  const effectiveMode = investigation?.archive_only && mode !== 'snapshot' ? 'archive' : mode;
+  function body(): EventExecuteRequest { return { question: question.trim(), conditions: draft!, approved: true, mode: effectiveMode, ...(mode === 'snapshot' ? { snapshot_id: snapshot } : {}) }; }
   async function execute(e: FormEvent) {
     e.preventDefault(); if (busy || !draft || !plan || revision.trim() || needsDialogue || periodError) return;
     const request = body(); invalidate(); const current = version.current; const controller = new AbortController(); abort.current = controller; setBusy('execute');
     try {
       const response = await post<EventResult>('/api/v1/event/execute', request, controller.signal, value => { if (current === version.current) setProgress(value); });
       if (current !== version.current) return;
-      if (response.question !== request.question || response.data_mode !== mode || eventConditionKey(response.conditions) !== eventConditionKey(request.conditions)) throw new Error('승인한 조건과 결과가 다릅니다. 계획을 다시 확인해 주세요.');
+      if (response.question !== request.question || response.data_mode !== request.mode || eventConditionKey(response.conditions) !== eventConditionKey(request.conditions)) throw new Error('승인한 조건과 결과가 다릅니다. 계획을 다시 확인해 주세요.');
       setPrevious(last.current); last.current = response; setResult(response);
     } catch (caught) { if (current === version.current) setError(caught instanceof Error ? caught.message : '자료를 확인하지 못했습니다.'); }
     finally { if (current === version.current) setBusy(null); }
@@ -92,13 +94,14 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
   const periodError = draft?.tool === 'disclosures' ? disclosurePeriodError(draft.start, draft.end, periodLimits) : '';
   const clarification = plan?.clarification ?? { question: Object.values(plan?.field_errors ?? {}).join(' ') || '어떤 내용을 조사할지 조금 더 알려 주세요.', choices: [] };
   const metrics = draft?.tool === 'financials' ? ['매출액', '영업이익', '당기순이익'] : draft?.tool === 'disclosures' ? ['투자', '지분', '소송'] : draft?.tool === 'employment' ? ['고용률', '취업자 수', '실업률'] : [];
-  return <main className="shell"><header className="topbar"><div><p className="eyebrow">NewsTech Initiatives 2026 · {part}부 실습</p><h1>{part === 1 ? '조건과 근거를 확인하는 취재 실습' : '질문에서 근거 기반 브리핑까지'}</h1></div><span className="mode">{mode === 'live' ? '공식 실제 자료' : '공식 저장 자료'}</span></header>
+  return <main className="shell"><header className="topbar"><div><p className="eyebrow">NewsTech Initiatives 2026 · {part}부 실습</p><h1>{part === 1 ? '조건과 근거를 확인하는 취재 실습' : '질문에서 근거 기반 브리핑까지'}</h1></div><span className="mode">{effectiveMode === 'live' ? '공식 실제 자료' : effectiveMode === 'archive' ? '공식 저장 원자료 · 새 분석' : '공식 저장 자료'}</span></header>
     <OperationsPanel get={get} event />
     <section className="question-panel"><div className="section-heading"><span>01</span><div><h2>취재 질문하기</h2><p>{part === 1 ? '진행자와 같은 예제로 조건 승인·근거 확인·사람 검토를 익힙니다.' : '궁금한 내용을 적어 주세요. 필요한 내용을 묻고 답하며 조사 가능한 질문으로 다듬습니다.'}</p></div></div>
       <p className="field-help">1부는 예제를 함께 따라가고, 2부는 내 질문으로 조사합니다. 두 실습 모두 같은 자료 조회·AI 브리핑·사람 검토 도구를 사용합니다.</p>
-      <p className="field-help">기업 공시의 투자·지분·소송, 기업 재무 실적, 청년 고용을 공식 자료의 제공 범위에서 조사합니다.</p>
-      <label>조회 자료<select value={mode} onChange={e => { invalidate(true); setMode(e.target.value as typeof mode); setSnapshot(''); }}><option value="live">공식 실제 자료 · Gemini 해석·브리핑</option><option value="snapshot">공식 저장 자료 · 장애 시 동일 조건 재생</option></select></label>
+      <p className="field-help">{part === 2 ? '출생·청년 이동·물가·보수·성장 구조를 조사합니다. 자연어로 계획을 다듬고, 공식 근거의 비교와 예외를 발견합니다.' : '기업 공시의 투자·지분·소송, 기업 재무 실적, 청년 고용을 공식 자료의 제공 범위에서 조사합니다.'}</p>
+      <label>조회 자료<select value={mode} onChange={e => { invalidate(true); setMode(e.target.value as typeof mode); setSnapshot(''); }}><option value="live">공식 실제 자료 · Gemini 해석·브리핑</option><option value="snapshot">공식 저장 자료 · 장애 시 동일 조건 재생</option>{part === 2 && <option value="archive">공식 저장 원자료 + 새 AI 브리핑 · 다섯 조사 사례</option>}</select></label>
       {mode === 'snapshot' ? <><label>공식 저장 사례<select value={snapshot} onChange={e => chooseSnapshot(e.target.value)}><option value="">자료 선택</option>{catalog?.snapshots.map(s => <option value={s.id} key={s.id}>{s.title}</option>)}</select></label><p className="notice">자동으로 저장 자료로 바뀌지 않습니다. 선택한 사례의 질문·조건·원래 조회 시각을 확인하고 승인해 주세요.</p></> : <>
+        {part === 2 && <div className="investigation-cards" aria-label="다섯 취재 조사 사례">{catalog?.investigations?.map(s => <button key={s.tool} onClick={() => changeQuestion(s.question)}><strong>{s.title}</strong><span>{s.question}</span><small>{s.archive_only ? '원문 대조한 공식 저장 자료' : '공식 조회 또는 저장 원자료'}</small></button>)}</div>}
         <div className="sample-list" aria-label="행사 질문 예시">{examples.map(q => <button key={q} onClick={() => changeQuestion(q)}>{q}</button>)}</div>
         <form onSubmit={e => { e.preventDefault(); void propose(); }}><label>취재 질문 입력<textarea rows={3} maxLength={1000} value={question} placeholder="예: 삼성전자의 최근 재무 이슈가 궁금해요." onChange={e => changeQuestion(e.target.value)} /></label><button className="primary" disabled={!!busy || question.trim().length < 3}>{busy === 'plan' ? '계획을 준비하는 중…' : '조사 계획 제안받기'}</button></form>
         {conversation.length > 0 && <p className="field-help">아래 질답·수정 입력에서 이어가세요. 위 버튼을 다시 누르면 원 질문부터 계획을 새로 검토합니다.</p>}
@@ -108,14 +111,14 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
     </section>
     {busy && <section className="notice" role="status" aria-live="polite"><strong>{progress?.stage === 'waiting' ? '요청 순서를 기다리고 있습니다.' : progress?.stage === 'retry_wait' ? '공급자 안내에 따라 잠시 기다린 뒤 한 번 더 요청합니다.' : progress?.stage === 'source_wait' ? '승인한 공식 자료를 조회하거나 같은 자료의 조회 완료를 기다리고 있습니다.' : busy === 'plan' ? '질문을 해석하고 조사 계획을 준비하고 있습니다.' : busy === 'general' ? '일반 모델 응답을 작성하고 있습니다.' : '공식 자료 조회·계산·브리핑을 진행하고 있습니다.'}</strong><p>{progress?.provider && `${{ gemini: 'Gemini', opendart: 'OpenDART', kosis: 'KOSIS' }[progress.provider]} · `}접수 후 {Math.floor(progress?.elapsed_seconds ?? 0)}초 · 대기 {Math.floor(progress?.waited_seconds ?? 0)}초</p><p>순서가 되면 자동으로 진행합니다. 다시 누르지 않아도 됩니다. 대기는 최대 120초, 전체 처리는 최대 180초입니다.</p><button type="button" onClick={() => { version.current++; abort.current?.abort(); setBusy(null); setProgress(null); setError('요청을 취소했습니다. 이미 전송된 외부 호출은 끝날 수 있지만 후속 결과는 표시하지 않습니다. 입력한 조건은 유지됩니다.'); }}>요청 취소</button></section>}
     {error && <p role="alert" className="error request-error">{error}</p>}
-    {plan && draft && <section className="card research-plan"><div className="section-heading"><span>{needsDialogue ? '질답' : '02'}</span><div><h2 tabIndex={-1} ref={planHeading}>{needsDialogue ? '조사 방향을 함께 정해 주세요' : '제안한 조회 조건을 검토해 주세요'}</h2><p>{needsDialogue ? (plan.status === 'unsupported' ? '지원 범위 확인' : '추가 확인 필요') : toolLabels[draft.tool]} · {plan.model ?? '공식 저장 사례'}</p></div></div>
+    {plan && draft && <section className="card research-plan"><div className="section-heading"><span>{needsDialogue ? '질답' : '02'}</span><div><h2 tabIndex={-1} ref={planHeading}>{needsDialogue ? '조사 방향을 함께 정해 주세요' : investigation ? '제안한 조사 계획을 검토해 주세요' : '제안한 조회 조건을 검토해 주세요'}</h2><p>{needsDialogue ? (plan.status === 'unsupported' ? '지원 범위 확인' : '추가 확인 필요') : toolLabels[draft.tool]} · {plan.model ?? '공식 저장 사례'}</p></div></div>
       <DialogueHistory turns={conversation} />
       {needsDialogue ? <EventDialogue clarification={clarification} explanations={plan.proposals} unsupported={plan.status === 'unsupported' || !!plan.field_errors.scope} answer={revision} busy={!!busy} limitReached={conversation.length >= 8} onChange={value => { invalidate(); setRevision(value); }} onAnswer={value => { if (value.trim()) void propose(value); }} onRestart={() => invalidate(true)} /> : <>
       <p>자료원과 대상·지표·기간·비교 기준을 확인해 주세요. 승인 후 근거 기반 브리핑을 작성하며, 기사 작성·발행은 하지 않습니다.</p>
       <details><summary>제안한 조건과 제공 범위 설명</summary><ul>{plan.proposals.map((p, i) => <li key={i}>{p}</li>)}</ul></details>
       {!!Object.keys(plan.field_errors).length && <div className="clarification" role="status"><strong>처음 계획에서 확인할 내용</strong><ul>{Object.values(plan.field_errors).map((v, i) => <li key={i}>{v}</li>)}</ul><p>조건을 고친 뒤 다시 승인하면 서버가 제공 여부를 검사합니다. 지원 범위 안내가 있으면 질문이나 자연어 수정 요청으로 계획을 다시 확인해 주세요.</p></div>}
       {plan.companies.length > draft.entities.length && <p>회사 후보: {plan.companies.map(c => `${c.name} (${c.stock_code})`).join(' · ')}. 아래 수정 요청에 정확한 회사명을 적어 주세요.</p>}
-      <form onSubmit={execute}>{mode === 'snapshot' ? <><p>{question}</p><Conditions value={draft} /></> : <div className="condition-fields">
+      <form onSubmit={execute}>{investigation && mode !== 'snapshot' ? <div className="investigation-plan"><p><strong>{investigation.title}</strong> · {investigation.source}</p><Conditions value={draft} /><ol>{investigation.steps.map(step => <li key={step}>{step}</li>)}</ol><p className="notice">{effectiveMode === 'archive' ? '공식 저장 원자료를 승인 후 재계산하고 새 Gemini 브리핑을 작성합니다. 최신 재조회가 아닙니다.' : '승인 후 공식 자료를 조회합니다. 이미 조회한 동일 자료는 원래 시점을 표시하고 재사용할 수 있습니다.'}</p><p>조건 변경은 아래 ‘계획을 말로 수정하기’에서 요청해 주세요.</p></div> : mode === 'snapshot' ? <><p>{question}</p><Conditions value={draft} /></> : <div className="condition-fields">
         <label className="condition-field">대상 {eventConditionKey(draft) !== eventConditionKey(plan.conditions) && <span className="modified-badge">조건 수정됨</span>}{draft.tool === 'employment' ? <select value={draft.entities.join('|')} onChange={e => change('entities', e.target.value.split('|'))}><option value={draft.entities.join('|')}>{draft.entities.join(' · ') || '대상 선택'}</option>{catalog?.entities.map(v => <option key={v} value={v}>{v}</option>)}<option value="서울특별시|전국 집계">서울특별시 · 전국 집계</option></select> : <input readOnly value={draft.entities.join(' · ')} />}<span className="field-help">{draft.tool === 'employment' ? '지역을 선택하거나 아래에 변경 내용을 적어 주세요.' : '회사 변경은 아래 자연어 수정 요청으로 공식 코드를 다시 확인합니다.'}</span></label>
         <fieldset className="condition-field"><legend>지표</legend>{metrics.map(m => <label className="research-metric" key={m}><input type="checkbox" checked={draft.metrics.includes(m)} onChange={e => change('metrics', e.target.checked ? [...draft.metrics, m] : draft.metrics.filter(v => v !== m))} />{m}</label>)}</fieldset>
         {field('start')}{field('end')}{draft.tool !== 'disclosures' && field('frequency', draft.tool === 'financials' ? ['연간', '분기'] : ['연간', '월간'])}
@@ -124,12 +127,12 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
         {draft.tool === 'financials' && <>{field('statement_basis', ['연결', '별도'])}{field('amount_basis', ['당기', '누적'])}</>}
         {draft.tool === 'employment' && field('age_range', catalog?.ages ?? ['15-29세', '20-29세', '15-64세'])}
       </div>}
-      <p className="field-help">{catalog?.notice} 기간 표기: 연간 2025 / 분기 2026-Q2 / 월간 2026-08 / 공시 2026-09-18</p>
+      <p className="field-help">{investigation ? `원문 검증 범위: ${investigation.start}~${investigation.end} · 예상 공공자료 호출 ${investigation.calls}` : <>{catalog?.notice} 기간 표기: 연간 2025 / 분기 2026-Q2 / 월간 2026-08 / 공시 2026-09-18</>}</p>
       {draft.tool === 'disclosures' && <p className="field-help" id="disclosure-period-help">공시 접수 기간은 시작일·종료일을 포함해 최대 {periodLimits.max_days}일입니다. 이 실습 앱의 조회 범위이며, 더 긴 기간은 나누어 각각 승인해 주세요.</p>}
       {periodError && <p className="error" id="disclosure-period-error" role="status">{periodError}</p>}
       {revision.trim() && <p className="notice">작성한 수정 요청을 먼저 반영해 주세요.</p>}
-      <button className="primary" disabled={!!busy || !draft.metrics.length || !!revision.trim() || !!plan.field_errors.scope || !!periodError || draft.tool === 'undetermined'}>{busy === 'execute' ? '조회·계산·AI 브리핑 작성 중…' : '이 조건으로 조회'}</button><p>승인 후에만 자료와 브리핑을 표시합니다. 다시 조회하거나 조건을 바꾸면 검토 상태는 초기화됩니다.</p></form>
-      {mode === 'live' && (conversation.length >= 8 ? <p className="notice">질답·자연어 수정을 8회 진행했습니다. 아래 수정 입력 대신 조건 폼에서 편집하거나 원 질문부터 계획을 다시 제안받아 주세요.</p> : <form className="research-refinement" onSubmit={e => { e.preventDefault(); void propose(revision); }}><label>계획을 말로 수정하기<textarea maxLength={1000} value={revision} placeholder="예: 현대자동차 별도 기준으로 바꾸고, 최근 두 분기의 영업이익을 비교해 줘." onChange={e => { invalidate(); setRevision(e.target.value); }} /></label><button disabled={!!busy || !revision.trim()}>수정 요청 반영</button></form>)}
+      <button className="primary" disabled={!!busy || !draft.metrics.length || !!revision.trim() || !!plan.field_errors.scope || !!periodError || draft.tool === 'undetermined'}>{busy === 'execute' ? '조회·계산·AI 브리핑 작성 중…' : investigation ? '이 계획으로 조사' : '이 조건으로 조회'}</button><p>승인 후에만 자료와 브리핑을 표시합니다. 다시 조회하거나 조건을 바꾸면 검토 상태는 초기화됩니다.</p></form>
+      {mode !== 'snapshot' && (conversation.length >= 8 ? <p className="notice">질답·자연어 수정을 8회 진행했습니다. 아래 수정 입력 대신 조건 폼에서 편집하거나 원 질문부터 계획을 다시 제안받아 주세요.</p> : <form className="research-refinement" onSubmit={e => { e.preventDefault(); void propose(revision); }}><label>계획을 말로 수정하기<textarea maxLength={1000} value={revision} placeholder="예: 현대자동차 별도 기준으로 바꾸고, 최근 두 분기의 영업이익을 비교해 줘." onChange={e => { invalidate(); setRevision(e.target.value); }} /></label><button disabled={!!busy || !revision.trim()}>수정 요청 반영</button></form>)}
       </>}
       <Trace steps={plan.trace} />
     </section>}

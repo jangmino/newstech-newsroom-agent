@@ -1,10 +1,11 @@
 # Codex 개발 하네스
 
-## 현재 작업: 다섯 취재 분석 시나리오 (2026-10-05)
+## 현재 상태: 다섯 취재 분석 시나리오 개발 완료 (2026-10-05)
 
 사용자가 A 출생·B 청년 이동·C 물가·D 보수·E NAVER/카카오 성장 구조와 자연어 계획 승인,
 상세 브리핑을 승인했다. 별도 브랜치에서 [ADR 0021](decisions/0021-investigation-scenarios.md)을
-따라 연속 구현한다. E 공식 자료 목록을 작성하고, 검증은 기능·원문·오류·운영으로 구분한다.
+따라 구현했다. [사용법·계약](INVESTIGATION_WORKSHOP.md), [E 공식 자료 구성](INVESTIGATION_DATA.md)을
+추가했다. 기능·원문·오류 로컬 검증 완료이며 새 버전 stage/30명 실제 부하·현장 확인은 남아 있다.
 [검증 기록](INVESTIGATION_VALIDATION.md), [개발 후 검토](INVESTIGATION_FOLLOWUPS.md)를 유지한다.
 공급자 한도 상향·공개 배포는 개발 완료 후 별도로 검토한다. 아래 내용은 이전 이력이다.
 

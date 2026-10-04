@@ -7,6 +7,12 @@ beforeEach(() => {
   vi.spyOn(XMLHttpRequest.prototype, "send").mockImplementation(() => {
     throw new Error("Network requests are forbidden in UI tests");
   });
+  // Node also exposes localStorage; exercise the jsdom browser storage consistently.
+  vi.stubGlobal("localStorage", {
+    length: 0, key: vi.fn(() => null), getItem: vi.fn(() => null),
+    removeItem: vi.fn(), clear: vi.fn(),
+    setItem: vi.fn(() => { throw new Error("Review state must not be persisted"); }),
+  });
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("Review state must not be persisted");
   });

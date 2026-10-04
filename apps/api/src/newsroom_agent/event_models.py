@@ -11,7 +11,10 @@ Text = Annotated[str, Field(max_length=100)]
 
 
 class EventConditions(StrictModel):
-    tool: Literal["financials", "employment", "disclosures", "undetermined"] = "undetermined"
+    tool: Literal[
+        "financials", "employment", "disclosures", "undetermined",
+        "births", "migration", "prices", "compensation", "business_mix",
+    ] = "undetermined"
     entities: list[Text] = Field(default_factory=list, max_length=2)
     company_codes: list[Annotated[str, Field(pattern=r"^\d{8}$")]] = Field(
         default_factory=list, max_length=2
@@ -79,7 +82,7 @@ class EventExecuteRequest(StrictModel):
     question: str = Field(min_length=3, max_length=1000)
     conditions: EventConditions
     approved: StrictBool
-    mode: Literal["live", "snapshot"] = "live"
+    mode: Literal["live", "snapshot", "archive"] = "live"
     snapshot_id: str | None = Field(default=None, max_length=80)
 
     @field_validator("approved")
@@ -90,18 +93,35 @@ class EventExecuteRequest(StrictModel):
         return value
 
 
+class AnalysisTable(StrictModel):
+    title: str
+    columns: list[str]
+    rows: list[list[str]]
+    evidence_ids: list[str] = Field(default_factory=list)
+    note: str = ""
+
+
+class InvestigationAnalysis(StrictModel):
+    title: str
+    tables: list[AnalysisTable]
+    focus_ids: list[str]
+    method: list[str]
+    source_version: str
+
+
 class EventData(StrictModel):
     facts: list[ResearchFact]
     caveats: list[str]
     trace: list[TraceStep] = Field(default_factory=list)
     coverage: Literal["complete", "partial", "empty"] = "complete"
+    analysis: InvestigationAnalysis | None = None
 
 
 class EventResult(EventData):
     request_id: str
     question: str
     conditions: EventConditions
-    data_mode: Literal["live", "snapshot"]
+    data_mode: Literal["live", "snapshot", "archive"]
     cache: CacheMetadata | None = None
     brief: ResearchBrief
     generated_at: str
@@ -121,4 +141,4 @@ class GeneralResponse(GeneralDraft):
     instruction: str
     tools: list[str] = Field(default_factory=list)
     cache: CacheMetadata | None = None
-    data_mode: Literal["live", "snapshot"] = "live"
+    data_mode: Literal["live", "snapshot", "archive"] = "live"

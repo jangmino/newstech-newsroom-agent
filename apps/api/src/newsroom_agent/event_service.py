@@ -20,6 +20,7 @@ from newsroom_agent.event_models import (
     GeneralResponse,
     TraceStep,
 )
+from newsroom_agent.investigation_catalog import SCENARIOS
 from newsroom_agent.planning import InvalidPlannerOutput
 from newsroom_agent.providers.kosis_event import normalize, parameters
 from newsroom_agent.providers.opendart_research import find_companies
@@ -86,6 +87,21 @@ unsupported=true이면 clarification에 지원하지 못하는 구체적 이유�
 follow_up_question에는 다음 선택을 묻는다. choices는 실제 지원 범위만 제안한다.
 15-64세를 '전체 연령'이라고 부르지 않는다. 연령 변경은 선택지에도 정확히 명시한다.
 """
+PLAN_INSTRUCTION += """
+추가로 승인된 심층 조사 도구가 있다. 이들 범위에서는 기존 한 회사/고용만 가능하다는 제한보다
+아래 카탈로그가 우선한다. births 출생 회복, migration 청년 이동, prices 물가,
+compensation 임원·직원 보수, business_mix NAVER/카카오 사업 매출 구조이다.
+이 도구의 metrics/frequency는 카탈로그에 명시된 문자열 전체를 그대로 사용한다.
+comparison='심층 비교', comparison_period='조사 계획', statement_basis='연결', amount_basis='당기'.
+migration만 age_range='20-34세'. company_codes=[] 유지.
+카탈로그 기간은 최신 시점이 아니라 검증 범위이다. 질문에 없는 기간은 빈 문자열로 제안하게 한다.
+births entities=['전국 시·도'] 또는 공식 시도명, migration entities=[조사할 시도 한 곳],
+prices entities=['전국'], compensation/business_mix entities=['NAVER','카카오'] 또는 그중 한 회사.
+보수는 해당 법인 기준이며 연결 그룹 전체의 보수가 아니다. 다른 회사는 아직 지원하지 않는다.
+migration의 시군 상세는 경상북도만, 다른 시도는 시도 단위 목적지와 순위 비교이다.
+business_mix와 compensation은 원문 대조한 공식 저장 원자료를 사용하고 새 브리핑을 생성한다.
+분류 변경·정정으로 비교할 수 없는 조건은 질답으로 설명한다. 실제 원인/기사 작성을 단정하지 않는다.
+""" + json.dumps(SCENARIOS, ensure_ascii=False)
 GENERAL_INSTRUCTION = """당신은 한국어 취재를 돕는 일반 AI 도우미입니다.
 주어진 질문에 승인된 대상·지표·기간·비교 조건을 우선해 간결한 취재 브리핑으로 답하세요.
 가능하면 요약, 주요 관찰, 한계, 후속 취재 질문을 포함하세요. 아는 내용은 설명하되
@@ -197,7 +213,9 @@ class EventService:
                 or "기업 실적, 투자·지분·소송 공시, 고용 변화 중 무엇을 확인할까요?"
             )
             return EventPlan(
-                request_id=request_id(), question=request.question, conditions=c,
+                request_id=request_id(),
+                question=request.question,
+                conditions=c,
                 model=model.model,
                 proposals=[intent.clarification.strip()]
                 if intent.clarification.strip() and intent.clarification.strip() != question
@@ -212,6 +230,56 @@ class EventService:
             )
         companies = []
         resolution_errors = {}
+        if c.tool in SCENARIOS:
+            spec = SCENARIOS[c.tool]
+            proposals = []
+            defaults = {k: spec[k] for k in ("entities", "metrics", "start", "end", "frequency")}
+            for field, value in defaults.items():
+                if not getattr(c, field):
+                    setattr(c, field, value)
+                    label = {
+                        "entities": "대상",
+                        "metrics": "지표",
+                        "start": "시작 기간",
+                        "end": "종료 기간",
+                        "frequency": "주기",
+                    }[field]
+                    display = " · ".join(value) if isinstance(value, list) else value
+                    proposals.append(f"명시하지 않은 {label}: {display}. 승인 전에 확인해 주세요.")
+            c.entities = [
+                {"경북": "경상북도", "네이버": "NAVER"}.get(e, REGION_ALIASES.get(e, e))
+                for e in c.entities
+            ]
+            c.comparison, c.comparison_period = "심층 비교", "조사 계획"
+            if c.tool == "migration" and (not c.age_range or "age_range" not in c.model_fields_set):
+                c.age_range = "20-34세"
+                proposals.append(
+                    "이동과 인구 분모를 맞춘 20~34세를 제안합니다. 승인 전에 확인해 주세요."
+                )
+            errors = validate_conditions(c)
+            proposals.extend(
+                [spec["source"], *spec["steps"], f"최초 공공자료 호출 예상: {spec['calls']}."]
+            )
+            if c.tool in {"compensation", "business_mix"}:
+                proposals.append(
+                    "공식 저장 원자료를 승인 후 재계산하고 새 Gemini 브리핑을 "
+                    "생성합니다. 최신 재조회가 아닙니다."
+                )
+            return EventPlan(
+                request_id=request_id(),
+                question=request.question,
+                conditions=c,
+                model=model.model,
+                proposals=proposals,
+                field_errors=errors,
+                trace=trace,
+                status="needs_clarification" if errors else "ready",
+                clarification=EventClarification(
+                    question=(" ".join(errors.values()) + " 어떤 범위로 조사할까요?")[:500]
+                )
+                if errors
+                else None,
+            )
         if c.tool in ("financials", "disclosures") and c.entities and not intent.unsupported:
             directory = await self.research.companies("live")
             for i, name in enumerate(c.entities):
@@ -322,9 +390,10 @@ class EventService:
             status="needs_clarification" if errors else "ready",
             clarification=EventClarification(
                 question=(" ".join(errors.values()) + " 어떤 조건으로 조사할까요?")[:500],
-                choices=[company.name for company in companies[:3]]
-                if resolution_errors else [],
-            ) if errors else None,
+                choices=[company.name for company in companies[:3]] if resolution_errors else [],
+            )
+            if errors
+            else None,
         )
 
     async def fetch(self, c) -> EventData:
@@ -383,6 +452,7 @@ class EventService:
             PlannerRateLimited,
             PlannerTimedOut,
         )
+
         if isinstance(exc, PlannerBillingError):
             return "Gemini 선불 잔액 또는 결제 설정 확인이 필요합니다. 운영자에게 알려 주세요."
         if isinstance(exc, PlannerAuthenticationError):
@@ -429,15 +499,36 @@ class EventService:
             ]
             return result
         c = request.conditions
-        self.research.require_source("kosis" if c.tool == "employment" else "opendart")
+        investigation = c.tool in SCENARIOS
+        if request.mode == "archive" and not investigation:
+            raise ResearchError("공식 저장 원자료 재분석은 다섯 심층 사례에서 선택해 주세요.")
+        if request.mode == "archive" and not self.snapshots_enabled:
+            raise ResearchError("공식 저장 자료 사용이 꺼져 있습니다.")
+        if not investigation:
+            self.research.require_source("kosis" if c.tool == "employment" else "opendart")
+        elif request.mode == "live":
+            if c.tool in {"compensation", "business_mix"}:
+                raise ResearchError(
+                    "이 사례의 공식 저장 원자료 사용 안내를 확인하고 다시 승인해 주세요."
+                )
+            self.research.require_source("kosis")
+
+        async def retrieve():
+            if investigation:
+                from newsroom_agent.providers.investigation import fetch
+
+                return await fetch(c, self.research, request.mode)
+            return await self.fetch(c)
+
         cache = None
         if self.research.data_cache:
             data, cache = await self.research.data_cache.get(
-                key_for("event-public-v1", c.model_dump()), lambda: self.fetch(c)
+                key_for("event-public-v2", {"conditions": c.model_dump(), "mode": request.mode}),
+                retrieve,
             )
         else:
-            data = await self.fetch(c)
-        facts, warnings = calculate(data.facts, c)
+            data = await retrieve()
+        facts, warnings = (data.facts, []) if investigation else calculate(data.facts, c)
         trace = (
             list(data.trace)
             if cache is None or cache.status == "miss"
@@ -454,6 +545,15 @@ class EventService:
             ]
         )
         trace.append(TraceStep(tool="조건·단위 검증과 코드 계산", status="complete", at=now()))
+        if request.mode == "archive":
+            trace.append(
+                TraceStep(
+                    tool="검증된 공식 저장 원자료 재분석",
+                    status="complete",
+                    at=now(),
+                    note="새 공공 API 조회 없음. 원래 자료 시점과 새 브리핑 시점을 구분합니다.",
+                )
+            )
         caveats = [
             *data.caveats,
             *warnings,
@@ -467,17 +567,41 @@ class EventService:
         )
         if facts:
             composer = self.research.model(
-                EVENT_BRIEF_INSTRUCTION,
+                EVENT_BRIEF_INSTRUCTION
+                if not investigation
+                else BRIEF_INSTRUCTION
+                + """
+핵심 질문에 답하는 요약을 두세 문단으로 구성하고, 발견 4~6개를 구체적으로 설명하세요.
+단순 수치 나열을 넘어서 규모와 비율·순위의 차이, 반례, 사업 구성 변화를 연결하세요.
+비교할 수 없는 부분과 원문 확인이 필요한 부분을 감추지 마세요. 각 발견의 근거 슬롯과
+인용을 보존하세요. limitations와 follow_up_questions에도 숫자를 직접 쓰지 마세요.
+조사 방법·공식 저장 자료 여부를 존중하고 기사 작성·발행·검증 완료를 주장하지 마세요.
+""",
                 BriefDraft.model_json_schema(),
                 True,
             )
             try:
-                payload = json.loads(brief_payload(request.question, c, facts, caveats, "live"))
+                selected = (
+                    [f for f in facts if f.id in data.analysis.focus_ids]
+                    if data.analysis
+                    else facts
+                )
+                payload = json.loads(
+                    brief_payload(request.question, c, selected, caveats, request.mode)
+                )
+                if data.analysis:
+                    payload["analysis_method"] = data.analysis.method
+                    if c.tool == "business_mix":
+                        payload["editorial_focus"] = (
+                            "요약 첫 문단에서 각 회사의 시작 연도와 종료 연도 사업 매출 비중을 "
+                            "근거 슬롯으로 대비해 장기 구성 변화에 답하세요. 정정·사업 분류가 "
+                            "같지 않으므로 전 기간 성장 기여율이나 인과관계는 만들지 마세요. "
+                            "다음 문단은 마지막 연도의 같은 보고서 전기 비교액으로 확인한 "
+                            "주요 사업 증가분과 반례를 설명하세요. 마지막 해만 요약하지 마세요."
+                        )
                 if c.tool == "disclosures":
                     payload["disclosure_details"] = {f.id: f.details for f in facts[:12]}
-                raw = await interpret(
-                    composer, json.dumps(payload, ensure_ascii=False)
-                )
+                raw = await interpret(composer, json.dumps(payload, ensure_ascii=False))
                 brief = ResearchBrief(
                     status="complete",
                     generation_method="gemini",
@@ -514,7 +638,7 @@ class EventService:
             request_id=request_id(),
             question=request.question,
             conditions=c,
-            data_mode="live",
+            data_mode=request.mode,
             facts=facts,
             caveats=caveats,
             coverage=data.coverage,
@@ -522,6 +646,7 @@ class EventService:
             cache=cache,
             brief=brief,
             generated_at=now(),
+            analysis=data.analysis,
         )
 
     async def general(self, request: EventExecuteRequest) -> GeneralResponse:
@@ -560,4 +685,5 @@ class EventService:
             model=model.model,
             generated_at=now(),
             instruction=GENERAL_INSTRUCTION,
+            data_mode=request.mode,
         )

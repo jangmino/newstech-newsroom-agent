@@ -19,6 +19,11 @@ Use `git status --short` before edits. Preserve user changes and do not overwrit
 
 ## Current phase
 
+- ADR 0021 adds five approved Part 2 investigation scenarios on a separate branch.
+  See INVESTIGATION_WORKSHOP.md, INVESTIGATION_DATA.md, and INVESTIGATION_VALIDATION.md
+  under docs for contracts, prepared official material, and validation evidence.
+  Development is complete; new-version stage rollout and live load/quota review remain separate.
+
 - Phase: October 7 event release expansion under ADR 0018 and docs/EVENT_RELEASE.md.
 - Implement the approved scope continuously; participant UI uses live or official snapshots only.
   Keep internal mock fixtures and legacy API regression coverage. Exclude the own-newsroom pilot.
