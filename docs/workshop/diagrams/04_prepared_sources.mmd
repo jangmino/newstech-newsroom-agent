@@ -1,0 +1,12 @@
+flowchart TB
+  subgraph PRE[운영자의 사전 준비]
+    RAW[OpenDART 공식 API와 사업보고서] --> EX[필요한 표 추출<br/>단위·정정·정의 대조]
+    EX --> AR[공식 저장 원자료<br/>접수번호·원문 위치·확보 시각·버전]
+  end
+  subgraph WORK[참가자의 실습]
+    OK[조사 계획과 저장 자료 사용 승인] --> CALC[코드 계산<br/>동일 조건은 캐시 재사용 가능]
+    CALC --> GEM[Gemini 새 브리핑]
+    GEM --> HUMAN[원문 대조 · 사람 검토]
+  end
+  AR --> CALC
+  NOTE[D 보수 정의 확인<br/>E 두 회사 5개년 보고서 10건·사업 매출 35행] -.-> EX

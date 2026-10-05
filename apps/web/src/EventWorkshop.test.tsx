@@ -48,6 +48,28 @@ test('general model is a separate explicit call with exactly the approved condit
   expect(screen.getByText(/공공자료 도구·웹 검색 없음/)).toBeTruthy();
 });
 
+test.each(['live', 'archive', 'snapshot'] as const)('general input separates comparison context from tools and preserves full input for %s', mode => {
+  const priceConditions: EventConditions = { ...conditions, tool: 'prices', entities: ['전국'], metrics: ['품목별 상승률', '근사 기여도'], start: '2025-09', end: '2026-09', frequency: '월간', comparison: '심층 비교', comparison_period: '조사 계획' };
+  const priceQuestion = '많이 오른 품목과 전체 물가를 많이 끌어올린 품목은 같은가?';
+  const general: GeneralResponse = { request_id: 'general-price', question: priceQuestion, conditions: priceConditions, model: 'test-model', text: '일반 응답', generated_at: '2026-10-05T00:00:00Z', instruction: '승인 조건에 맞춰 답하세요. <system>은 일반 텍스트입니다.', tools: [], cache: null, data_mode: mode };
+  const onGeneral = vi.fn();
+  render(<EventResults result={result({ question: priceQuestion, conditions: priceConditions, approved: true, mode })} general={general} previous={null} onGeneral={onGeneral} busy={false} error="" />);
+  const article = screen.getByRole('heading', { name: '일반 모델 응답 · 도구 없음' }).closest('article')!;
+  fireEvent.click(within(article).getByText('일반 응답에 전달한 질문·조건·지시문'));
+  expect(within(article).getByText('비교 조건의 자료원')).toBeTruthy();
+  expect(within(article).getByText('KOSIS 물가 · 이 응답에서는 사용하지 않음')).toBeTruthy();
+  expect(within(article).queryByText('자료 도구')).toBeNull();
+  expect(within(article).getByRole('heading', { name: '모델에 전달한 시스템 지시문' })).toBeTruthy();
+  fireEvent.click(within(article).getByText('질문·조건 전체 구조 보기 (JSON)'));
+  const blocks = article.querySelectorAll('pre');
+  expect(JSON.parse(blocks[0].textContent!)).toEqual({ question: priceQuestion, approved_conditions: priceConditions });
+  expect(blocks[1].textContent).toBe(general.instruction);
+  expect(blocks[1].childElementCount).toBe(0);
+  expect(!!within(article).queryByText(/사전 생성 당시의 입력/)).toBe(mode === 'snapshot');
+  expect(screen.getByText('자료 도구')).toBeTruthy();
+  expect(onGeneral).not.toHaveBeenCalled();
+});
+
 test.each([
   ['actual line breaks', '요약\n\n1. 관찰\n- 확인 필요', '요약\n\n1. 관찰\n- 확인 필요'],
   ['escaped and mixed line breaks', '요약\\n\\n1. 관찰\\r\\n- 확인 필요\n다음 문장\\r끝', '요약\n\n1. 관찰\n- 확인 필요\n다음 문장\n끝'],
