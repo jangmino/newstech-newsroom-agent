@@ -1,0 +1,197 @@
+{
+  "date": "2026-10-06",
+  "environment": "authorized personal GCP stage",
+  "url": "https://newsroom-stage-4egpek33za-du.a.run.app",
+  "source_commit": "34da38a",
+  "main_merge_commit": "f880999",
+  "revision": "newsroom-stage-investigationb-20261006",
+  "image": "asia-northeast3-docker.pkg.dev/newstech-newsroom-260917/newsroom-stage/newsroom-agent@sha256:5385cea5775b8e6d0084d639d8d89fc65ee15e277b4715b7b10168c1f91c77c0",
+  "traffic_percent": 100,
+  "rollback_revision": "newsroom-stage-newline-20260930",
+  "runtime_config_and_secret_refs_unchanged": true,
+  "offline": {
+    "backend_tests": 889,
+    "frontend_tests": 232,
+    "make_check": "passed",
+    "diff_check": "passed",
+    "archive_hashes_verified": 10,
+    "manifest_packaged": true,
+    "pptx_and_env_excluded": true
+  },
+  "first_candidate": {
+    "revision": "newsroom-stage-investigation-20261005",
+    "traffic_percent": 0,
+    "provider_calls": {
+      "gemini": 31,
+      "kosis": 8,
+      "opendart": 0
+    },
+    "brief_validation_failures": {
+      "migration": 3,
+      "prices": 1
+    },
+    "mixed_concurrency": 5,
+    "mixed_briefs_completed": 5,
+    "live_and_archive_fact_values_equal": [
+      "births",
+      "migration",
+      "prices"
+    ]
+  },
+  "final_candidate": {
+    "passed": true,
+    "checks": [
+      {
+        "label": "migration-live-1",
+        "mode": "live",
+        "brief_status": "complete",
+        "seconds": 10.11,
+        "provider_calls": {
+          "kosis": 3,
+          "gemini": 1
+        },
+        "cache": "miss"
+      },
+      {
+        "label": "migration-live-2",
+        "mode": "live",
+        "brief_status": "complete",
+        "seconds": 6.05,
+        "provider_calls": {
+          "gemini": 1
+        },
+        "cache": "hit"
+      },
+      {
+        "label": "prices-live",
+        "mode": "live",
+        "brief_status": "complete",
+        "seconds": 6.31,
+        "provider_calls": {
+          "kosis": 2,
+          "gemini": 1
+        },
+        "cache": "miss"
+      },
+      {
+        "label": "compensation-mixed",
+        "mode": "archive",
+        "brief_status": "complete",
+        "seconds": 4.63,
+        "provider_calls": {
+          "gemini": 1
+        },
+        "cache": "miss"
+      },
+      {
+        "label": "business_mix-mixed",
+        "mode": "archive",
+        "brief_status": "complete",
+        "seconds": 6.22,
+        "provider_calls": {
+          "gemini": 1
+        },
+        "cache": "miss"
+      },
+      {
+        "label": "births-mixed",
+        "mode": "archive",
+        "brief_status": "complete",
+        "seconds": 6.4,
+        "provider_calls": {
+          "gemini": 1
+        },
+        "cache": "miss"
+      },
+      {
+        "label": "migration-mixed",
+        "mode": "archive",
+        "brief_status": "complete",
+        "seconds": 6.42,
+        "provider_calls": {
+          "gemini": 1
+        },
+        "cache": "miss"
+      },
+      {
+        "label": "prices-mixed",
+        "mode": "archive",
+        "brief_status": "failed",
+        "seconds": 7.29,
+        "provider_calls": {
+          "gemini": 1
+        },
+        "cache": "miss"
+      },
+      {
+        "label": "prices-recovery",
+        "mode": "archive",
+        "brief_status": "complete",
+        "seconds": 5.84,
+        "provider_calls": {
+          "gemini": 1
+        },
+        "cache": "hit"
+      }
+    ],
+    "mixed_first_attempt": {
+      "completed_briefs": 4,
+      "preserved_evidence_only": 1,
+      "requests": 5
+    },
+    "recovery_passed": true,
+    "queue": {
+      "active_requests": 0,
+      "max_requests": 40,
+      "wait_limit_seconds": 120,
+      "request_limit_seconds": 180,
+      "scope": "single_process",
+      "provider_calls": {
+        "gemini": 9,
+        "opendart": 0,
+        "kosis": 5
+      },
+      "completed": 11,
+      "failed": 0
+    }
+  },
+  "browser": {
+    "passed": true,
+    "checks": [
+      "approval_gate_and_archive_notice",
+      "archive_analysis_tables_and_new_brief",
+      "general_input_explanation_and_newlines",
+      "human_review_state_reset_and_json_download",
+      "natural_language_revision_invalidates_result_and_review"
+    ],
+    "tested_revision": "newsroom-stage-investigation-20261005",
+    "final_candidate_has_identical_web_assets": true
+  },
+  "public_smoke": {
+    "passed": true,
+    "target": "public",
+    "provider_calls": 0,
+    "assets_match": true,
+    "access_protection": true,
+    "approval_required": true,
+    "snapshot_streams": 2
+  },
+  "manual_provider_calls": {
+    "stage": {
+      "gemini": 40,
+      "kosis": 13,
+      "opendart": 0
+    },
+    "local_diagnosis": {
+      "gemini": 3,
+      "kosis": 0,
+      "opendart": 0
+    }
+  },
+  "limitations": [
+    "Five concurrent archive briefs, not a thirty-person full live load test.",
+    "Final mixed first attempt: four complete briefs and one validation-rejected brief with preserved evidence; explicit reapproval recovery succeeded.",
+    "Model output validation failure remains possible. No automatic new briefing retry added.",
+    "Current provider RPM/TPM and venue network/Windows checks remain separate."
+  ]
+}

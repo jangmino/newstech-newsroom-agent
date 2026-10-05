@@ -22,7 +22,9 @@ Use `git status --short` before edits. Preserve user changes and do not overwrit
 - ADR 0021 adds five approved Part 2 investigation scenarios on a separate branch.
   See INVESTIGATION_WORKSHOP.md, INVESTIGATION_DATA.md, and INVESTIGATION_VALIDATION.md
   under docs for contracts, prepared official material, and validation evidence.
-  Development is complete; new-version stage rollout and live load/quota review remain separate.
+  Merged to main and published to personal stage on 2026-10-06.
+  See docs/validation/investigation-stage-20261006.json for candidate/public checks and
+  recovered model validation failures. Thirty-person live load/quota review remains separate.
 
 - Phase: October 7 event release expansion under ADR 0018 and docs/EVENT_RELEASE.md.
 - Implement the approved scope continuously; participant UI uses live or official snapshots only.
