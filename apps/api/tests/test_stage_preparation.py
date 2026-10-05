@@ -1,5 +1,6 @@
 """Offline checks for deploy inputs; never load cloud credentials or execute gcloud."""
 
+import hashlib
 import importlib.util
 import json
 import shlex
@@ -36,6 +37,7 @@ def test_bundle_excludes_credentials_local_config_tests_and_caches(tmp_path):
         "apps/api/src/local.pem", "apps/api/src/newsroom_agent/__pycache__/main.pyc",
         "apps/web/src/App.test.tsx", "apps/web/src/test/setup.ts", "apps/web/dist/bundle.js",
         "node_modules/package.json", "apps/api/.venv/secret.key",
+        "apps/api/src/newsroom_agent/investigation_data/private-response.json",
     )
     for name in excluded:
         path = root / name
@@ -125,6 +127,17 @@ def test_real_checkout_bundle_contains_runtime_and_web_inputs_only():
     assert Path("apps/api/src/newsroom_agent/operations.py") in files
     assert len([path for path in files if path.parent.name == "snapshot_data"]) == 2
     assert not any(path.name.startswith(".env") for path in files)
+
+
+def test_real_bundle_preserves_all_verified_investigation_material(tmp_path):
+    destination = tmp_path / "stage-source"
+    stage.prepare_source(ROOT, destination)
+    data = destination / "apps/api/src/newsroom_agent/investigation_data"
+    manifest = json.loads((data / "manifest.json").read_text())
+    assert len(manifest["files"]) == 10
+    assert {path.name for path in data.iterdir()} == {"manifest.json", *manifest["files"]}
+    for name, digest in manifest["files"].items():
+        assert hashlib.sha256((data / name).read_bytes()).hexdigest() == digest
 
 
 def test_stage_settings_keep_access_required_and_providers_off():

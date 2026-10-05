@@ -225,3 +225,14 @@ dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .human-review textarea, .human-review select { display: block; width: 100%; margin-top: .4rem; }
 .research-table-wrap td { overflow-wrap: anywhere; }
 @media (max-width: 800px) { .response-grid { grid-template-columns: 1fr; } }
+
+.investigation-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin: 20px 0; }
+.investigation-cards button { text-align: left; display: grid; gap: 10px; padding: 18px; border: 1px solid #dbe3ed; border-radius: 12px; background: #f8faff; color: #18243c; }
+.investigation-cards button:hover { border-color: #4169cc; background: #eef3ff; }
+.investigation-cards small { color: #526581; }
+.investigation-plan { padding: 20px; border: 1px solid #dbe3ed; border-radius: 12px; background: #f8faff; }
+.analysis-section { padding: 18px 0; border-top: 1px solid #e3e9f1; }
+.share-chart { margin: 16px 0; max-width: 760px; }
+.share-row { display: grid; grid-template-columns: minmax(100px, 1fr) 3fr 70px; align-items: center; gap: 12px; margin: 10px 0; }
+.share-track { height: 18px; background: #eaf0f9; border-radius: 4px; overflow: hidden; }
+.share-track > div { background: #426dcc; height: 100%; }

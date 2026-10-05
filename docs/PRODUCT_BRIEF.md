@@ -1,5 +1,16 @@
 # 제품 개요
 
+## 2026-10-05 조사 사례 확장
+
+[ADR 0021](decisions/0021-investigation-scenarios.md)에 따라 2부에 출생·청년 이동·물가·보수·
+NAVER/카카오 성장 구조 다섯 사례를 추가했다. 자연어로 조사 계획을 다듬고 승인한 뒤 비교표·
+코드 계산·근거 브리핑을 확인한다. D/E는 공식 원문 검증 발췌를 사용하고 새 브리핑을 만든다.
+새 `archive` 계약과 `analysis` 결과는 [사용법·계약](INVESTIGATION_WORKSHOP.md),
+[E 사전 자료](INVESTIGATION_DATA.md), [검증 상태](INVESTIGATION_VALIDATION.md)를 따른다.
+기존1부·API·고정 snapshot은 유지한다. 아래는 이전 행사 범위의 설명이며 새 사례의
+승인 화면은 매개변수 폼 대신 조사 계획을 사용한다. stage 공개와 한도 상향은 별도다.
+
+
 현재 행사 버전은 [행사 계약·사용법](EVENT_RELEASE.md)과 [ADR 0018](decisions/0018-event-release.md)을 따른다. 참가자 화면은 실제 조회와 공식 저장 자료만 제공한다. 아래 mock·제한형 흐름 설명은 개발 및 이전 API 호환성 기록이다.
 
 ## 한 문장 목표

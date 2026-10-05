@@ -627,6 +627,7 @@ async def event_catalog():
         PERIOD_NOTICE,
         disclosure_period_limits,
     )
+    from newsroom_agent.investigation_catalog import catalog
 
     return {
         "snapshots": snapshot_catalog() if settings.fallback_snapshot_enabled else [],
@@ -634,6 +635,7 @@ async def event_catalog():
         "ages": list(AGES),
         "notice": PERIOD_NOTICE,
         "disclosure_period": disclosure_period_limits(),
+        "investigations": catalog(),
     }
 
 

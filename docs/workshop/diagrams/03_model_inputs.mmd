@@ -1,0 +1,9 @@
+flowchart TB
+  C[공통 입력<br/>question + approved_conditions] --> G
+  C --> B
+  SG[일반 응답 시스템 지시<br/>불확실한 수치·출처 생성 금지] --> G[Gemini 별도 호출<br/>일반 응답]
+  SB[근거 브리핑 시스템 지시<br/>제공 근거만 · 계산 금지 · 인용] --> B[Gemini 브리핑 호출]
+  F[서버 facts · caveats<br/>data_mode · analysis_method] --> B
+  G --> GT[text<br/>공식 근거·웹 도구 없음]
+  B --> V[코드 검사<br/>숫자 슬롯과 근거 ID]
+  V --> BT[요약 · 발견 · 한계 · 후속 취재]

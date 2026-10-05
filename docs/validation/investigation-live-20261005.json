@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-05",
+  "scope": "manual development validation; not stage load test",
+  "public_collection_requests": 47,
+  "public_adapter_requests": 8,
+  "gemini_plan_requests": 5,
+  "gemini_brief_requests": 8,
+  "initial_five": [
+    {
+      "tool": "births",
+      "plan_status": "ready",
+      "planned_tool": "births",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 103,
+      "seconds": 7.17
+    },
+    {
+      "tool": "migration",
+      "plan_status": "ready",
+      "planned_tool": "migration",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 90,
+      "seconds": 6.63
+    },
+    {
+      "tool": "prices",
+      "plan_status": "ready",
+      "planned_tool": "prices",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 68,
+      "seconds": 7.48
+    },
+    {
+      "tool": "compensation",
+      "plan_status": "ready",
+      "planned_tool": "compensation",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 6,
+      "seconds": 5.49
+    },
+    {
+      "tool": "business_mix",
+      "plan_status": "ready",
+      "planned_tool": "business_mix",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 150,
+      "seconds": 7.82
+    }
+  ],
+  "kosis_adapter": [
+    {
+      "tool": "births",
+      "calls": 3,
+      "facts": 103,
+      "archive_matches": true,
+      "seconds": 2.52
+    },
+    {
+      "tool": "migration",
+      "calls": 3,
+      "facts": 90,
+      "archive_matches": true,
+      "seconds": 7.49
+    },
+    {
+      "tool": "prices",
+      "calls": 2,
+      "facts": 68,
+      "archive_matches": true,
+      "seconds": 1.73
+    }
+  ],
+  "final_rank_and_composition": [
+    {
+      "tool": "migration",
+      "plan_status": "ready",
+      "planned_tool": "migration",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 90,
+      "seconds": 5.42
+    },
+    {
+      "tool": "business_mix",
+      "plan_status": "ready",
+      "planned_tool": "business_mix",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 150,
+      "seconds": 5.21
+    }
+  ],
+  "final_editorial": [
+    {
+      "tool": "business_mix",
+      "plan_status": "ready",
+      "planned_tool": "business_mix",
+      "errors": {},
+      "brief_status": "complete",
+      "brief_error": null,
+      "facts": 150,
+      "seconds": 7.26
+    }
+  ]
+}

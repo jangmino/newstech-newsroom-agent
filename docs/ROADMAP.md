@@ -1,5 +1,14 @@
 # 개발 로드맵
 
+## 현재 상태: 다섯 취재 분석 시나리오 개발 완료 (2026-10-05)
+
+사용자가 A 출생·B 청년 이동·C 물가·D 보수·E NAVER/카카오 성장 구조와 자연어 계획 승인,
+상세 브리핑을 승인했다. 별도 브랜치에서 [ADR 0021](decisions/0021-investigation-scenarios.md)을
+따라 구현했다. [사용법·계약](INVESTIGATION_WORKSHOP.md), [E 공식 자료 구성](INVESTIGATION_DATA.md)을
+추가했다. 기능·원문·오류 로컬 검증 완료이며 새 버전 stage/30명 실제 부하·현장 확인은 남아 있다.
+[검증 기록](INVESTIGATION_VALIDATION.md), [개발 후 검토](INVESTIGATION_FOLLOWUPS.md)를 유지한다.
+공급자 한도 상향·공개 배포는 개발 완료 후 별도로 검토한다. 아래 내용은 이전 이력이다.
+
 2026-09-30 후속: 자유 질문의 확인 질답 → 조건 승인 흐름을 구현하고 `dialogueb`로 공개했다.
 [ADR 0020](decisions/0020-event-planning-dialogue.md)에 따라 미정 폼을 제거하고,
 범위 안내·대화 이력·최종 승인·취소/오류 회귀, 실제 Gemini 질답과 승인 조회를 검증했다. 1부는 예제로 흐름을

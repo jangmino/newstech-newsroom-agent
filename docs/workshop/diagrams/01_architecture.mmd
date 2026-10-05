@@ -1,0 +1,17 @@
+flowchart LR
+  U[참가자 브라우저<br/>React · TypeScript<br/>질문 · 승인 · 검토] -->|HTTPS /api/v1/event| API
+  subgraph CR[Cloud Run 단일 서비스]
+    STATIC[웹 정적 파일 제공] --> API[FastAPI · EventService<br/>지원 범위와 승인 검사]
+    API --> AD[공급자 어댑터<br/>공식 API 또는 저장 원자료]
+    AD --> CALC[Python 계산 · 검증<br/>단위 · 증감 · 순위 · 근거]
+    CALC --> OUT[모델 출력 검사<br/>근거 ID · 숫자 슬롯]
+    CACHE[캐시 · 조회 공유 · 대기] -.-> AD
+    ARC[패키지의 공식 저장 원자료<br/>D/E 기본 · A–C 선택] --> AD
+  end
+  STATIC -.->|브라우저에서 웹 실행| U
+  API <-->|계획 요청과 응답| GEM[Gemini API]
+  CALC -->|승인 조건과 근거| GEM
+  GEM -->|브리핑 JSON| OUT
+  AD <-->|서버만 호출| PUB[OpenDART · KOSIS]
+  SEC[Secret Manager] -.->|서버 비밀값| API
+  OUT -->|결과와 진행 안내| U

@@ -82,6 +82,9 @@ def disclosure_period_error(start_text: str, end_text: str) -> str:
 
 
 def validate_conditions(c: EventConditions) -> dict[str, str]:
+    from newsroom_agent.investigation_catalog import SCENARIOS, validate
+    if c.tool in SCENARIOS:
+        return validate(c)
     errors = {}
     if c.tool == "undetermined":
         return {"tool": "기업 공시·기업 실적·청년 고용 중 조사할 내용을 알려 주세요."}
