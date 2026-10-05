@@ -591,6 +591,14 @@ class EventService:
                 )
                 if data.analysis:
                     payload["analysis_method"] = data.analysis.method
+                    if c.tool == "migration":
+                        payload["editorial_focus"] = (
+                            "연령 범위는 승인 조건에 표시됩니다. 브리핑에서는 '승인한 청년 연령' "
+                            "또는 '청년층'이라고 쓰세요. 연령 숫자를 직접 쓰거나 근거에 없는 "
+                            "세부 연령대를 나열하지 마세요. 한계와 후속 취재에서도 '세부 연령대' "
+                            "등 숫자 없는 표현을 쓰세요. 기간·값·순위는 반드시 근거 슬롯으로 "
+                            "표현하고, 순이동과 실제 이동 목적지를 구분하세요."
+                        )
                     if c.tool == "business_mix":
                         payload["editorial_focus"] = (
                             "요약 첫 문단에서 각 회사의 시작 연도와 종료 연도 사업 매출 비중을 "

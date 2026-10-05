@@ -86,6 +86,35 @@ def test_migration_does_not_rank_a_missing_denominator():
     assert not any(f.entity == "의성군" and f.unit == "%" for f in r.facts)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "literal_location", [None, "summary", "limitations", "follow_up_questions"],
+)
+async def test_migration_brief_rejects_unslotted_age_numbers(literal_location):
+    draft = {
+        "summary": {
+            "text": "승인한 청년 연령의 {{F1.metric}}을 확인합니다.", "evidence_ids": ["F1"],
+        },
+        "findings": [{"text": "{{F1.entity}}: {{F1.value}} {{F1.unit}}", "evidence_ids": ["F1"]}],
+        "limitations": ["세부 연령대별 차이는 이 결과만으로 알 수 없습니다."],
+        "follow_up_questions": ["청년층의 이동 이유를 추가 취재할 수 있을까요?"],
+    }
+    if literal_location == "summary":
+        draft["summary"]["text"] = "20~34세의 이동을 확인합니다."
+    elif literal_location:
+        draft[literal_location] = ["20~24세 등 세부 연령대 확인이 필요합니다."]
+    composer = SimpleNamespace(model="offline", interpret=Mock(return_value=json.dumps(draft)))
+    research = SimpleNamespace(model=Mock(return_value=composer), data_cache=None)
+    c = conditions("migration")
+    result = await EventService(research).execute(EventExecuteRequest(
+        question=SCENARIOS["migration"]["question"], conditions=c, approved=True, mode="archive",
+    ))
+    assert result.conditions.age_range == "20-34세"
+    assert result.facts and result.analysis
+    assert result.brief.status == ("failed" if literal_location else "complete")
+    assert composer.interpret.call_count == 1
+
+
 def test_cpi_leaf_weights_and_official_total_reconciliation():
     from decimal import Decimal
 
