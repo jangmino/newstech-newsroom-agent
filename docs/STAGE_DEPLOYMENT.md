@@ -79,6 +79,9 @@ python3 scripts/stage.py plan --config infra/stage-config.local.json --tag stage
 `package`는 명시한 빌드 파일·웹 소스·Python 소스·명시된 공식 저장 자료·행사 메타데이터 JSON만 복사하며 `.env`를
 읽지 않습니다. 소스 symlink를 거절합니다. `.gcloudignore`와 `.dockerignore`도 허용 목록을
 사용하여 Git 이력·개인 설정·키·캐시·의존성 디렉터리를 제외합니다.
+ADR 0021의 A–E 조사 원자료는 `investigation_data/manifest.json`과 검증된 10개 JSON을
+명시적으로 포함합니다. 패키지 테스트가 파일 누락과 SHA-256을 확인하며, 같은 디렉터리의
+임의 JSON이나 수집 응답을 자동 업로드하지 않습니다.
 업로드 전 `gcloud meta list-files-for-upload .cache/stage-source`로 목록을 확인합니다.
 루트 전체 업로드 대신 검토한 패키지 디렉터리를 Cloud Build에 제출합니다.
 [gcloudignore](https://docs.cloud.google.com/sdk/gcloud/reference/topic/gcloudignore)를 따릅니다.

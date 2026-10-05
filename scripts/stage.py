@@ -30,7 +30,17 @@ FIXED_INPUTS = (
     "apps/api/src/newsroom_agent/event_snapshots/finance.json",
     "apps/api/src/newsroom_agent/event_snapshots/ranking.json",
     "apps/api/src/newsroom_agent/event_snapshots/seoul.json",
-
+    "apps/api/src/newsroom_agent/investigation_data/manifest.json",
+    "apps/api/src/newsroom_agent/investigation_data/births.json",
+    "apps/api/src/newsroom_agent/investigation_data/births-meta.json",
+    "apps/api/src/newsroom_agent/investigation_data/migration.json",
+    "apps/api/src/newsroom_agent/investigation_data/migration-meta.json",
+    "apps/api/src/newsroom_agent/investigation_data/population-meta.json",
+    "apps/api/src/newsroom_agent/investigation_data/od-meta.json",
+    "apps/api/src/newsroom_agent/investigation_data/prices.json",
+    "apps/api/src/newsroom_agent/investigation_data/price-weights.json",
+    "apps/api/src/newsroom_agent/investigation_data/compensation.json",
+    "apps/api/src/newsroom_agent/investigation_data/business_mix.json",
 )
 CONFIG_PATTERNS = {
     "account": r"[A-Za-z0-9_.+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
