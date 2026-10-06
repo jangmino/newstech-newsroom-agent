@@ -10,7 +10,33 @@ function response(events: unknown[], split = false) {
     c.close();
   } }), { headers: { 'Content-Type': 'application/x-ndjson', 'X-Request-ID': id } });
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+test('configured deadlines and provider queue counts reach the UI', async () => {
+  const update = vi.fn();
+  await readEventStream(response([{ ...progress, queue_ahead: 80, wait_limit_seconds: 240, request_limit_seconds: 300 }, { type: 'result', request_id: id, result: {} }]), new AbortController().signal, update);
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ queue_ahead: 80, wait_limit_seconds: 240, request_limit_seconds: 300 }));
+});
+
+test.each([{ queue_ahead: -1 }, { queue_ahead: 161 }, { request_limit_seconds: 999999 }, { wait_limit_seconds: 0 }, { elapsed_seconds: -1 }])('invalid capacity fields cannot extend a browser request indefinitely %j', fields => {
+  return expect(readEventStream(response([{ ...progress, ...fields }]), new AbortController().signal, vi.fn())).rejects.toThrow('진행 상태 형식');
+});
+
+test('repeated progress cannot reset the absolute browser deadline or send a duplicate', async () => {
+  vi.useFakeTimers();
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const fetch = vi.fn(async () => new Response(new ReadableStream({ start(c) { stream = c; } }), { headers: { 'Content-Type': 'application/x-ndjson', 'X-Request-ID': id } }));
+  vi.stubGlobal('fetch', fetch);
+  const request = postJson('/api/v1/event/plan', { question: '청년 고용 질문' }, new AbortController().signal, vi.fn());
+  const rejected = expect(request).rejects.toThrow('응답 대기 시간이 초과');
+  await vi.advanceTimersByTimeAsync(0);
+  stream.enqueue(new TextEncoder().encode(JSON.stringify({ ...progress, wait_limit_seconds: 240, request_limit_seconds: 300 }) + '\n'));
+  await vi.advanceTimersByTimeAsync(350_000);
+  stream.enqueue(new TextEncoder().encode(JSON.stringify({ ...progress, wait_limit_seconds: 240, request_limit_seconds: 300 }) + '\n'));
+  await vi.advanceTimersByTimeAsync(10_000);
+  await rejected;
+  expect(fetch).toHaveBeenCalledOnce();
+});
 test('progress and split Korean text are read until terminal result', async () => {
   const update = vi.fn();
   const r = await readEventStream(response([progress, { type: 'result', request_id: id, result: { text: '정상 결과' } }], true), new AbortController().signal, update);

@@ -56,7 +56,9 @@ async def run(origin, code, users, interval):
             catalog = await check.request(
                 "guard.catalog", "GET", "/api/v1/event/catalog"
             )
-            require(len(catalog["snapshots"]) == 4, "missing_snapshots")
+            require({"seoul", "finance", "ranking", "disclosures"}.issubset(
+                {item["id"] for item in catalog["snapshots"]}
+            ), "missing_snapshots")
             for index in range(users):
                 await asyncio.sleep(
                     max(0, index * interval - (time.monotonic() - started))

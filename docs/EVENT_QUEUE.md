@@ -1,6 +1,6 @@
 # 행사 동시 요청과 대기 처리
 
-ADR 0019의 30명 동시 실습 보강이다. 기존 `/api/v1/event/plan`, `execute`, `general`의
+[ADR 0022](decisions/0022-workshop-81-capacity.md)의 81명 보강이다. 기존 `/api/v1/event/plan`, `execute`, `general`의
 JSON 계약과 legacy API는 유지한다. 행사 화면은 각 경로 뒤에 `/stream`을 붙인 POST로
 진행 상태를 받는다. 공유 접근코드 헤더와 승인·조건 검증은 그대로 적용한다.
 
@@ -8,7 +8,7 @@ JSON 계약과 legacy API는 유지한다. 행사 화면은 각 경로 뒤에 `/
 
 요청을 접수한 뒤 자료원별 자리가 없으면 순서대로 기다린다. 접수 후 경과 시간,
 공급자와 대기 상태를 표시한다. 다시 클릭하거나 재승인할 필요가 없다. 대기는 누적
-120초, 전체 처리는 180초가 상한이다. 최대 40개 요청을 받아 과도한 접속은 명확히
+stage에서240초, 전체 처리는300초가 상한이다. 최대120개 요청을 받아 과도한 접속은 명확히
 거절한다. 실제 처리 가능한 한도를 넘는 무거운 조회는 영구 대기시키지 않는다.
 
 취소하면 대기 중인 외부 호출은 시작하지 않는다. 이미 전송한 Gemini 요청의 처리나
@@ -37,14 +37,16 @@ Content-Type은 `application/x-ndjson`이다. 각 줄은 완전한 JSON이며 `t
 
 | type | 필드 | 의미 |
 |---|---|---|
-| progress | stage, provider, elapsed_seconds, waited_seconds | 접수 직후 및 약 1초마다 |
+| progress | stage, provider, elapsed_seconds, waited_seconds, queue_ahead, wait_limit_seconds, request_limit_seconds | 접수 직후 및 약 1초마다 |
 | result | result, metrics | 기존 JSON 응답과 호출 수·경과 시간 |
 | error | detail.code, detail.message, detail.field_errors | 한국어 오류와 고정 오류 코드 |
 
 stage는 accepted, waiting, running, source_wait, retry_wait이며 provider는 null 또는
 gemini/opendart/kosis이다. 정확한 완료 시각이나 전체 대기 순위를 약속하지 않는다.
 진행 상태에는 자료 값이나 모델의 내부 사고를 포함하지 않는다. result 또는 error가
-종료 신호다. 종료 신호 없이 끊기면 완료 여부 불명으로 안내한다. 스트림 시작 뒤 오류는
+종료 신호다. `queue_ahead`는 같은 공급자에서 먼저 기다리는 요청 수이며 실행 중에는 null이다.
+취소로 앞선 요청이 제거되면 다음 진행 알림에 반영한다. 두 시간 상한은 서버 설정값이다.
+종료 신호 없이 끊기면 완료 여부 불명으로 안내한다. 스트림 시작 뒤 오류는
 HTTP 200에서도 error 이벤트로 전달되므로 HTTP 상태만으로 성공을 집계하면 안 된다.
 
 `GET /api/v1/event/queue`는 동일 접근코드로 보호되며 활성 요청 수·최대 요청 수·시간
@@ -54,9 +56,9 @@ HTTP 200에서도 error 이벤트로 전달되므로 HTTP 상태만으로 성공
 
 ## Cloud Run과 운영
 
-행사 후보 리비전은 HTTP 동시 80, 요청 제한 210초, 1 CPU/512 MiB/리비전 최대 1개다.
-Gemini 실제 동시 8, 공공자료 공급자별 실제 동시 2와는 다른 설정이다. 앱은 180초 안에
-종료를 시도하고 브라우저는 220초에 연결을 정리한다. 대기 중에도 입장·운영 조회는
+행사 후보 리비전은 HTTP 동시160, 요청 제한330초, 1 CPU/512 MiB/리비전 최대1개다.
+Gemini 분당120/동시16, 공공자료 공급자별 분당30/동시2와는 다른 설정이다. 앱은300초 안에
+종료를 시도하고 브라우저는 서버 처리 상한+60초(기본360초)에 연결을 정리한다. 대기 중에도 입장·운영 조회는
 외부 호출 없이 응답해야 한다.
 
 메모리 대기열은 영속 작업 시스템이 아니다. 서버 재시작·배포 때 진행 중 작업을 복원하지
@@ -74,6 +76,16 @@ gcloud run services update SERVICE --account=PUBLIC_ACCOUNT --project=PROJECT --
 ```
 
 ## 검증
+
+stage 설정은 `EVENT_MAX_REQUESTS=120`, `EVENT_QUEUE_WAIT_SECONDS=240`,
+`EVENT_REQUEST_TIMEOUT_SECONDS=300`이다. local 기본40/120/180은 유지한다.
+SDK가 반환한 입력/출력 토큰 개수만 `result.metrics` 및 보호된 queue 누적 상태에 기록한다.
+생각 토큰·캐시 등 청구 항목 전체 또는 프로젝트 전체 사용량을 뜻하지 않는다.
+
+81명 수동 시험은 `scripts/workshop_capacity_rehearsal.py`로5→20→40→81명 순으로 한다.
+마지막 `--users 81 --full-flow --execute-live`는 계획·승인된 공식 원자료·브리핑·일반 응답을
+포함한다. 실패하면 확대를 멈추며 재현한 모델 품질 오류와 혼잡 오류를 따로 기록한다.
+기존 아래30명 도구·기록은 과거 회귀용이다.
 
 자동 테스트는 외부 네트워크 없이 FIFO·동시 수·분당 한도 해제·대기 상한·취소·공유 조회·
 스트림 단절·접근 보호·승인 검사·오류 구분을 확인한다. 실제 호출은 별도 명시적 실행이다.

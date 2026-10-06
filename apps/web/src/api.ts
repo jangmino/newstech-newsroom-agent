@@ -26,7 +26,8 @@ export async function postJson<T>(path: string, body: PostBody, signal: AbortSig
   signal.addEventListener('abort', abort, { once: true });
   if (signal.aborted) controller.abort();
   let timedOut = false;
-  const timer = streaming ? setTimeout(() => { timedOut = true; controller.abort(); }, 220_000) : undefined;
+  const started = Date.now();
+  let timer = streaming ? setTimeout(() => { timedOut = true; controller.abort(); }, 360_000) : undefined;
   try {
     try {
       response = await fetch(streaming ? `${path}/stream` : path, {
@@ -37,7 +38,14 @@ export async function postJson<T>(path: string, body: PostBody, signal: AbortSig
     } catch {
       throw new Error("요청을 보내지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
     }
-    if (streaming && response.ok && response.headers.get("Content-Type")?.includes("application/x-ndjson")) return await readEventStream<T>(response, controller.signal, onProgress!);
+    if (streaming && response.ok && response.headers.get("Content-Type")?.includes("application/x-ndjson")) return await readEventStream<T>(response, controller.signal, value => {
+      if (value.request_limit_seconds !== undefined) {
+        clearTimeout(timer);
+        const remaining = Math.max(1, (value.request_limit_seconds + 60) * 1000 - (Date.now() - started));
+        timer = setTimeout(() => { timedOut = true; controller.abort(); }, remaining);
+      }
+      onProgress!(value);
+    });
     return await readJson<T>(response);
   } catch (error) {
     if (timedOut) throw new Error(withRequestReference('응답 대기 시간이 초과됐습니다. 자동 재요청하지 않았습니다. 입력을 확인해 주세요.', response));
@@ -98,6 +106,9 @@ export interface EventProgress {
   provider: 'gemini' | 'opendart' | 'kosis' | null;
   elapsed_seconds: number;
   waited_seconds: number;
+  queue_ahead?: number | null;
+  wait_limit_seconds?: number;
+  request_limit_seconds?: number;
 }
 
 export async function readEventStream<T>(response: Response, signal: AbortSignal, onProgress: (value: EventProgress) => void): Promise<T> {
@@ -124,7 +135,11 @@ export async function readEventStream<T>(response: Response, signal: AbortSignal
         if (event.type === 'progress') {
           if (!['accepted', 'waiting', 'running', 'source_wait', 'retry_wait'].includes(event.stage)
             || ![null, 'gemini', 'opendart', 'kosis'].includes(event.provider)
-            || typeof event.elapsed_seconds !== 'number' || typeof event.waited_seconds !== 'number') throw new Error('진행 상태 형식이 올바르지 않습니다.');
+            || !Number.isFinite(event.elapsed_seconds) || event.elapsed_seconds < 0
+            || !Number.isFinite(event.waited_seconds) || event.waited_seconds < 0) throw new Error('진행 상태 형식이 올바르지 않습니다.');
+          if ((event.queue_ahead !== undefined && event.queue_ahead !== null && (!Number.isInteger(event.queue_ahead) || event.queue_ahead < 0 || event.queue_ahead > 160))
+            || (event.wait_limit_seconds !== undefined && (!Number.isFinite(event.wait_limit_seconds) || event.wait_limit_seconds <= 0 || event.wait_limit_seconds > 300))
+            || (event.request_limit_seconds !== undefined && (!Number.isFinite(event.request_limit_seconds) || event.request_limit_seconds <= 0 || event.request_limit_seconds > 360))) throw new Error('진행 상태 형식이 올바르지 않습니다.');
           onProgress(event);
         } else if (event.type === 'result' && event.result) return event.result as T;
         else if (event.type === 'error' && typeof event.detail?.message === 'string') {

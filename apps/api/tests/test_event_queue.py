@@ -49,6 +49,121 @@ async def test_thirty_concurrent_wait_fifo_and_respect_active_limit():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("users", [81, 120])
+async def test_workshop_capacity_admits_all_and_releases_fifo(users):
+    gate = EventAdmission(maximum=120, wait_seconds=240, total_seconds=300)
+    limiter = GeminiCallLimiter(120, 16)
+    order, states, peak = [], [], 0
+    release = asyncio.Event()
+
+    async def job(index):
+        nonlocal peak
+        states.append(flow.get())
+        async with provider_slot(limiter, "gemini"):
+            peak = max(peak, limiter.active)
+            order.append(index)
+            await release.wait()
+            return SimpleNamespace(model_dump=lambda **kw: {"index": index})
+
+    responses = [gate.response(lambda i=i: job(i)) for i in range(users)]
+    assert gate.active == users
+    if users == 120:
+        with pytest.raises(HTTPException) as exc:
+            gate.response(lambda: job(121))
+        assert exc.value.detail["code"] == "queue_full"
+
+    async def consume(response):
+        return [json.loads(x) async for x in response.body_iterator]
+
+    tasks = [asyncio.create_task(consume(response)) for response in responses]
+    await asyncio.sleep(0.02)
+    assert peak == 16 and len(order) == 16
+    assert states[-1].progress()["queue_ahead"] == users - 17
+    assert states[-1].progress()["wait_limit_seconds"] == 240
+    release.set()
+    events = await asyncio.gather(*tasks)
+    await asyncio.sleep(0.01)
+    assert order == list(range(users))
+    assert all(x[-1]["type"] == "result" for x in events)
+    assert gate.active == limiter.active == 0
+    assert not limiter._event_waiters
+
+
+@pytest.mark.asyncio
+async def test_queue_position_updates_after_cancel_and_never_calls_cancelled_job():
+    limiter = GeminiCallLimiter(120, 1)
+    holder = limiter.slot()
+    holder.__enter__()
+    states = [FlowState(wait_limit=240, total_limit=300) for _ in range(81)]
+    called = []
+
+    async def job(i):
+        token = flow.set(states[i])
+        try:
+            async with provider_slot(limiter, "gemini"):
+                called.append(i)
+        finally:
+            flow.reset(token)
+
+    tasks = [asyncio.create_task(job(i)) for i in range(81)]
+    await asyncio.sleep(0.01)
+    assert states[-1].progress()["queue_ahead"] == 80
+    tasks[0].cancel()
+    await asyncio.gather(tasks[0], return_exceptions=True)
+    assert states[-1].progress()["queue_ahead"] == 79
+    assert states[0].progress()["queue_ahead"] is None
+    holder.__exit__(None, None, None)
+    await asyncio.gather(*tasks[1:])
+    assert called == list(range(1, 81)) and len(limiter.calls) == 81
+
+
+@pytest.mark.asyncio
+async def test_eighty_one_same_source_waiters_fetch_once_and_keep_request_state():
+    cache = PublicDataCache()
+    entered, release = asyncio.Event(), asyncio.Event()
+    calls = 0
+
+    async def loader():
+        nonlocal calls
+        calls += 1
+        entered.set()
+        await release.wait()
+        return {"official": "value"}
+
+    async def job():
+        token = flow.set(FlowState())
+        try:
+            return await cache.get((("conditions", "same"),), loader)
+        finally:
+            flow.reset(token)
+
+    tasks = [asyncio.create_task(job()) for _ in range(81)]
+    await entered.wait()
+    await asyncio.sleep(0)
+    tasks[0].cancel()
+    await asyncio.gather(tasks[0], return_exceptions=True)
+    release.set()
+    results = await asyncio.gather(*tasks[1:])
+    assert calls == 1 and all(r[0] == {"official": "value"} for r in results)
+    assert not cache._inflight and not cache._waiters
+    await cache.close()
+
+
+def test_configured_stage_admission_limits_are_sent_to_browser(monkeypatch):
+    monkeypatch.setattr(main.settings, "event_max_requests", 120)
+    monkeypatch.setattr(main.settings, "event_queue_wait_seconds", 240)
+    monkeypatch.setattr(main.settings, "event_request_timeout_seconds", 300)
+    saved = load_snapshots()["seoul"]["result"]
+    body = {"question": saved["question"], "conditions": saved["conditions"],
+            "mode": "snapshot", "snapshot_id": "seoul", "approved": True}
+    with TestClient(main.app) as client:
+        assert client.get("/api/v1/event/queue").json()["max_requests"] == 120
+        r = client.post("/api/v1/event/execute/stream", json=body)
+        first = json.loads(r.text.splitlines()[0])
+        assert first["wait_limit_seconds"] == 240 and first["request_limit_seconds"] == 300
+
+
+@pytest.mark.asyncio
 async def test_minute_budget_waits_until_old_calls_expire():
     now = [0.0]
     limiter = GeminiCallLimiter(1, 1, clock=lambda: now[0])

@@ -159,11 +159,13 @@ test('queued progress can be cancelled without losing conditions or accepting la
   await propose();
   let resolve!: (value: EventResult) => void;
   post.mockImplementationOnce((_path, _body, _signal, onProgress) => {
-    onProgress({ stage: 'waiting', provider: 'gemini', elapsed_seconds: 12, waited_seconds: 10 });
+    onProgress({ stage: 'waiting', provider: 'gemini', elapsed_seconds: 12, waited_seconds: 10, queue_ahead: 64, wait_limit_seconds: 240, request_limit_seconds: 300 });
     return new Promise<EventResult>(r => { resolve = r; });
   });
   fireEvent.click(screen.getByRole('button', { name: '이 조건으로 조회' }));
-  await screen.findByText('요청 순서를 기다리고 있습니다.');
+  await screen.findByText('Gemini 실행 순서를 기다리고 있습니다.');
+  expect(screen.getByText(/먼저 기다리는 요청 64개/)).toBeTruthy();
+  expect(screen.getByText('대기는 최대 240초, 전체 처리는 최대 300초입니다.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
   expect((post.mock.calls[1][2] as AbortSignal).aborted).toBe(true);
   expect(screen.getByRole('button', { name: '이 조건으로 조회' }).hasAttribute('disabled')).toBe(false);

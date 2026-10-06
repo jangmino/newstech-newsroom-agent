@@ -21,6 +21,13 @@ HTTP 응답에 서버가 생성한 `X-Request-ID`를 제공합니다. 기존 성
 [대기·취소·시간 제한·오류 및 운영 계약](../../docs/EVENT_QUEUE.md)을 참고하십시오.
 기존 JSON 경로와 `/api/v1/analyze` 호환성은 유지한다.
 
+2026-10-06의81명 stage 설정은 접수120/대기240초/전체300초다. `progress`에
+`queue_ahead`(해당 공급자의 앞선 대기 요청 수 또는 null), `wait_limit_seconds`,
+`request_limit_seconds`를 추가했다. 최종 `metrics`와 보호된 queue 상태에는 SDK의
+입력/출력 토큰 개수만 포함한다. local 기본값40/120/180과 기존 계약은 유지한다.
+A~E의 대표 고정 질문은 비상용 snapshot으로 별도 승인 재생할 수 있다.
+[81명 운영 절차](../../docs/WORKSHOP_81_OPERATIONS.md)를 따른다.
+
 먼저 `GET /api/v1/access`로 `{required, available}`을 확인합니다. 코드가 필요하면
 `POST /api/v1/access`와 이후 모든 API 요청에 `X-Workshop-Code`를 보냅니다.
 입장은 자료 조회 승인이 아닙니다. 코드가 없거나 틀리면 본문 처리 전에 401

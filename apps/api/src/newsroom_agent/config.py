@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     max_concurrent_requests: int = Field(default=8, ge=1, le=30)
     public_data_requests_per_minute: int = Field(default=30, ge=1, le=300)
     public_data_max_concurrent_requests: int = Field(default=2, ge=1, le=30)
+    event_max_requests: int = Field(default=40, ge=1, le=160)
+    event_queue_wait_seconds: int = Field(default=120, ge=1, le=300)
+    event_request_timeout_seconds: int = Field(default=180, ge=1, le=360)
     public_data_cache_enabled: bool = True
     cache_ttl_seconds: int = Field(default=3600, ge=1, le=86400)
     cache_max_entries: int = Field(default=64, ge=1, le=256)

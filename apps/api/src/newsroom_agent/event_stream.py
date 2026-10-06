@@ -21,6 +21,8 @@ class EventAdmission:
         self.provider_calls = {"gemini": 0, "opendart": 0, "kosis": 0}
         self.completed = 0
         self.failed = 0
+        self.input_tokens = 0
+        self.output_tokens = 0
 
     def status(self):
         return {
@@ -31,6 +33,7 @@ class EventAdmission:
             "scope": "single_process",
             "provider_calls": dict(self.provider_calls),
             "completed": self.completed, "failed": self.failed,
+            "input_tokens": self.input_tokens, "output_tokens": self.output_tokens,
         }
 
     def response(self, operation: Callable):
@@ -45,7 +48,7 @@ class EventAdmission:
                 },
             )
         self.active += 1
-        state = FlowState(wait_limit=self.wait_seconds)
+        state = FlowState(wait_limit=self.wait_seconds, total_limit=self.total_seconds)
         correlation = request_id()
 
         async def run():
@@ -79,7 +82,9 @@ class EventAdmission:
                 result = task.result()
                 self.completed += 1
                 yield event("result", {"result": result.model_dump(mode="json"),
-                    "metrics": {"provider_calls": dict(state.calls), **state.progress()}})
+                    "metrics": {"provider_calls": dict(state.calls),
+                                "input_tokens": state.input_tokens,
+                                "output_tokens": state.output_tokens, **state.progress()}})
             except TimeoutError:
                 self.failed += 1
                 record_error("request_timeout")
@@ -145,6 +150,8 @@ class EventAdmission:
             self.active -= 1
             for provider, count in state.calls.items():
                 self.provider_calls[provider] += count
+            self.input_tokens += state.input_tokens
+            self.output_tokens += state.output_tokens
 
 
 _cleanup_tasks: set[asyncio.Task] = set()

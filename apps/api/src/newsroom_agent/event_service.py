@@ -607,6 +607,15 @@ class EventService:
                             "다음 문단은 마지막 연도의 같은 보고서 전기 비교액으로 확인한 "
                             "주요 사업 증가분과 반례를 설명하세요. 마지막 해만 요약하지 마세요."
                         )
+                    if c.tool == "prices":
+                        payload["editorial_focus"] = (
+                            "품목의 상승률과 고정 가중치 근사 기여도를 구분하세요. "
+                            "상위 품목 수, 지수 기준연도, 가중치 기준연도 등 숫자도 "
+                            "본문·한계·후속 질문에 직접 쓰지 마세요. '상위 품목', "
+                            "'검증된 기준과 가중치'라고 표현하세요. 모든 수치·기간·순위는 "
+                            "제공된 근거 슬롯만 사용하고 rank가 null이면 순위를 쓰지 마세요. "
+                            "공식 총지수 상승률과 근사 합계의 차이는 제공된 근거로 설명하세요."
+                        )
                 if c.tool == "disclosures":
                     payload["disclosure_details"] = {f.id: f.details for f in facts[:12]}
                 raw = await interpret(composer, json.dumps(payload, ensure_ascii=False))

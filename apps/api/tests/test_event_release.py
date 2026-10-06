@@ -432,7 +432,9 @@ def test_event_http_contract_blocks_unapproved_and_mock():
 async def test_official_snapshots_replay_exact_provenance_without_providers():
     from newsroom_agent.event_service import load_snapshots, snapshot_catalog
 
-    assert len(snapshot_catalog()) == 4
+    assert {"seoul", "finance", "ranking", "disclosures"}.issubset(
+        {item["id"] for item in snapshot_catalog()}
+    )
     svc = service(PlannerUnavailable())
     for snapshot_id, item in load_snapshots().items():
         original = item["result"]

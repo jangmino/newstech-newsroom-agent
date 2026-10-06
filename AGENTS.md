@@ -19,6 +19,15 @@ Use `git status --short` before edits. Preserve user changes and do not overwrit
 
 ## Current phase
 
+- ADR 0022 adds the user-approved 81-person event capacity profile and five emergency
+  pre-generated official results. See docs/WORKSHOP_81_OPERATIONS.md for measured
+  capacity, separate model quality outcomes, fallback approval, and event-day duties.
+  Published as newsroom-stage-workshop81final-20261006 on 2026-10-06; 81-person capacity
+  passed, 80/81 briefs passed with one safely rejected C output. See
+  docs/validation/workshop-81-20261006.json. Campus/Windows checks remain separate.
+  Keep one process/instance; do not bypass numeric validation or retry secretly.
+  The historical thirty-person checklist below is superseded by the 81-person plan.
+
 - ADR 0021 adds five approved Part 2 investigation scenarios on a separate branch.
   See INVESTIGATION_WORKSHOP.md, INVESTIGATION_DATA.md, and INVESTIGATION_VALIDATION.md
   under docs for contracts, prepared official material, and validation evidence.

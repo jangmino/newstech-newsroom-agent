@@ -82,7 +82,11 @@ configure_request_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_public_data_limiter.cache_clear()
-    app.state.event_admission = EventAdmission()
+    app.state.event_admission = EventAdmission(
+        maximum=settings.event_max_requests,
+        wait_seconds=settings.event_queue_wait_seconds,
+        total_seconds=settings.event_request_timeout_seconds,
+    )
     app.state.employment_cache = PublicDataCache[EmploymentSeries](
         settings.cache_ttl_seconds,
         settings.cache_max_entries,

@@ -183,6 +183,16 @@ class GeminiQuestionPlanner:
                 # Provider/client exceptions can contain credential-bearing URLs or response bodies.
                 raise PlannerUnavailable() from None
 
+        from newsroom_agent.request_flow import flow
+
+        state = flow.get()
+        usage = getattr(response, "usage_metadata", None)
+        if state is not None and usage is not None:
+            for source, target in [("prompt_token_count", "input_tokens"),
+                                   ("candidates_token_count", "output_tokens")]:
+                count = getattr(usage, source, None)
+                if type(count) is int and count >= 0:
+                    setattr(state, target, getattr(state, target) + count)
         feedback = response.prompt_feedback
         if feedback and feedback.block_reason not in {
             None,

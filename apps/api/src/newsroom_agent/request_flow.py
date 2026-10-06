@@ -22,16 +22,27 @@ class FlowState:
     started: float = field(default_factory=monotonic)
     waited: float = 0
     wait_limit: float = 120
+    total_limit: float = 180
     stage: str = "accepted"
     provider: str | None = None
     calls: dict = field(default_factory=dict)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    waiting_queue: deque | None = field(default=None, repr=False)
+    waiting_ticket: object | None = field(default=None, repr=False)
 
     def progress(self):
+        ahead = None
+        if self.waiting_queue is not None and self.waiting_ticket in self.waiting_queue:
+            ahead = self.waiting_queue.index(self.waiting_ticket)
         return {
             "stage": self.stage,
             "provider": self.provider,
             "elapsed_seconds": round(monotonic() - self.started, 1),
             "waited_seconds": round(self.waited, 1),
+            "queue_ahead": ahead,
+            "wait_limit_seconds": self.wait_limit,
+            "request_limit_seconds": self.total_limit,
         }
 
 
@@ -61,6 +72,7 @@ async def provider_slot(limiter, provider: str):
     queue = limiter._event_waiters
     ticket = object()
     queue.append(ticket)
+    state.waiting_queue, state.waiting_ticket = queue, ticket
     entered = False
     slot = None
     progress("waiting", provider)
@@ -83,6 +95,7 @@ async def provider_slot(limiter, provider: str):
                     pass
                 if entered:
                     queue.popleft()
+                    state.waiting_queue, state.waiting_ticket = None, None
                     state.calls[provider] = state.calls.get(provider, 0) + 1
                     progress("running", provider)
                     break
@@ -92,6 +105,7 @@ async def provider_slot(limiter, provider: str):
     finally:
         if ticket in queue:
             queue.remove(ticket)
+        state.waiting_queue, state.waiting_ticket = None, None
         if entered:
             slot.__exit__(None, None, None)
 

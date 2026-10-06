@@ -27,6 +27,7 @@ def pytest_configure() -> None:
         requests_per_minute=30, max_concurrent_requests=8,
         public_data_requests_per_minute=30, public_data_max_concurrent_requests=2,
         public_data_cache_enabled=False, cache_ttl_seconds=3600, cache_max_entries=64,
+        event_max_requests=40, event_queue_wait_seconds=120, event_request_timeout_seconds=180,
         cors_origin_list=["http://localhost:5173"],
     )
     _patch.setattr(config, "get_settings", lambda: settings)

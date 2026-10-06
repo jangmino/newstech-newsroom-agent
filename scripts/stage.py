@@ -30,6 +30,11 @@ FIXED_INPUTS = (
     "apps/api/src/newsroom_agent/event_snapshots/finance.json",
     "apps/api/src/newsroom_agent/event_snapshots/ranking.json",
     "apps/api/src/newsroom_agent/event_snapshots/seoul.json",
+    "apps/api/src/newsroom_agent/event_snapshots/investigation-births.json",
+    "apps/api/src/newsroom_agent/event_snapshots/investigation-migration.json",
+    "apps/api/src/newsroom_agent/event_snapshots/investigation-prices.json",
+    "apps/api/src/newsroom_agent/event_snapshots/investigation-compensation.json",
+    "apps/api/src/newsroom_agent/event_snapshots/investigation-business_mix.json",
     "apps/api/src/newsroom_agent/investigation_data/manifest.json",
     "apps/api/src/newsroom_agent/investigation_data/births.json",
     "apps/api/src/newsroom_agent/investigation_data/births-meta.json",
@@ -164,7 +169,7 @@ def live_commands(config, secrets, digest, suffix, rollback_revision):
     candidate = ["gcloud", "run", "services", "update", *common, f"--image={image}",
                  f"--service-account={base['runtime_identity']}",
                  "--no-traffic", "--tag=live-check",
-                 "--concurrency=80", "--timeout=210s", "--max-instances=1",
+                 "--concurrency=160", "--timeout=330s", "--max-instances=1",
                  f"--revision-suffix={suffix}", "--env-vars-file=infra/stage-live.env.yaml",
                  "--set-secrets=" + ",".join(references)]
     traffic = ["gcloud", "run", "services", "update-traffic", *common]

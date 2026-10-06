@@ -160,7 +160,7 @@ def test_live_plan_pins_image_and_four_secrets_without_changing_public_access():
                                  "live-test", "newsroom-stage-old")
     candidate = shlex.split(result["deploy_candidate"])
     assert "--no-traffic" in candidate and "--tag=live-check" in candidate
-    assert "--concurrency=80" in candidate and "--timeout=210s" in candidate
+    assert "--concurrency=160" in candidate and "--timeout=330s" in candidate
     assert "--max-instances=1" in candidate
     assert "--env-vars-file=infra/stage-live.env.yaml" in candidate
     assert not any("unauthenticated" in arg for arg in candidate)
@@ -221,5 +221,11 @@ def test_live_profile_is_separate_and_keeps_limits_snapshot_and_no_credentials()
                 "FALLBACK_SNAPSHOT_ENABLED", "PUBLIC_DATA_CACHE_ENABLED"):
         assert settings[key] == "true"
     assert settings["GEMINI_AUTH_MODE"] == "api_key"
-    assert settings["REQUESTS_PER_MINUTE"] == settings["PUBLIC_DATA_REQUESTS_PER_MINUTE"] == "30"
+    assert settings["REQUESTS_PER_MINUTE"] == "120"
+    assert settings["MAX_CONCURRENT_REQUESTS"] == "16"
+    assert settings["PUBLIC_DATA_REQUESTS_PER_MINUTE"] == "30"
+    assert settings["PUBLIC_DATA_MAX_CONCURRENT_REQUESTS"] == "2"
+    assert settings["EVENT_MAX_REQUESTS"] == "120"
+    assert settings["EVENT_QUEUE_WAIT_SECONDS"] == "240"
+    assert settings["EVENT_REQUEST_TIMEOUT_SECONDS"] == "300"
     assert not any("KEY" in key or "CODE" in key for key in settings)

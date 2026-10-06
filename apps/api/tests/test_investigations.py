@@ -9,7 +9,12 @@ import pytest
 from pydantic import ValidationError
 
 from newsroom_agent.event_catalog import validate_conditions
-from newsroom_agent.event_models import EventConditions, EventExecuteRequest, EventPlanRequest
+from newsroom_agent.event_models import (
+    EventConditions,
+    EventExecuteRequest,
+    EventPlanRequest,
+    EventResult,
+)
 from newsroom_agent.event_service import EventService
 from newsroom_agent.investigation_calculations import analyze, checked_rows
 from newsroom_agent.investigation_catalog import SCENARIOS, archive, catalog
@@ -328,3 +333,17 @@ async def test_approval_and_source_selection_are_checked_before_archive_or_live_
         await EventService(research, snapshots_enabled=False).execute(request)
     with pytest.raises(ResearchError, match="다시 승인"):
         await EventService(research).execute(request.model_copy(update={"mode": "live"}))
+
+
+@pytest.mark.parametrize("tool", list(SCENARIOS))
+def test_emergency_snapshots_equal_official_archive_calculation_and_keep_generation_time(tool):
+    from newsroom_agent.event_service import load_snapshots
+
+    saved = load_snapshots()["investigation-" + tool]
+    result = EventResult.model_validate(saved["result"])
+    expected = analyze(result.conditions, archive(tool))
+    assert result.facts == expected.facts and result.analysis == expected.analysis
+    assert result.brief.status == "complete" and result.data_mode == "snapshot"
+    assert result.generated_at == saved["validation"]["prepared_at"]
+    assert saved["general"]["conditions"] == result.conditions.model_dump()
+    assert saved["general"]["question"] == result.question

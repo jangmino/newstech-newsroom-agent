@@ -5,6 +5,7 @@ import type { EventCatalog, EventConditions, EventDialogueTurn, EventExecuteRequ
 import { Conditions, EventResults, labels, toolLabels, Trace } from './EventResults';
 import { DialogueHistory, EventDialogue } from './EventDialogue';
 import { disclosurePeriodError, disclosurePeriodLimits } from './disclosurePeriod';
+import { EventProgressNotice } from './EventProgressNotice';
 
 const examples = [
   'NAVER와 카카오의 최근 한 달 투자·지분·소송 공시를 비교해 줘.',
@@ -109,12 +110,13 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
         {part === 1 && <details><summary>조건을 바꾸고 확인할 장면</summary><p>고용률을 취업자 수로, 증감 폭을 증감률로 바꿔 보세요. 청년의 연령과 전국 집계·시도 순위의 차이도 확인합니다.</p><button onClick={() => changeQuestion('서울의 15-34세 청년 월간 고용률을 확인해 줘.')}>제공되지 않는 조합 질문하기</button><p>실제 공식 자료에 없는 조합을 확인하는 실습입니다. 공급자 장애를 꾸민 응답이 아닙니다.</p></details>}
       </>}
     </section>
-    {busy && <section className="notice" role="status" aria-live="polite"><strong>{progress?.stage === 'waiting' ? '요청 순서를 기다리고 있습니다.' : progress?.stage === 'retry_wait' ? '공급자 안내에 따라 잠시 기다린 뒤 한 번 더 요청합니다.' : progress?.stage === 'source_wait' ? '승인한 공식 자료를 조회하거나 같은 자료의 조회 완료를 기다리고 있습니다.' : busy === 'plan' ? '질문을 해석하고 조사 계획을 준비하고 있습니다.' : busy === 'general' ? '일반 모델 응답을 작성하고 있습니다.' : '공식 자료 조회·계산·브리핑을 진행하고 있습니다.'}</strong><p>{progress?.provider && `${{ gemini: 'Gemini', opendart: 'OpenDART', kosis: 'KOSIS' }[progress.provider]} · `}접수 후 {Math.floor(progress?.elapsed_seconds ?? 0)}초 · 대기 {Math.floor(progress?.waited_seconds ?? 0)}초</p><p>순서가 되면 자동으로 진행합니다. 다시 누르지 않아도 됩니다. 대기는 최대 120초, 전체 처리는 최대 180초입니다.</p><button type="button" onClick={() => { version.current++; abort.current?.abort(); setBusy(null); setProgress(null); setError('요청을 취소했습니다. 이미 전송된 외부 호출은 끝날 수 있지만 후속 결과는 표시하지 않습니다. 입력한 조건은 유지됩니다.'); }}>요청 취소</button></section>}
+    {busy && <EventProgressNotice progress={progress} busy={busy} onCancel={() => { version.current++; abort.current?.abort(); setBusy(null); setProgress(null); setError('요청을 취소했습니다. 이미 전송된 외부 호출은 끝날 수 있지만 후속 결과는 표시하지 않습니다. 입력한 조건은 유지됩니다.'); }} />}
     {error && <p role="alert" className="error request-error">{error}</p>}
     {plan && draft && <section className="card research-plan"><div className="section-heading"><span>{needsDialogue ? '질답' : '02'}</span><div><h2 tabIndex={-1} ref={planHeading}>{needsDialogue ? '조사 방향을 함께 정해 주세요' : investigation ? '제안한 조사 계획을 검토해 주세요' : '제안한 조회 조건을 검토해 주세요'}</h2><p>{needsDialogue ? (plan.status === 'unsupported' ? '지원 범위 확인' : '추가 확인 필요') : toolLabels[draft.tool]} · {plan.model ?? '공식 저장 사례'}</p></div></div>
       <DialogueHistory turns={conversation} />
       {needsDialogue ? <EventDialogue clarification={clarification} explanations={plan.proposals} unsupported={plan.status === 'unsupported' || !!plan.field_errors.scope} answer={revision} busy={!!busy} limitReached={conversation.length >= 8} onChange={value => { invalidate(); setRevision(value); }} onAnswer={value => { if (value.trim()) void propose(value); }} onRestart={() => invalidate(true)} /> : <>
-      <p>자료원과 대상·지표·기간·비교 기준을 확인해 주세요. 승인 후 근거 기반 브리핑을 작성하며, 기사 작성·발행은 하지 않습니다.</p>
+      <p>{mode === 'snapshot' ? '자료원과 대상·지표·기간·비교 기준을 확인해 주세요. 승인 후 사전에 생성한 자료와 브리핑을 재생합니다. 새 조회·모델 호출은 없습니다.' : '자료원과 대상·지표·기간·비교 기준을 확인해 주세요. 승인 후 근거 기반 브리핑을 작성하며, 기사 작성·발행은 하지 않습니다.'}</p>
+      {mode === 'snapshot' && <p>사전 생성 시각: {new Date(catalog?.snapshots.find(s => s.id === snapshot)?.generated_at ?? '').toLocaleString('ko-KR')}</p>}
       <details><summary>제안한 조건과 제공 범위 설명</summary><ul>{plan.proposals.map((p, i) => <li key={i}>{p}</li>)}</ul></details>
       {!!Object.keys(plan.field_errors).length && <div className="clarification" role="status"><strong>처음 계획에서 확인할 내용</strong><ul>{Object.values(plan.field_errors).map((v, i) => <li key={i}>{v}</li>)}</ul><p>조건을 고친 뒤 다시 승인하면 서버가 제공 여부를 검사합니다. 지원 범위 안내가 있으면 질문이나 자연어 수정 요청으로 계획을 다시 확인해 주세요.</p></div>}
       {plan.companies.length > draft.entities.length && <p>회사 후보: {plan.companies.map(c => `${c.name} (${c.stock_code})`).join(' · ')}. 아래 수정 요청에 정확한 회사명을 적어 주세요.</p>}
@@ -127,7 +129,7 @@ export function EventWorkshop({ post, get, part }: { post: ApiPost; get: ApiGet;
         {draft.tool === 'financials' && <>{field('statement_basis', ['연결', '별도'])}{field('amount_basis', ['당기', '누적'])}</>}
         {draft.tool === 'employment' && field('age_range', catalog?.ages ?? ['15-29세', '20-29세', '15-64세'])}
       </div>}
-      <p className="field-help">{investigation ? `원문 검증 범위: ${investigation.start}~${investigation.end} · 예상 공공자료 호출 ${investigation.calls}` : <>{catalog?.notice} 기간 표기: 연간 2025 / 분기 2026-Q2 / 월간 2026-08 / 공시 2026-09-18</>}</p>
+      <p className="field-help">{mode === 'snapshot' ? '표시된 고정 조건으로만 재생합니다. 공공 API·Gemini 새 호출은 0회입니다.' : investigation ? `원문 검증 범위: ${investigation.start}~${investigation.end} · 예상 공공자료 호출 ${investigation.calls}` : <>{catalog?.notice} 기간 표기: 연간 2025 / 분기 2026-Q2 / 월간 2026-08 / 공시 2026-09-18</>}</p>
       {draft.tool === 'disclosures' && <p className="field-help" id="disclosure-period-help">공시 접수 기간은 시작일·종료일을 포함해 최대 {periodLimits.max_days}일입니다. 이 실습 앱의 조회 범위이며, 더 긴 기간은 나누어 각각 승인해 주세요.</p>}
       {periodError && <p className="error" id="disclosure-period-error" role="status">{periodError}</p>}
       {revision.trim() && <p className="notice">작성한 수정 요청을 먼저 반영해 주세요.</p>}

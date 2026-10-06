@@ -39,6 +39,25 @@ def response_body(raw=None, finish="STOP"):
     }]}
 
 
+@pytest.mark.asyncio
+async def test_queued_usage_records_only_token_counts_from_sdk():
+    from newsroom_agent.request_flow import FlowState, flow
+
+    def handler(request):
+        return httpx.Response(200, json=response_body() | {
+            "usageMetadata": {"promptTokenCount": 321, "candidatesTokenCount": 37},
+        })
+
+    state = FlowState()
+    token = flow.set(state)
+    try:
+        with sdk_planner(handler) as provider:
+            await provider.interpret_queued(QUESTION)
+        assert state.input_tokens == 321 and state.output_tokens == 37
+    finally:
+        flow.reset(token)
+
+
 @contextmanager
 def sdk_planner(handler, **overrides):
     with httpx.Client(transport=httpx.MockTransport(handler), trust_env=False) as transport_client:

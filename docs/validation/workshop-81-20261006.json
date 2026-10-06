@@ -1,0 +1,348 @@
+{
+  "observed_at": "2026-10-06T10:26:44.052206+00:00",
+  "decision": "ADR 0022",
+  "public_url": "https://newsroom-stage-4egpek33za-du.a.run.app",
+  "revision": "newsroom-stage-workshop81final-20261006",
+  "image": "asia-northeast3-docker.pkg.dev/newstech-newsroom-260917/newsroom-stage/newsroom-agent@sha256:ff5c5dc9f4b7a9c695f8ab0bc3974f7f7e26df9d49d48720e6949198501e3842",
+  "rollback_revision": "newsroom-stage-investigationb-20261006",
+  "public_traffic_percent": 100,
+  "secret_refs_unchanged": true,
+  "profile": {
+    "admission": 120,
+    "gemini_rpm": 120,
+    "gemini_concurrent": 16,
+    "public_api_rpm": 30,
+    "public_api_concurrent": 2,
+    "wait_seconds": 240,
+    "total_seconds": 300,
+    "model_http_seconds": 60,
+    "cloud_concurrent": 160,
+    "cloud_http_seconds": 330,
+    "cpu": 1,
+    "memory_mib": 512,
+    "max_instances": 1,
+    "min_instances": 0
+  },
+  "quota": {
+    "key_project_matches_ai_studio": true,
+    "tier": 2,
+    "observed_gemini_rpm": 2000,
+    "observed_input_tpm": 3000000,
+    "observed_rpd": 100000
+  },
+  "rehearsals": {
+    "5": {
+      "users": 5,
+      "phases": {
+        "execute": {
+          "requests": 5,
+          "terminal_results": 5,
+          "brief_complete": 5,
+          "brief_failed": 0,
+          "errors": {},
+          "p95_seconds": 15.215,
+          "max_seconds": 15.215,
+          "waiting_seen": 0,
+          "max_queue_ahead": 0,
+          "input_tokens": 13230,
+          "output_tokens": 5186
+        }
+      },
+      "gemini_calls": 5,
+      "passed": true
+    },
+    "20_initial": {
+      "users": 20,
+      "phases": {
+        "execute": {
+          "requests": 20,
+          "terminal_results": 20,
+          "brief_complete": 16,
+          "brief_failed": 4,
+          "errors": {
+            "brief_validation_failed": 4
+          },
+          "p95_seconds": 39.938,
+          "max_seconds": 41.695,
+          "waiting_seen": 4,
+          "max_queue_ahead": 3,
+          "input_tokens": 38136,
+          "output_tokens": 16766
+        }
+      },
+      "gemini_calls": 20,
+      "passed": false
+    },
+    "20_final": {
+      "users": 20,
+      "phases": {
+        "execute": {
+          "requests": 20,
+          "terminal_results": 20,
+          "brief_complete": 19,
+          "brief_failed": 1,
+          "errors": {
+            "brief_InvalidPlannerOutput": 1
+          },
+          "p95_seconds": 30.165,
+          "max_seconds": 49.368,
+          "waiting_seen": 4,
+          "max_queue_ahead": 3,
+          "input_tokens": 52920,
+          "output_tokens": 22152
+        }
+      },
+      "gemini_calls": 20,
+      "passed": false
+    },
+    "40": {
+      "users": 40,
+      "phases": {
+        "execute": {
+          "requests": 40,
+          "terminal_results": 40,
+          "brief_complete": 38,
+          "brief_failed": 2,
+          "errors": {
+            "brief_InvalidPlannerOutput": 2
+          },
+          "p95_seconds": 64.249,
+          "max_seconds": 72.528,
+          "waiting_seen": 24,
+          "max_queue_ahead": 23,
+          "input_tokens": 105840,
+          "output_tokens": 45404
+        }
+      },
+      "gemini_calls": 40,
+      "passed": false,
+      "capacity_passed": true,
+      "quality_passed": false,
+      "reviewed_model_failures": false
+    },
+    "81": {
+      "users": 81,
+      "phases": {
+        "plan": {
+          "requests": 81,
+          "terminal_results": 81,
+          "brief_complete": 0,
+          "brief_failed": 0,
+          "errors": {},
+          "p95_seconds": 38.088,
+          "max_seconds": 40.844,
+          "waiting_seen": 65,
+          "max_queue_ahead": 64,
+          "input_tokens": 202481,
+          "output_tokens": 18209
+        },
+        "execute": {
+          "requests": 81,
+          "terminal_results": 81,
+          "brief_complete": 80,
+          "brief_failed": 1,
+          "errors": {
+            "brief_InvalidPlannerOutput": 1
+          },
+          "p95_seconds": 103.894,
+          "max_seconds": 110.984,
+          "waiting_seen": 65,
+          "max_queue_ahead": 64,
+          "input_tokens": 214691,
+          "output_tokens": 91801
+        },
+        "general": {
+          "requests": 81,
+          "terminal_results": 81,
+          "brief_complete": 0,
+          "brief_failed": 0,
+          "errors": {},
+          "p95_seconds": 95.915,
+          "max_seconds": 100.753,
+          "waiting_seen": 65,
+          "max_queue_ahead": 64,
+          "input_tokens": 22525,
+          "output_tokens": 57953
+        }
+      },
+      "gemini_calls": 243,
+      "passed": false,
+      "capacity_passed": true,
+      "quality_passed": false,
+      "reviewed_model_failures": true
+    }
+  },
+  "initial_failure_note": "Initial 20 report used generic brief_validation_failed; E failed near 30 seconds. Exact exception type was not preserved, so timeout is an inference, not a confirmed classification.",
+  "capacity_acceptance_passed": true,
+  "model_quality_all_success": false,
+  "reviewed_remaining_failure": {
+    "scenario": "C prices",
+    "count": 1,
+    "type": "InvalidPlannerOutput",
+    "evidence_preserved": true,
+    "automatic_retry": false
+  },
+  "limitations": [
+    "Five shared canonical official archive conditions with actual Gemini calls, not 81 distinct live public-data queries.",
+    "Phases started separately in bursts; seven generated plans were operator-edited to validated conditions before execution.",
+    "Not a campus-network, browser or Windows download test.",
+    "SDK token counts are not complete billed token usage or project-wide usage.",
+    "Monitoring minute p99 samples are not instantaneous peaks or a sustained-load guarantee."
+  ],
+  "health": {
+    "checks": 84,
+    "all_200": true,
+    "max_seconds": 0.078
+  },
+  "tokens_81": {
+    "input": 439697,
+    "output": 167963
+  },
+  "source_validation": {
+    "passed": true,
+    "checks": [
+      {
+        "tool": "births",
+        "mode": "live",
+        "brief_status": "complete",
+        "official_values_equal": true,
+        "tables_equal": true,
+        "seconds": 16.648,
+        "provider_calls": {
+          "kosis": 3,
+          "gemini": 1
+        }
+      },
+      {
+        "tool": "migration",
+        "mode": "live",
+        "brief_status": "complete",
+        "official_values_equal": true,
+        "tables_equal": true,
+        "seconds": 13.592,
+        "provider_calls": {
+          "kosis": 3,
+          "gemini": 1
+        }
+      },
+      {
+        "tool": "prices",
+        "mode": "live",
+        "brief_status": "complete",
+        "official_values_equal": true,
+        "tables_equal": true,
+        "seconds": 11.99,
+        "provider_calls": {
+          "kosis": 2,
+          "gemini": 1
+        }
+      }
+    ],
+    "provider_calls": {
+      "gemini": 3,
+      "opendart": 0,
+      "kosis": 8
+    }
+  },
+  "explicit_reapproval_recovery": {
+    "tool": "prices",
+    "seconds": 17.378,
+    "brief_status": "complete",
+    "provider_calls": {
+      "gemini": 1
+    },
+    "reviewed_failure": "InvalidPlannerOutput",
+    "automatic_retry": false,
+    "evidence_preserved_in_original": true
+  },
+  "monitoring": {
+    "observed_at": "2026-10-06T10:25:27.916818+00:00",
+    "metrics": {
+      "cpu": {
+        "samples": 11,
+        "max_minute_p99_ratio": 0.13990000000000002
+      },
+      "memory": {
+        "samples": 10,
+        "max_minute_p99_ratio": 0.3799
+      }
+    }
+  },
+  "emergency_snapshots": {
+    "count_new": 5,
+    "count_total": 9,
+    "prepared_from": "2026-10-05 verified official archive",
+    "facts_and_tables_recalculated": true,
+    "fixed_question_and_conditions": true,
+    "explicit_selection_and_approval": true,
+    "original_generation_time_visible": true,
+    "new_provider_calls_on_replay": 0
+  },
+  "smoke": {
+    "candidate": {
+      "passed": true,
+      "provider_calls": 0,
+      "snapshots": [
+        "disclosures",
+        "finance",
+        "investigation-births",
+        "investigation-business_mix",
+        "investigation-compensation",
+        "investigation-migration",
+        "investigation-prices",
+        "ranking",
+        "seoul"
+      ],
+      "assets_match": true,
+      "access_protection": true,
+      "approval_required": true
+    },
+    "public": {
+      "passed": true,
+      "provider_calls": 0,
+      "snapshots": [
+        "disclosures",
+        "finance",
+        "investigation-births",
+        "investigation-business_mix",
+        "investigation-compensation",
+        "investigation-migration",
+        "investigation-prices",
+        "ranking",
+        "seoul"
+      ],
+      "assets_match": true,
+      "access_protection": true,
+      "approval_required": true
+    }
+  },
+  "call_budget": {
+    "gemini_limit": 350,
+    "gemini_started": 349,
+    "preparation": 17,
+    "stage_rehearsals": 328,
+    "explicit_reapproval": 1,
+    "live_source_gemini": 3,
+    "public_limit": 50,
+    "public_started": 8,
+    "opendart_started": 0,
+    "kosis_started": 8,
+    "scope": "This authorized preparation/rehearsal, includes failed attempts. App provider-start counters, not project billing."
+  },
+  "offline_validation": {
+    "make_check_passed": true,
+    "backend_tests": 902,
+    "frontend_tests": 239,
+    "typecheck": true,
+    "build": true,
+    "lint": true,
+    "git_diff_check": true,
+    "existing_deprecation_warnings": 2
+  },
+  "remaining": [
+    "Event-day prewarm/min instances 1 then 0; operator handoff.",
+    "Campus network and Windows downloads.",
+    "81 distinct live source conditions and sustained traffic.",
+    "Possible model validation failures; explicit emergency replay available."
+  ]
+}
